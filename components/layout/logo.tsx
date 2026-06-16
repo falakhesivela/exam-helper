@@ -1,0 +1,23 @@
+import { Hammer } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+interface LogoProps {
+  className?: string
+  showWordmark?: boolean
+}
+
+/** CertForge brand lockup: an emerald mark plus optional wordmark. */
+export function Logo({ className, showWordmark = true }: LogoProps) {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <Hammer className="size-4.5" />
+      </span>
+      {showWordmark && (
+        <span className="text-lg font-semibold tracking-tight">
+          Cert<span className="text-primary">Forge</span>
+        </span>
+      )}
+    </div>
+  )
+}
