@@ -9,14 +9,29 @@ import type { ClarifyingQuestion } from "@/types"
 
 interface ClarifyingQuestionsProps {
   questions: ClarifyingQuestion[]
+  onAnswersChange?: (answers: Record<string, string>) => void
 }
 
 /**
  * Displays the AI's clarifying questions as friendly chat-style bubbles with
  * single-select chip answers. Purely presentational for the prototype.
  */
-export function ClarifyingQuestions({ questions }: ClarifyingQuestionsProps) {
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+export function ClarifyingQuestions({ questions, onAnswersChange }: ClarifyingQuestionsProps) {
+  const [answers, setAnswers] = useState<Record<string, string[]>>({})
+
+  function handleChange(id: string, value: string[]) {
+    setAnswers((a) => {
+      const next = { ...a, [id]: value }
+      if (onAnswersChange) {
+        const mapped: Record<string, string> = {}
+        for (const [qId, vals] of Object.entries(next)) {
+          if (vals[0]) mapped[qId] = vals[0]
+        }
+        onAnswersChange(mapped)
+      }
+      return next
+    })
+  }
 
   return (
     <Card className="border-primary/20">
@@ -44,16 +59,15 @@ export function ClarifyingQuestions({ questions }: ClarifyingQuestionsProps) {
               {q.question}
             </p>
             <ToggleGroup
-              type="single"
-              value={answers[q.id]}
-              onValueChange={(v) => v && setAnswers((a) => ({ ...a, [q.id]: v }))}
+              value={answers[q.id] ?? []}
+              onValueChange={(value) => handleChange(q.id, value)}
               className="flex-wrap justify-start gap-2"
             >
               {q.suggestions.map((s) => (
                 <ToggleGroupItem
                   key={s}
                   value={s}
-                  className="rounded-full border border-border data-[state=on]:border-primary data-[state=on]:bg-primary/15 data-[state=on]:text-primary"
+                  className="rounded-md border border-border aria-pressed:border-primary aria-pressed:bg-primary/15 aria-pressed:text-primary"
                 >
                   {s}
                 </ToggleGroupItem>

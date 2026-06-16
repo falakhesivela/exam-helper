@@ -1,0 +1,25 @@
+{
+  "examCode": "CUSTOM",
+  "exam": "Custom Certification Exam",
+  "domains": [
+    {
+      "id": "general",
+      "name": "General Exam Topics",
+      "weight": "100%",
+      "topics": [
+        {
+          "slug": "general-topic",
+          "name": "General Topic",
+          "outline": [
+            "Core concepts and terminology for this certification domain",
+            "Key services, tools, or frameworks covered on the exam",
+            "Common architectural patterns and best practices",
+            "Security, reliability, and performance considerations",
+            "Exam-style decision criteria: when to choose one approach over another"
+          ],
+          "references": []
+        }
+      ]
+    }
+  ]
+}

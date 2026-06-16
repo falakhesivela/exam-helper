@@ -33,6 +33,12 @@ export interface AnswerRecord {
 
 export type SessionStatus = "in-progress" | "completed"
 
+/** Whether AI question generation is still running for a session. */
+export type GenerationStatus = "generating" | "complete" | "failed"
+
+/** Whether a session is open practice (instant feedback) or a timed exam. */
+export type SessionMode = "practice" | "exam"
+
 /** A practice session generated from an intake request. */
 export interface PracticeSession {
   id: string
@@ -45,6 +51,18 @@ export interface PracticeSession {
   questions: Question[]
   answers: Record<string, AnswerRecord>
   currentIndex: number
+  /** Defaults to "practice" when omitted (back-compat with older sessions). */
+  mode?: SessionMode
+  /** Total time limit for an exam, in seconds. */
+  durationSec?: number
+  /** Seconds actually used, recorded when an exam is submitted. */
+  timeUsedSec?: number
+  /** Passing score threshold (percentage) for an exam. */
+  passMark?: number
+  /** Total questions expected once generation finishes. */
+  expectedQuestionCount?: number
+  /** Whether questions are still being generated in the background. */
+  generationStatus?: GenerationStatus
 }
 
 /** Per-topic mastery used across the dashboard and history. */
@@ -69,4 +87,46 @@ export interface ClarifyingQuestion {
   id: string
   question: string
   suggestions: string[]
+}
+
+/** AI-generated deep-dive content for a topic lesson. */
+export interface TopicLessonContent {
+  deepDive: { title: string; body: string }[]
+  commonTraps: string[]
+  recap: string
+  references: { label: string; url: string }[]
+}
+
+export type LessonStatus = "not-started" | "started" | "completed"
+
+/** A topic available for learning with mastery and lesson status. */
+export interface LearnTopic {
+  topic: string
+  slug: string
+  mastery: number
+  questionsAnswered: number
+  lessonId?: string
+  lessonStatus: LessonStatus
+  bookmarked: boolean
+  hasAiContent: boolean
+}
+
+/** Full lesson view combining curated outline and AI content. */
+export interface TopicLesson {
+  id?: string
+  topicSlug: string
+  topicName: string
+  exam: string
+  examCode: string
+  mastery: number
+  questionsAnswered: number
+  domainName: string
+  domainWeight: string
+  outline: string[]
+  curatedReferences: { label: string; url: string }[]
+  content?: TopicLessonContent
+  status: LessonStatus
+  bookmarked: boolean
+  lessonsUsedToday?: number
+  dailyLessonLimit?: number
 }

@@ -1,0 +1,172 @@
+{
+  "examCode": "SAA-C03",
+  "exam": "AWS Certified Solutions Architect – Associate",
+  "domains": [
+    {
+      "id": "design-resilient",
+      "name": "Design Resilient Architectures",
+      "weight": "30%",
+      "topics": [
+        {
+          "slug": "networking",
+          "name": "Networking",
+          "outline": [
+            "VPC design: public vs private subnets, CIDR planning, and multi-AZ layout",
+            "Internet gateway, NAT gateway, and NAT instance outbound patterns",
+            "Route tables, security groups vs NACLs, and least-privilege network access",
+            "VPC endpoints (Gateway and Interface) for private AWS service access",
+            "VPC peering, Transit Gateway, and hybrid connectivity basics",
+            "DNS with Route 53: public/private hosted zones, routing policies"
+          ],
+          "references": [
+            {
+              "label": "AWS VPC User Guide",
+              "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html"
+            },
+            {
+              "label": "AWS NAT Gateways",
+              "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html"
+            }
+          ]
+        },
+        {
+          "slug": "resilience",
+          "name": "Resilience",
+          "outline": [
+            "High availability across multiple Availability Zones",
+            "Auto Scaling groups, launch templates, and scaling policies",
+            "Elastic Load Balancing: ALB, NLB, and target group health checks",
+            "Disaster recovery strategies: backup, pilot light, warm standby, multi-site",
+            "RTO/RPO tradeoffs and failover design patterns",
+            "Route 53 health checks and DNS failover"
+          ],
+          "references": [
+            {
+              "label": "AWS Well-Architected — Reliability",
+              "url": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html"
+            }
+          ]
+        },
+        {
+          "slug": "compute",
+          "name": "Compute",
+          "outline": [
+            "EC2 instance families and right-sizing for workloads",
+            "Placement groups: cluster, spread, and partition strategies",
+            "EC2 Auto Scaling and mixed instance policies",
+            "Elastic Beanstalk and container options at a high level",
+            "Lambda for event-driven and serverless compute patterns",
+            "Choosing between EC2, containers, and serverless"
+          ],
+          "references": [
+            {
+              "label": "Amazon EC2 User Guide",
+              "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "design-high-performing",
+      "name": "Design High-Performing Architectures",
+      "weight": "28%",
+      "topics": [
+        {
+          "slug": "storage",
+          "name": "Storage",
+          "outline": [
+            "S3 storage classes: Standard, IA, One Zone-IA, Glacier tiers",
+            "S3 durability, encryption (SSE-S3, SSE-KMS, SSE-C), and access policies",
+            "EBS volume types, IOPS provisioning, and snapshot strategies",
+            "EFS vs FSx for shared and specialized file workloads",
+            "Data lifecycle policies and cost optimization for object storage",
+            "S3 performance: multipart upload, prefix design, and Transfer Acceleration"
+          ],
+          "references": [
+            {
+              "label": "Amazon S3 User Guide",
+              "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html"
+            }
+          ]
+        },
+        {
+          "slug": "databases",
+          "name": "Databases",
+          "outline": [
+            "RDS vs Aurora: when to use managed relational databases",
+            "Read replicas, Multi-AZ, and failover for RDS/Aurora",
+            "DynamoDB: partition keys, GSIs, capacity modes, and DAX caching",
+            "ElastiCache (Redis/Memcached) for in-memory acceleration",
+            "Database migration strategies: DMS, schema conversion",
+            "Choosing SQL vs NoSQL based on access patterns"
+          ],
+          "references": [
+            {
+              "label": "Amazon RDS User Guide",
+              "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html"
+            },
+            {
+              "label": "Amazon DynamoDB Developer Guide",
+              "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "design-secure",
+      "name": "Design Secure Architectures",
+      "weight": "24%",
+      "topics": [
+        {
+          "slug": "security-identity",
+          "name": "Security & Identity",
+          "outline": [
+            "IAM users, groups, roles, and policies — least privilege principles",
+            "IAM roles for EC2 (instance profiles) and cross-service access",
+            "AWS Organizations, SCPs, and multi-account governance",
+            "KMS key management, encryption at rest and in transit",
+            "AWS WAF, Shield, and edge security with CloudFront",
+            "Secrets Manager vs Systems Manager Parameter Store"
+          ],
+          "references": [
+            {
+              "label": "AWS IAM User Guide",
+              "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html"
+            },
+            {
+              "label": "AWS KMS Developer Guide",
+              "url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "design-cost-optimized",
+      "name": "Design Cost-Optimized Architectures",
+      "weight": "18%",
+      "topics": [
+        {
+          "slug": "cost-optimization",
+          "name": "Cost Optimization",
+          "outline": [
+            "Right-sizing compute and storage for workload needs",
+            "Reserved Instances, Savings Plans, and Spot Instances",
+            "S3 lifecycle rules and intelligent tiering",
+            "Data transfer costs and architecture decisions to minimize them",
+            "AWS Cost Explorer, Budgets, and tagging for cost allocation",
+            "Serverless cost models vs always-on infrastructure"
+          ],
+          "references": [
+            {
+              "label": "AWS Cost Management",
+              "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/what-is-costmanagement.html"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

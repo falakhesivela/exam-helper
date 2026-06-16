@@ -1,10 +1,15 @@
 import type {
   ClarifyingQuestion,
+  LearnTopic,
   PracticeSession,
   Question,
+  TopicLesson,
+  TopicLessonContent,
   TopicMastery,
   UserProfile,
 } from "@/types"
+import { resolveTopicName } from "@/lib/learning/topic-resolver"
+import { DEFAULT_FREE_DAILY_QUESTION_LIMIT } from "@/lib/config/freemium"
 
 // ---------------------------------------------------------------------------
 // Realistic mock content for the CertForge prototype. In production these
@@ -15,9 +20,19 @@ export const mockProfile: UserProfile = {
   name: "Jordan Avery",
   email: "jordan@certforge.app",
   plan: "free",
-  dailyLimit: 20,
+  dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
   questionsUsedToday: 8,
   streakDays: 12,
+}
+
+/** Blank profile used before API hydration (never show mock demo data). */
+export const emptyProfile: UserProfile = {
+  name: "",
+  email: "",
+  plan: "free",
+  dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
+  questionsUsedToday: 0,
+  streakDays: 0,
 }
 
 export const mockTopicMastery: TopicMastery[] = [
@@ -226,5 +241,159 @@ export function createSessionFromIntake(
     questions: SAMPLE_QUESTIONS,
     answers: {},
     currentIndex: 0,
+    mode: "practice",
+  }
+}
+
+/**
+ * Builds `count` exam questions. With only a handful of mock questions
+ * available we cycle through the sample set, giving each a unique id so
+ * answers and React keys stay distinct.
+ */
+export function buildExamQuestions(count: number): Question[] {
+  return Array.from({ length: count }, (_, i) => {
+    const base = SAMPLE_QUESTIONS[i % SAMPLE_QUESTIONS.length]
+    return { ...base, id: `${base.id}-${i + 1}` }
+  })
+}
+
+export interface ExamConfig {
+  questionCount: number
+  durationSec: number
+  exam?: string
+  examCode?: string
+}
+
+/** Default exam used by the simulator until the backend supplies real ones. */
+export const DEFAULT_EXAM = {
+  exam: "AWS Certified Solutions Architect – Associate",
+  examCode: "SAA-C03",
+  /** Real-world reference: 65 questions in 130 minutes, 72% to pass. */
+  realistic: { questionCount: 65, durationMin: 130 },
+  passMark: 72,
+}
+
+/** Builds a fresh, timed exam session. */
+export function createExamSession({
+  questionCount,
+  durationSec,
+  exam = DEFAULT_EXAM.exam,
+  examCode = DEFAULT_EXAM.examCode,
+}: ExamConfig): PracticeSession {
+  return {
+    id: `e-${Math.random().toString(36).slice(2, 8)}`,
+    exam,
+    examCode,
+    focusTopics: ["Full exam simulation"],
+    createdAt: new Date().toISOString(),
+    status: "in-progress",
+    questions: buildExamQuestions(questionCount),
+    answers: {},
+    currentIndex: 0,
+    mode: "exam",
+    durationSec,
+    passMark: DEFAULT_EXAM.passMark,
+  }
+}
+
+const MOCK_LESSON_CONTENT: TopicLessonContent = {
+  deepDive: [
+    {
+      title: "VPC fundamentals",
+      body:
+        "A Virtual Private Cloud (VPC) is your isolated network in AWS. Public subnets route to an internet gateway for inbound/outbound internet access. Private subnets have no direct internet route — outbound access typically flows through a NAT gateway in a public subnet.",
+    },
+    {
+      title: "NAT gateway pattern",
+      body:
+        "Place NAT gateways in public subnets (one per AZ for HA). Update private subnet route tables to send 0.0.0.0/0 to the NAT gateway. This lets private instances download patches without accepting inbound connections from the internet.",
+    },
+    {
+      title: "Security groups vs NACLs",
+      body:
+        "Security groups are stateful firewalls at the instance/ENI level — return traffic is automatically allowed. Network ACLs are stateless subnet-level filters evaluated in order. Exams often test which layer to use for a given access pattern.",
+    },
+  ],
+  commonTraps: [
+    "Attaching an internet gateway directly to a private subnet route table",
+    "Using long-lived IAM user keys on EC2 instead of instance profiles",
+    "Confusing security group stateful behavior with NACL stateless rules",
+    "Choosing VPC peering when Transit Gateway is better for hub-and-spoke",
+  ],
+  recap:
+    "For exam scenarios about private subnet outbound access, NAT gateway in a public subnet is the standard answer. Remember security groups are stateful and operate at the instance level, while NACLs are stateless and subnet-level. Multi-AZ NAT gateways improve availability.",
+  references: [
+    {
+      label: "AWS VPC User Guide",
+      url: "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+    },
+    {
+      label: "AWS NAT Gateways",
+      url: "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html",
+    },
+  ],
+}
+
+export function buildMockLearnTopics(): LearnTopic[] {
+  return mockTopicMastery.map((t) => {
+    const resolved = resolveTopicName(t.topic, "SAA-C03")
+    const hasAi = t.mastery < 70
+    return {
+      topic: t.topic,
+      slug: resolved.slug,
+      mastery: t.mastery,
+      questionsAnswered: t.questionsAnswered,
+      lessonId: hasAi ? `lesson-${resolved.slug}` : undefined,
+      lessonStatus: hasAi
+        ? t.mastery < 55
+          ? "started"
+          : "not-started"
+        : "not-started",
+      bookmarked: resolved.slug === "networking",
+      hasAiContent: hasAi && t.mastery < 55,
+    }
+  })
+}
+
+export function buildMockTopicLesson(topicSlug: string): TopicLesson {
+  const topicEntry = buildMockLearnTopics().find((t) => t.slug === topicSlug)
+  const topicName =
+    topicEntry?.topic ??
+    topicSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+
+  const resolved = resolveTopicName(topicName, "SAA-C03")
+  const catalogTopic = resolved.catalogTopic
+
+  return {
+    id: topicEntry?.lessonId ?? `lesson-${topicSlug}`,
+    topicSlug,
+    topicName,
+    exam: DEFAULT_EXAM.exam,
+    examCode: DEFAULT_EXAM.examCode,
+    mastery: topicEntry?.mastery ?? 50,
+    questionsAnswered: topicEntry?.questionsAnswered ?? 0,
+    domainName: catalogTopic?.domainName ?? "General",
+    domainWeight: catalogTopic?.domainWeight ?? "—",
+    outline: catalogTopic?.outline ?? [
+      "Core concepts for this topic",
+      "Key terminology and definitions",
+      "Common exam scenarios",
+    ],
+    curatedReferences: catalogTopic?.references ?? [],
+    content: topicEntry?.hasAiContent ? MOCK_LESSON_CONTENT : undefined,
+    status: topicEntry?.lessonStatus ?? "not-started",
+    bookmarked: topicEntry?.bookmarked ?? false,
+    lessonsUsedToday: 1,
+    dailyLessonLimit: 3,
+  }
+}
+
+export function generateMockTopicLesson(topicSlug: string): TopicLesson {
+  const lesson = buildMockTopicLesson(topicSlug)
+  return {
+    ...lesson,
+    content: MOCK_LESSON_CONTENT,
+    status: "started",
+    lessonsUsedToday: Math.min(3, (lesson.lessonsUsedToday ?? 0) + 1),
   }
 }

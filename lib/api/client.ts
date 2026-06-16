@@ -1,0 +1,264 @@
+import type {
+  ClarifyingQuestion,
+  LearnTopic,
+  PracticeSession,
+  TopicLesson,
+  TopicMastery,
+  UserProfile,
+} from "@/types"
+import { consumeSse } from "./stream"
+
+export class ApiClientError extends Error {
+  status: number
+  code?: string
+  remaining?: number
+
+  constructor(
+    message: string,
+    status: number,
+    extra?: { code?: string; remaining?: number },
+  ) {
+    super(message)
+    this.status = status
+    this.code = extra?.code
+    this.remaining = extra?.remaining
+  }
+}
+
+function getTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return "UTC"
+  }
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Timezone": getTimezone(),
+      ...init?.headers,
+    },
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiClientError(
+      body.error ?? res.statusText,
+      res.status,
+      { code: body.code, remaining: body.remaining },
+    )
+  }
+
+  return res.json() as Promise<T>
+}
+
+export const api = {
+  me: () => request<UserProfile>("/api/me"),
+
+  clarify: async (description: string, handlers?: {
+    onStatus?: (message: string) => void
+    onQuestion?: (index: number, question: ClarifyingQuestion) => void
+  }) => {
+    const questions: ClarifyingQuestion[] = []
+    const result = await consumeSse<{
+      needsClarification: boolean
+      questions: ClarifyingQuestion[]
+    }>(
+      "/api/intake/clarify",
+      { description },
+      {
+        onStatus: handlers?.onStatus,
+        onEvent: (event, data) => {
+          if (event === "question") {
+            const { index, question } = data as {
+              index: number
+              question: ClarifyingQuestion
+            }
+            questions[index] = question
+            handlers?.onQuestion?.(index, question)
+          }
+        },
+      },
+    )
+    return {
+      needsClarification: result.needsClarification,
+      questions: result.questions.length > 0 ? result.questions : questions,
+    }
+  },
+
+  uploadPdf: async (file: File) => {
+    const form = new FormData()
+    form.append("file", file)
+    const res = await fetch("/api/uploads", {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      headers: { "X-Timezone": getTimezone() },
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new ApiClientError(body.error ?? res.statusText, res.status)
+    }
+    return res.json() as Promise<{ fileId: string }>
+  },
+
+  generateSession: async (
+    params: {
+      description: string
+      clarifications?: Record<string, string>
+      fileId?: string
+      count?: number
+    },
+    handlers?: {
+      onStatus?: (message: string) => void
+      onMetadata?: (meta: {
+        exam?: string
+        examCode?: string
+        focusTopics?: string[]
+      }) => void
+      onQuestionPreview?: (index: number, preview: { topic?: string }) => void
+      onQuestion?: (index: number) => void
+    },
+  ) =>
+    consumeSse<PracticeSession & { remainingFreeQuestions?: number }>(
+      "/api/intake/generate",
+      params,
+      {
+        onStatus: handlers?.onStatus,
+        onEvent: (event, data) => {
+          if (event === "metadata") {
+            handlers?.onMetadata?.(
+              data as {
+                exam?: string
+                examCode?: string
+                focusTopics?: string[]
+              },
+            )
+          } else if (event === "question_preview") {
+            const { index, topic } = data as { index: number; topic?: string }
+            handlers?.onQuestionPreview?.(index, { topic })
+          } else if (event === "question") {
+            const { index } = data as { index: number }
+            handlers?.onQuestion?.(index)
+          }
+        },
+      },
+    ),
+
+  startExam: (params: {
+    questionCount: number
+    durationSec: number
+    exam?: string
+    examCode?: string
+  }) =>
+    consumeSse<PracticeSession & { remainingFreeQuestions?: number }>(
+      "/api/exams",
+      params,
+    ),
+
+  listSessions: () => request<PracticeSession[]>("/api/sessions"),
+
+  getSession: (id: string) => request<PracticeSession>(`/api/sessions/${id}`),
+
+  answerQuestion: (
+    sessionId: string,
+    body: {
+      questionId: string
+      selectedOptionIds: string[]
+      timeSpentSec: number
+    },
+  ) =>
+    request<{
+      answer: PracticeSession["answers"][string]
+      question: PracticeSession["questions"][number]
+      session: PracticeSession
+      remainingFreeQuestions: number
+    }>(`/api/sessions/${sessionId}/answer`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  markQuestion: (sessionId: string, questionId: string) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/mark`, {
+      method: "PATCH",
+      body: JSON.stringify({ questionId }),
+    }),
+
+  skipQuestion: (sessionId: string, questionId: string) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/skip`, {
+      method: "PATCH",
+      body: JSON.stringify({ questionId }),
+    }),
+
+  setCursor: (sessionId: string, index: number) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/cursor`, {
+      method: "PATCH",
+      body: JSON.stringify({ index }),
+    }),
+
+  submitExam: (
+    sessionId: string,
+    answers: Record<string, string[]>,
+    timeUsedSec: number,
+  ) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ answers, timeUsedSec }),
+    }),
+
+  completeSession: (sessionId: string) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/complete`, {
+      method: "POST",
+    }),
+
+  topicMastery: () => request<TopicMastery[]>("/api/progress/mastery"),
+
+  masteryTrend: () =>
+    request<{ label: string; mastery: number }[]>("/api/progress/trend"),
+
+  progressSummary: () =>
+    request<{
+      overallMastery: number
+      lifetimeAnswered: number
+      streakDays: number
+    }>("/api/progress/summary"),
+
+  learnTopics: () => request<LearnTopic[]>("/api/learn/topics"),
+
+  getLesson: (topicSlug: string) =>
+    request<TopicLesson>(`/api/learn/lessons/${topicSlug}`),
+
+  generateLesson: (topicSlug: string, force = false) =>
+    request<TopicLesson>(
+      `/api/learn/lessons/${topicSlug}/generate${force ? "?force=true" : ""}`,
+      { method: "POST" },
+    ),
+
+  startLesson: (topicSlug: string) =>
+    request<TopicLesson>(`/api/learn/lessons/${topicSlug}/start`, {
+      method: "POST",
+    }),
+
+  updateLessonProgress: (
+    lessonId: string,
+    body: { status?: "started" | "completed"; bookmarked?: boolean },
+  ) =>
+    request<{ status: "started" | "completed"; bookmarked: boolean }>(
+      `/api/learn/progress/${lessonId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  signOut: () =>
+    request<{ ok: boolean }>("/api/auth/signout", { method: "POST" }),
+}
+
+export const USE_MOCKS =
+  process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NODE_ENV === "development")

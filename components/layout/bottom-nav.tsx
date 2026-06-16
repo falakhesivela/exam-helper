@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass, History, LayoutDashboard, User } from "lucide-react"
+import { AlarmClock, Compass, History, LayoutDashboard, User } from "lucide-react"
 import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
 
 const items = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/exam", label: "Exam", icon: AlarmClock },
   { href: "/history", label: "History", icon: History },
   { href: "/profile", label: "Profile", icon: User },
 ]

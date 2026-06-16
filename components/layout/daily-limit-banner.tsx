@@ -31,7 +31,7 @@ export function DailyLimitBanner() {
           You&apos;ve used {used} of {limit} daily questions. Resets at midnight.
         </span>
         <Progress value={pct} className="h-1.5" />
-        <Button size="sm" className="w-full sm:w-auto">
+        <Button size="sm" className="w-full sm:w-auto sm:self-start">
           <Sparkles data-icon="inline-start" />
           Upgrade to Pro for unlimited
         </Button>

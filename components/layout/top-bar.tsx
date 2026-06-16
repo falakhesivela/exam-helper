@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass, Flame, History, LayoutDashboard, User } from "lucide-react"
+import { AlarmClock, Compass, Flame, History, LayoutDashboard, User } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/exam", label: "Exam", icon: AlarmClock },
   { href: "/history", label: "History", icon: History },
   { href: "/profile", label: "Profile", icon: User },
 ]
@@ -51,21 +52,25 @@ export function TopBar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="gap-1.5">
-            <Flame className="size-3.5 text-primary" />
-            {profile.streakDays}
-            <span className="hidden sm:inline">day streak</span>
-          </Badge>
-          <Link href="/profile" aria-label="Your profile">
-            <Avatar className="size-9">
-              <AvatarFallback className="bg-secondary text-sm font-medium">
-                {profile.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          {profile.name ? (
+            <>
+              <Badge variant="secondary" className="gap-1.5">
+                <Flame className="size-3.5 text-primary" />
+                {profile.streakDays}
+                <span className="hidden sm:inline">day streak</span>
+              </Badge>
+              <Link href="/profile" aria-label="Your profile">
+                <Avatar className="size-9">
+                  <AvatarFallback className="bg-secondary text-sm font-medium">
+                    {profile.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </>
+          ) : null}
         </div>
       </div>
     </header>

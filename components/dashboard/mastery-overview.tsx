@@ -2,7 +2,7 @@
 
 import { Area, AreaChart, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { mockMasteryTrend } from "@/lib/mock-data"
+import { useSessionStore } from "@/lib/store/use-session-store"
 
 interface MasteryOverviewProps {
   mastery: number
@@ -10,6 +10,7 @@ interface MasteryOverviewProps {
 
 /** Hero card: overall mastery as a radial ring plus a 7-day trend sparkline. */
 export function MasteryOverview({ mastery }: MasteryOverviewProps) {
+  const masteryTrend = useSessionStore((s) => s.masteryTrend)
   const radius = 52
   const circumference = 2 * Math.PI * radius
   const dash = (mastery / 100) * circumference
@@ -54,8 +55,13 @@ export function MasteryOverview({ mastery }: MasteryOverviewProps) {
             Steady improvement — keep your streak alive.
           </p>
           <div className="h-24 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockMasteryTrend} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              initialDimension={{ width: 320, height: 96 }}
+            >
+              <AreaChart data={masteryTrend} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="masteryFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />

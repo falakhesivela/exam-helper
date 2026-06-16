@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import {
   Bell,
@@ -18,13 +19,30 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
+import { Spinner } from "@/components/ui/spinner"
 import { useSessionStore } from "@/lib/store/use-session-store"
-import { mockTopicMastery } from "@/lib/mock-data"
+import { api } from "@/lib/api/client"
+import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
+  const router = useRouter()
   const profile = useSessionStore((s) => s.profile)
+  const topicMastery = useSessionStore((s) => s.topicMastery)
+  const [signingOut, setSigningOut] = useState(false)
   const used = profile.questionsUsedToday
   const limit = profile.dailyLimit
+
+  async function handleSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      await api.signOut()
+      router.push("/login")
+      router.refresh()
+    } catch {
+      setSigningOut(false)
+    }
+  }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -60,7 +78,9 @@ export default function ProfilePage() {
             <Target className="size-5 text-primary" />
             <span className="text-lg font-semibold">
               {Math.round(
-                mockTopicMastery.reduce((s, t) => s + t.mastery, 0) / mockTopicMastery.length,
+                topicMastery.length > 0
+                  ? topicMastery.reduce((s, t) => s + t.mastery, 0) / topicMastery.length
+                  : 0,
               )}
               %
             </span>
@@ -133,11 +153,18 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Button asChild variant="outline" className="w-full">
-        <Link href="/login">
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={handleSignOut}
+        disabled={signingOut}
+      >
+        {signingOut ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
           <LogOut data-icon="inline-start" />
-          Sign out
-        </Link>
+        )}
+        {signingOut ? "Signing out…" : "Sign out"}
       </Button>
     </div>
   )

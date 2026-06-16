@@ -1,33 +1,120 @@
-# certforge-ai-exam-app
+# CertForge
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+AI-powered certification exam prep. Describe your exam, get tailored multiple-choice questions, practice with instant feedback or sit timed mock exams, and track mastery over time.
 
-## Built with v0
+## Stack
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Zustand, Tailwind
+- **Backend:** Next.js Route Handlers (Node runtime) + Supabase (Postgres, Auth, Storage, RLS)
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_5C7cZG6ZmfiIbLEpI2ptNWddUD7u)
+## Prerequisites
 
-## Getting Started
+- Node.js 20+
+- A [Supabase](https://supabase.com) project
+- API keys for [xAI](https://x.ai/api) (Grok) and/or [OpenAI](https://platform.openai.com) (fallback)
 
-First, run the development server:
+## Setup
+
+### 1. Clone and install
+
+```bash
+cd certforge-ai-exam-app
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in your Supabase URL, publishable key, secret key (or legacy service role key), and AI API keys.
+
+### 3. Supabase database
+
+Apply migrations in order from `supabase/migrations/`:
+
+1. `001_schema.sql` — tables
+2. `002_rls.sql` — row-level security policies
+3. `003_triggers.sql` — profile auto-create on signup
+4. `004_questions_public_view.sql` — safe question view (no answers)
+5. `005_storage.sql` — PDF uploads bucket
+
+**Supabase CLI (recommended):**
+
+```bash
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push
+```
+
+**SQL Editor:** paste each migration file into the Supabase SQL editor and run.
+
+Optional demo seed (`supabase/seed.sql`) creates user **jordan@certforge.app** with sample SAA-C03 history. Password: `demo-password-123`. If login fails with “Database error querying schema”, run `007_fix_seed_auth_users.sql`.
+
+### 3b. Auth for local development
+
+Free-tier Supabase projects limit how many auth emails can be sent per hour. For dev, disable confirmation emails:
+
+1. Supabase Dashboard → **Authentication** → **Providers** → **Email**
+2. Turn **off** “Confirm email”
+3. Save
+
+Sign-ups will work immediately without sending mail. Re-enable confirmation before production.
+
+If you see `email rate limit exceeded`, wait ~1 hour or use the setting above.
+
+### 4. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Mock mode (no backend)
 
-## Learn More
+For UI-only development without Supabase:
 
-To learn more, take a look at the following resources:
+```bash
+NEXT_PUBLIC_USE_MOCKS=true npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Architecture
+
+| Layer | Responsibility |
+|-------|----------------|
+| Browser (`@supabase/ssr` anon client) | Auth session, RLS-protected reads |
+| Route handlers (`app/api/**`) | AI generation, grading, freemium limits, trusted writes |
+| Service role (server-only) | Persist questions with correct answers; grade server-side |
+
+Correct answers and explanations are **never** sent to the client until practice reveal or exam submit.
+
+## API overview
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/me` | User profile + today's usage |
+| `POST /api/intake/clarify` | AI clarifying questions |
+| `POST /api/intake/generate` | Generate practice session |
+| `POST /api/uploads` | Syllabus PDF upload + text extraction |
+| `POST /api/exams` | Start timed mock exam |
+| `GET /api/sessions` | Session history |
+| `PATCH /api/sessions/:id/answer` | Grade practice answer (server-side) |
+| `POST /api/sessions/:id/submit` | Submit & grade exam |
+| `GET /api/progress/*` | Mastery, trend, summary |
+
+## Deploy (Vercel)
+
+1. Import the repo as a Vercel project.
+2. Add all env vars from `.env.example`.
+3. Deploy — API routes and frontend ship as one app.
+
+## Freemium
+
+- Free plan: 20 questions/day (configurable per profile `daily_limit`)
+- Pro plan: unlimited
+- Usage resets at user-local midnight (`X-Timezone` header)
+
+## License
+
+Private — all rights reserved.
