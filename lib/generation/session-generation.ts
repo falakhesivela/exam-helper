@@ -3,7 +3,7 @@
 import { create } from "zustand"
 import type { PracticeSession } from "@/types"
 import { startSseStream } from "@/lib/api/stream"
-import { ApiClientError } from "@/lib/api/client"
+import { ApiClientError, api } from "@/lib/api/client"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 export interface GenerationProgressHandlers {
@@ -38,6 +38,12 @@ interface GenerationState {
       clarifications?: Record<string, string>
       fileId?: string
       count?: number
+      focusTopics?: string[]
+      exam?: string
+      examCode?: string
+      focusDomainIds?: string[]
+      adaptive?: boolean
+      durationSec?: number
     },
     handlers?: GenerationProgressHandlers,
   ) => void
@@ -47,6 +53,11 @@ interface GenerationState {
       durationSec: number
       exam?: string
       examCode?: string
+      description?: string
+      focusTopicsText?: string
+      focusTopics?: string[]
+      fileId?: string
+      focusDomainIds?: string[]
     },
     handlers?: GenerationProgressHandlers,
   ) => void
@@ -101,12 +112,22 @@ function wireSseHandlers(
         const { index, topic } = data as { index: number; topic?: string }
         handlers?.onQuestionPreview?.(index, { topic })
       } else if (event === "question") {
-        const { index } = data as { index: number }
+        const { sessionId, index } = data as {
+          sessionId?: string
+          index: number
+        }
         set((state) => ({
           active: state.active
-            ? { ...state.active, completedCount: index + 1 }
+            ? {
+                ...state.active,
+                completedCount: Math.max(state.active.completedCount, index + 1),
+              }
             : state.active,
         }))
+        const sid = sessionId ?? get().active?.sessionId
+        if (sid) {
+          void api.getSession(sid).then(mergeSessionIntoStore)
+        }
         handlers?.onQuestion?.(index)
       } else if (event === "ready") {
         const { sessionId, session } = data as {

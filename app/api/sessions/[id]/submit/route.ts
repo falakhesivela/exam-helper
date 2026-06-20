@@ -4,17 +4,44 @@ import { requireUser } from "@/lib/api/auth"
 import { handleRouteError } from "@/lib/api/route-utils"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
+  toAnswerRecord,
+  toPracticeSession,
+  toQuestion,
+  type DbAnswer,
+  type DbQuestion,
+  type DbSession,
+} from "@/lib/db/mappers"
+import {
+  batchUpdateTopicMastery,
   gradeAnswer,
-  loadSession,
+  gradeDragAnswer,
   updateStreak,
-  updateTopicMastery,
 } from "@/lib/db/sessions"
-import type { DbQuestion } from "@/lib/db/mappers"
+import { scheduleQuestionReview } from "@/lib/db/missed-questions"
+import { buildMasteryTopicKey } from "@/lib/exams/mastery-keys"
+import { isQuestionAnswered } from "@/lib/session-utils"
 
 export const runtime = "nodejs"
 
+const dragAnswerSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("drag_match"),
+    mapping: z.record(z.string(), z.string()),
+  }),
+  z.object({
+    type: z.literal("drag_order"),
+    order: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal("drag_categorize"),
+    buckets: z.record(z.string(), z.array(z.string())),
+  }),
+])
+
 const bodySchema = z.object({
   answers: z.record(z.string(), z.array(z.string())),
+  dragAnswers: z.record(z.string(), dragAnswerSchema).optional().default({}),
+  flagged: z.array(z.string()).optional().default([]),
   timeUsedSec: z.number().int().min(0),
 })
 
@@ -28,75 +55,126 @@ export async function POST(
     const body = bodySchema.parse(await request.json())
     const admin = createAdminClient()
 
-    const { data: session } = await admin
-      .from("sessions")
-      .select("*")
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .single()
+    const [{ data: session }, { data: questions }, { data: profile }] =
+      await Promise.all([
+        admin
+          .from("sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .eq("user_id", user.id)
+          .single(),
+        admin
+          .from("questions")
+          .select("*")
+          .eq("session_id", sessionId)
+          .order("position"),
+        admin.from("profiles").select("timezone").eq("id", user.id).single(),
+      ])
 
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
-    const { data: questions } = await admin
-      .from("questions")
-      .select("*")
-      .eq("session_id", sessionId)
-      .order("position")
+    const flaggedSet = new Set(body.flagged)
+    const answeredAt = new Date().toISOString()
+    const answerRows: Array<
+      DbAnswer & { answered_at: string }
+    > = []
+    const masteryEvents: { topic: string; isCorrect: boolean }[] = []
+    const reviewSchedules: Promise<void>[] = []
 
-    for (const q of (questions ?? []) as DbQuestion[]) {
-      const selected = body.answers[q.id] ?? []
-      const answered = selected.length > 0
+    for (const row of (questions ?? []) as DbQuestion[]) {
+      const selected = body.answers[row.id] ?? []
+      const dragAnswer = body.dragAnswers[row.id]
+      const questionType = row.question_type ?? "mcq"
+      const answered =
+        questionType === "mcq"
+          ? selected.length > 0
+          : isQuestionAnswered(
+              {
+                id: row.id,
+                topic: row.topic,
+                difficulty: row.difficulty,
+                questionType,
+                prompt: row.prompt,
+                dragData: row.drag_data ?? undefined,
+                explanation: row.explanation,
+                references: row.references ?? [],
+              },
+              selected,
+              dragAnswer,
+            )
+
       const isCorrect = answered
-        ? gradeAnswer(q.correct_option_ids, selected)
+        ? questionType === "mcq"
+          ? gradeAnswer(row.correct_option_ids, selected)
+          : gradeDragAnswer(row.drag_data ?? undefined, dragAnswer)
         : false
 
-      const { data: existing } = await admin
-        .from("answers")
-        .select("marked_for_review")
-        .eq("session_id", sessionId)
-        .eq("question_id", q.id)
-        .maybeSingle()
-
-      await admin.from("answers").upsert(
-        {
-          session_id: sessionId,
-          question_id: q.id,
-          selected_option_ids: selected,
-          is_correct: isCorrect,
-          marked_for_review: existing?.marked_for_review ?? false,
-          skipped: !answered,
-          time_spent_sec: 0,
-          answered_at: new Date().toISOString(),
-        },
-        { onConflict: "session_id,question_id" },
-      )
+      answerRows.push({
+        session_id: sessionId,
+        question_id: row.id,
+        selected_option_ids: selected,
+        drag_answer: dragAnswer ?? null,
+        is_correct: isCorrect,
+        marked_for_review: flaggedSet.has(row.id),
+        skipped: !answered,
+        time_spent_sec: 0,
+        answered_at: answeredAt,
+      })
 
       if (answered) {
-        await updateTopicMastery(admin, user.id, q.topic, isCorrect)
+        masteryEvents.push({
+          topic: buildMasteryTopicKey(session.exam_code, row.topic, row.domain_id),
+          isCorrect,
+        })
+        if (!isCorrect) {
+          reviewSchedules.push(
+            scheduleQuestionReview(admin, user.id, row.id, false),
+          )
+        }
       }
     }
 
-    await admin
-      .from("sessions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        time_used_sec: body.timeUsedSec,
-      })
-      .eq("id", sessionId)
+    const completedAt = new Date().toISOString()
 
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("timezone")
-      .eq("id", user.id)
-      .single()
+    const { error: answersError } = await admin
+      .from("answers")
+      .upsert(answerRows, { onConflict: "session_id,question_id" })
 
-    await updateStreak(admin, user.id, profile?.timezone ?? "UTC")
+    if (answersError) throw answersError
 
-    const updated = await loadSession(admin, sessionId, user.id)
-    return NextResponse.json(updated)
+    await Promise.all([
+      admin
+        .from("sessions")
+        .update({
+          status: "completed",
+          completed_at: completedAt,
+          time_used_sec: body.timeUsedSec,
+        })
+        .eq("id", sessionId),
+      batchUpdateTopicMastery(admin, user.id, masteryEvents),
+      updateStreak(admin, user.id, profile?.timezone ?? "UTC"),
+      ...reviewSchedules,
+    ])
+
+    const mappedQuestions = (questions ?? []).map((q) =>
+      toQuestion(q as DbQuestion),
+    )
+    const answerMap: Record<string, ReturnType<typeof toAnswerRecord>> = {}
+    for (const row of answerRows) {
+      answerMap[row.question_id] = toAnswerRecord(row)
+    }
+
+    const updatedSession: DbSession = {
+      ...(session as DbSession),
+      status: "completed",
+      completed_at: completedAt,
+      time_used_sec: body.timeUsedSec,
+    }
+
+    const result = toPracticeSession(updatedSession, mappedQuestions, answerMap)
+    return NextResponse.json(result)
   } catch (err) {
     return handleRouteError(err)
   }

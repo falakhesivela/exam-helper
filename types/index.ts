@@ -6,17 +6,63 @@ export interface QuestionOption {
   text: string
 }
 
-/** A multiple-choice question. Supports single- and multi-select. */
+export type QuestionType =
+  | "mcq"
+  | "drag_match"
+  | "drag_order"
+  | "drag_categorize"
+
+export interface DragItem {
+  id: string
+  text: string
+}
+
+export interface DropTarget {
+  id: string
+  label: string
+}
+
+export type DragQuestionData =
+  | {
+      type: "drag_match"
+      items: DragItem[]
+      targets: DropTarget[]
+      correctMatch: Record<string, string>
+    }
+  | {
+      type: "drag_order"
+      items: DragItem[]
+      correctOrder: string[]
+    }
+  | {
+      type: "drag_categorize"
+      categories: { id: string; label: string }[]
+      items: DragItem[]
+      correctBuckets: Record<string, string[]>
+    }
+
+export type DragAnswer =
+  | { type: "drag_match"; mapping: Record<string, string> }
+  | { type: "drag_order"; order: string[] }
+  | { type: "drag_categorize"; buckets: Record<string, string[]> }
+
+/** A certification exam question (MCQ or drag-and-drop). */
 export interface Question {
   id: string
   topic: string
   difficulty: "easy" | "medium" | "hard"
-  /** When true, more than one option is correct (multi-select). */
-  multiSelect: boolean
+  questionType?: QuestionType
+  /** Optional scenario paragraph shown above the question line. */
+  scenario?: string
   prompt: string
-  options: QuestionOption[]
-  /** Ids of the correct option(s). */
-  correctOptionIds: string[]
+  /** Blueprint domain id for scorecard grouping. */
+  domainId?: string
+  /** MCQ fields — present when questionType is mcq or omitted. */
+  multiSelect?: boolean
+  options?: QuestionOption[]
+  correctOptionIds?: string[]
+  /** Drag payload and answer key — stripped during in-progress exams. */
+  dragData?: DragQuestionData
   explanation: string
   references: { label: string; url: string }[]
 }
@@ -25,6 +71,7 @@ export interface Question {
 export interface AnswerRecord {
   questionId: string
   selectedOptionIds: string[]
+  dragAnswer?: DragAnswer
   isCorrect: boolean
   markedForReview: boolean
   skipped: boolean
@@ -67,7 +114,12 @@ export interface PracticeSession {
 
 /** Per-topic mastery used across the dashboard and history. */
 export interface TopicMastery {
+  /** Canonical storage key (may be `EXAMCODE::domainId` for blueprint exams). */
   topic: string
+  /** Human-readable label for UI. */
+  displayTopic?: string
+  domainId?: string
+  examCode?: string
   mastery: number // 0-100
   questionsAnswered: number
 }

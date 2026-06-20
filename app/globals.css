@@ -49,6 +49,15 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --height-control: var(--control-height);
+  --height-control-sm: var(--control-height-sm);
+  --height-control-lg: var(--control-height-lg);
+  --size-control: var(--control-height);
+  --size-control-sm: var(--control-height-sm);
+  --size-control-lg: var(--control-height-lg);
+  --spacing-control: var(--control-height);
+  --spacing-control-sm: var(--control-height-sm);
+  --spacing-control-lg: var(--control-height-lg);
 }
 
 /*
@@ -86,6 +95,9 @@
   --chart-4: oklch(0.62 0.2 18);
   --chart-5: oklch(0.7 0.09 300);
   --radius: 0.5rem;
+  --control-height: 2.5rem;
+  --control-height-sm: 2rem;
+  --control-height-lg: 2.75rem;
   --sidebar: oklch(0.19 0.013 250);
   --sidebar-foreground: oklch(0.96 0.005 250);
   --sidebar-primary: oklch(0.76 0.13 168);

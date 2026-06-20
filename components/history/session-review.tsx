@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, Check, X } from "lucide-react"
+import { useMemo } from "react"
+import { ArrowLeft, Check, Flag, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,16 +10,24 @@ import { Progress } from "@/components/ui/progress"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { scoreOf } from "@/lib/session-utils"
+import { QuestionStem } from "@/components/exam/vue/question-stem"
 import { cn } from "@/lib/utils"
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"]
 
 interface SessionReviewProps {
   sessionId: string
+  filter?: "all" | "flagged"
 }
 
-export function SessionReview({ sessionId }: SessionReviewProps) {
+export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps) {
   const session = useSessionStore((s) => s.getSession(sessionId))
+
+  const questions = useMemo(() => {
+    if (!session) return []
+    if (filter !== "flagged") return session.questions
+    return session.questions.filter((q) => session.answers[q.id]?.markedForReview)
+  }, [session, filter])
 
   if (!session) {
     return (
@@ -35,6 +44,9 @@ export function SessionReview({ sessionId }: SessionReviewProps) {
   }
 
   const { correct, total, pct } = scoreOf(session)
+  const flaggedTotal = session.questions.filter(
+    (q) => session.answers[q.id]?.markedForReview,
+  ).length
 
   return (
     <div className="flex flex-col gap-5">
@@ -44,14 +56,50 @@ export function SessionReview({ sessionId }: SessionReviewProps) {
             <ArrowLeft />
           </Link>
         </Button>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold tracking-tight">{session.examCode}</h1>
           <p className="text-sm text-muted-foreground">
-            {session.focusTopics.join(", ")}
+            {filter === "flagged"
+              ? `Flagged questions (${questions.length})`
+              : session.focusTopics.join(", ")}
           </p>
         </div>
       </div>
 
+      {flaggedTotal > 0 && (
+        <div className="flex gap-2">
+          <Button
+            asChild
+            size="sm"
+            variant={filter === "all" ? "default" : "outline"}
+          >
+            <Link href={`/history/${sessionId}`}>All questions</Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            variant={filter === "flagged" ? "default" : "outline"}
+          >
+            <Link href={`/history/${sessionId}?filter=flagged`}>
+              <Flag data-icon="inline-start" />
+              Flagged ({flaggedTotal})
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {filter === "flagged" && questions.length === 0 && (
+        <Empty className="rounded-xl border border-border py-10">
+          <EmptyHeader>
+            <EmptyTitle>No flagged questions</EmptyTitle>
+            <EmptyDescription>
+              You did not flag any questions in this session.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+
+      {filter === "all" && (
       <Card>
         <CardContent className="flex items-center justify-between gap-4 p-5">
           <div>
@@ -65,9 +113,10 @@ export function SessionReview({ sessionId }: SessionReviewProps) {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="flex flex-col gap-4">
-        {session.questions.map((q, qi) => {
+        {questions.map((q, qi) => {
           const record = session.answers[q.id]
           const userCorrect = record?.isCorrect
           return (
@@ -77,15 +126,24 @@ export function SessionReview({ sessionId }: SessionReviewProps) {
                   <Badge variant="secondary">
                     {qi + 1}. {q.topic}
                   </Badge>
-                  <Badge variant={userCorrect ? "default" : "destructive"}>
+                  <div className="flex items-center gap-2">
+                    {record?.markedForReview && (
+                      <Badge variant="outline">
+                        <Flag className="size-3" />
+                        Flagged
+                      </Badge>
+                    )}
+                    <Badge variant={userCorrect ? "default" : "destructive"}>
                     {record?.skipped ? "Skipped" : userCorrect ? "Correct" : "Incorrect"}
-                  </Badge>
+                    </Badge>
+                  </div>
                 </div>
-                <p className="font-medium leading-relaxed">{q.prompt}</p>
+                <QuestionStem question={q} />
 
+                {(q.options ?? []).length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  {q.options.map((opt, oi) => {
-                    const isAnswer = q.correctOptionIds.includes(opt.id)
+                  {(q.options ?? []).map((opt, oi) => {
+                    const isAnswer = (q.correctOptionIds ?? []).includes(opt.id)
                     const wasSelected = record?.selectedOptionIds.includes(opt.id)
                     return (
                       <div
@@ -118,6 +176,11 @@ export function SessionReview({ sessionId }: SessionReviewProps) {
                     )
                   })}
                 </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Drag-and-drop question — review your assigned matches in the exam summary.
+                  </p>
+                )}
 
                 <div className="rounded-xl bg-secondary/40 p-3 text-sm leading-relaxed text-foreground/90">
                   <span className="font-medium text-foreground">Explanation: </span>

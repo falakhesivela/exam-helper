@@ -157,6 +157,11 @@ export const api = {
     durationSec: number
     exam?: string
     examCode?: string
+    description?: string
+    focusTopicsText?: string
+    focusTopics?: string[]
+    fileId?: string
+    focusDomainIds?: string[]
   }) =>
     consumeSse<PracticeSession & { remainingFreeQuestions?: number }>(
       "/api/exams",
@@ -172,6 +177,7 @@ export const api = {
     body: {
       questionId: string
       selectedOptionIds: string[]
+      dragAnswer?: import("@/types").DragAnswer
       timeSpentSec: number
     },
   ) =>
@@ -206,11 +212,13 @@ export const api = {
   submitExam: (
     sessionId: string,
     answers: Record<string, string[]>,
+    flagged: string[],
     timeUsedSec: number,
+    dragAnswers: Record<string, import("@/types").DragAnswer> = {},
   ) =>
     request<PracticeSession>(`/api/sessions/${sessionId}/submit`, {
       method: "POST",
-      body: JSON.stringify({ answers, timeUsedSec }),
+      body: JSON.stringify({ answers, dragAnswers, flagged, timeUsedSec }),
     }),
 
   completeSession: (sessionId: string) =>
@@ -219,6 +227,42 @@ export const api = {
     }),
 
   topicMastery: () => request<TopicMastery[]>("/api/progress/mastery"),
+
+  missedQuestions: (dueOnly = false) =>
+    request<{
+      items: Array<{
+        questionId: string
+        sessionId: string
+        exam: string
+        examCode: string
+        answeredAt: string
+        question: PracticeSession["questions"][number]
+      }>
+      count: number
+    }>(`/api/progress/missed?due=${dueOnly}`),
+
+  retryMissedQuestion: (
+    questionId: string,
+    body: {
+      selectedOptionIds: string[]
+      dragAnswer?: import("@/types").DragAnswer
+      timeSpentSec?: number
+    },
+  ) =>
+    request<{
+      isCorrect: boolean
+      question: PracticeSession["questions"][number]
+      remainingCount: number
+    }>(`/api/progress/missed/${questionId}/retry`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  practiceTutor: (questionId: string, selectedOptionIds: string[]) =>
+    request<{ reply: string }>("/api/practice/tutor", {
+      method: "POST",
+      body: JSON.stringify({ questionId, selectedOptionIds }),
+    }),
 
   masteryTrend: () =>
     request<{ label: string; mastery: number }[]>("/api/progress/trend"),

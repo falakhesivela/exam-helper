@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useWatch } from "react-hook-form"
@@ -20,6 +20,14 @@ import { toast } from "sonner"
 import { AnalyzeProgress, GenerateProgress } from "@/components/ai/generate-progress"
 import { ClarifyingQuestions } from "@/components/intake/clarifying-questions"
 import { useGenerationStore } from "@/lib/generation/session-generation"
+import {
+  getExamBlueprint,
+  listExamPresetsByProvider,
+  mapWeakTopicsToDomains,
+  parseMasteryTopicKey,
+} from "@/lib/exams"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import type { ClarifyingQuestion } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -37,11 +45,51 @@ const EXAMPLE_PROMPTS = [
   "Google Cloud Associate Engineer, focus on IAM and VPCs.",
 ]
 
+const SESSION_SIZE_PRESETS = [5, 10, 15, 20] as const
+
+function SessionSizeChip({
+  active,
+  children,
+  onClick,
+  disabled,
+}: {
+  active: boolean
+  children: ReactNode
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+        disabled && "pointer-events-none opacity-50",
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 type Phase = "describe" | "analyzing" | "clarify" | "generating"
 
-export function IntakeForm() {
+interface IntakeFormProps {
+  initialTopic?: string
+  initialExamCode?: string
+}
+
+export function IntakeForm({
+  initialTopic,
+  initialExamCode,
+}: IntakeFormProps = {}) {
   const router = useRouter()
   const remaining = useSessionStore((s) => s.remainingFreeQuestions())
+  const topicMastery = useSessionStore((s) => s.topicMastery)
   const hydrate = useSessionStore((s) => s.hydrate)
 
   const [phase, setPhase] = useState<Phase>("describe")
@@ -64,7 +112,38 @@ export function IntakeForm() {
   const [completedQuestions, setCompletedQuestions] = useState(0)
   const [isClarifyStreaming, setIsClarifyStreaming] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const questionCount = 5
+  const [questionCount, setQuestionCount] = useState(5)
+  const [selectedPresetCode, setSelectedPresetCode] = useState<string | null>(null)
+  const [adaptiveEnabled, setAdaptiveEnabled] = useState(false)
+  const [timedPractice, setTimedPractice] = useState(false)
+  const [practiceMinutes, setPracticeMinutes] = useState(15)
+  const presetGroups = listExamPresetsByProvider()
+  const isPro = useSessionStore((s) => s.profile.plan === "pro")
+  const maxQuestions = isPro ? 20 : Math.min(20, remaining)
+  const selectedPreset = selectedPresetCode
+    ? presetGroups
+        .flatMap((g) => g.presets)
+        .find((p) => p.examCode === selectedPresetCode)
+    : undefined
+
+  const adaptiveFocusDomainIds = useMemo(() => {
+    if (!adaptiveEnabled || !selectedPreset) return undefined
+    const blueprint = getExamBlueprint(selectedPreset.examCode)
+    if (!blueprint) return undefined
+    const relevant = topicMastery.filter((t) => {
+      const parsed = parseMasteryTopicKey(t.topic)
+      if (!parsed) return true
+      return parsed.examCode.toUpperCase() === blueprint.examCode.toUpperCase()
+    })
+    const weakest = [...relevant]
+      .sort((a, b) => a.mastery - b.mastery)
+      .slice(0, 3)
+    if (weakest.length === 0) return undefined
+    return mapWeakTopicsToDomains(
+      blueprint,
+      weakest.map((t) => t.topic),
+    ).map((d) => d.id)
+  }, [adaptiveEnabled, selectedPreset, topicMastery])
 
   const form = useForm<IntakeValues>({
     resolver: zodResolver(intakeSchema),
@@ -74,6 +153,23 @@ export function IntakeForm() {
 
   const description =
     useWatch({ control: form.control, name: "description" }) ?? ""
+
+  useEffect(() => {
+    if (!initialTopic) return
+    const prefill = initialExamCode
+      ? `I'm studying for ${initialExamCode} and want focused practice on ${initialTopic}. Generate exam-style questions on this topic.`
+      : `I want focused practice on ${initialTopic}. Generate exam-style questions on this topic.`
+    form.setValue("description", prefill, { shouldValidate: true })
+  }, [initialTopic, initialExamCode, form])
+
+  function applyPreset(examCode: string, examName: string) {
+    setSelectedPresetCode(examCode)
+    form.setValue(
+      "description",
+      `I'm preparing for the ${examName} (${examCode}) certification exam. Generate practice questions across the main exam domains.`,
+      { shouldValidate: true },
+    )
+  }
 
   async function onSubmitDescription(values: IntakeValues) {
     if (USE_MOCKS) {
@@ -108,6 +204,10 @@ export function IntakeForm() {
   }
 
   async function handleGenerate() {
+    if (!isPro && questionCount > remaining) {
+      toast.error(`Only ${remaining} free questions remaining today`)
+      return
+    }
     setPhase("generating")
     setGenerateStatus("Generating exam-style questions…")
     setGenerateMeta({})
@@ -145,6 +245,12 @@ export function IntakeForm() {
           clarifications: clarificationAnswers,
           fileId,
           count: questionCount,
+          focusTopics: initialTopic ? [initialTopic] : undefined,
+          exam: selectedPreset ? selectedPreset.exam : undefined,
+          examCode: selectedPreset?.examCode,
+          adaptive: adaptiveEnabled,
+          focusDomainIds: adaptiveFocusDomainIds,
+          durationSec: timedPractice ? practiceMinutes * 60 : undefined,
         },
         {
           onStatus: setGenerateStatus,
@@ -212,11 +318,44 @@ export function IntakeForm() {
 
   return (
     <div className="flex flex-col gap-5">
+      {!initialTopic && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Quick start from a preset</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {presetGroups.map((group) => (
+              <div key={group.provider} className="flex flex-col gap-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {group.provider}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {group.presets.map((preset) => (
+                    <SessionSizeChip
+                      key={preset.examCode}
+                      active={selectedPresetCode === preset.examCode}
+                      onClick={() => applyPreset(preset.examCode, preset.exam)}
+                    >
+                      {preset.examCode}
+                    </SessionSizeChip>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex flex-wrap items-center gap-2">
             <Wand2 className="size-4 text-primary" />
             Describe your exam
+            {initialTopic && (
+              <Badge variant="secondary" className="font-normal">
+                Focus: {initialTopic}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -386,7 +525,81 @@ export function IntakeForm() {
       {(phase === "clarify" || phase === "generating") && (
         <div className="flex flex-col gap-3">
           {phase === "clarify" && (
-            <Button size="lg" onClick={handleGenerate} disabled={isClarifyStreaming}>
+            <Card>
+              <CardContent className="flex flex-col gap-3 p-4">
+                <p className="text-sm font-medium">Session size</p>
+                <div className="flex flex-wrap gap-2">
+                  {SESSION_SIZE_PRESETS.map((n) => (
+                    <SessionSizeChip
+                      key={n}
+                      active={questionCount === n}
+                      disabled={n > maxQuestions}
+                      onClick={() => setQuestionCount(n)}
+                    >
+                      {n} questions
+                    </SessionSizeChip>
+                  ))}
+                </div>
+                {!isPro && maxQuestions < 20 && (
+                  <p className="text-xs text-muted-foreground">
+                    Limited to {maxQuestions} based on your remaining daily quota.
+                  </p>
+                )}
+                {selectedPreset && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+                    <div className="flex flex-col gap-0.5">
+                      <Label htmlFor="adaptive" className="text-sm font-medium">
+                        Smart session
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Weight questions toward your weakest domains
+                      </p>
+                    </div>
+                    <Switch
+                      id="adaptive"
+                      checked={adaptiveEnabled}
+                      onCheckedChange={setAdaptiveEnabled}
+                      disabled={!topicMastery.length}
+                    />
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <Label htmlFor="timed" className="text-sm font-medium">
+                      Timed practice
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Optional session time limit
+                    </p>
+                  </div>
+                  <Switch
+                    id="timed"
+                    checked={timedPractice}
+                    onCheckedChange={setTimedPractice}
+                  />
+                </div>
+                {timedPractice && (
+                  <div className="flex flex-wrap gap-2">
+                    {[10, 15, 20, 30].map((m) => (
+                      <SessionSizeChip
+                        key={m}
+                        active={practiceMinutes === m}
+                        onClick={() => setPracticeMinutes(m)}
+                      >
+                        {m} min
+                      </SessionSizeChip>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {phase === "clarify" && (
+            <Button
+              size="lg"
+              onClick={handleGenerate}
+              disabled={isClarifyStreaming || questionCount > maxQuestions}
+            >
               {isClarifyStreaming ? (
                 <Spinner data-icon="inline-start" />
               ) : (

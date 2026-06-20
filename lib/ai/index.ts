@@ -12,7 +12,7 @@ import {
   generateSystemPrompt,
   generateUserPrompt,
 } from "./prompts"
-import { filterValidQuestions } from "./validator"
+import { filterValidMcqQuestions } from "./validator"
 import { topicLessonContentSchema } from "./lesson-schemas"
 import { lessonSystemPrompt, lessonUserPrompt } from "./lesson-prompts"
 import type { TopicLessonContent } from "@/types"
@@ -126,7 +126,9 @@ export async function generateQuestions(params: {
       ),
     )
 
-    const valid = filterValidQuestions(result.questions)
+    const valid = filterValidMcqQuestions(
+      result.questions.map((q) => ({ ...q, questionType: "mcq" as const })),
+    )
     lastValid = valid
 
     if (valid.length >= params.count) {

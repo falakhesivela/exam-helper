@@ -54,7 +54,7 @@ export function useSessionSync(sessionId: string, session: PracticeSession | und
 
     const id = window.setInterval(() => {
       void pollRef.current()
-    }, 2500)
+    }, 1500)
 
     return () => window.clearInterval(id)
   }, [session?.generationStatus, session?.id])

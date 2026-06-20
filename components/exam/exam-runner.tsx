@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AnimatePresence, motion } from "motion/react"
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,7 +11,6 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
   AlertDialog,
@@ -32,17 +30,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { OptionCard } from "@/components/quiz/option-card"
 import { ExamSummary } from "@/components/exam/exam-summary"
+import { ExamQuestionPane } from "@/components/exam/vue/exam-question-pane"
+import { AwsServiceHelp } from "@/components/exam/vue/aws-service-help"
+import { ExamRules } from "@/components/exam/vue/exam-rules"
+import {
+  ExamNavigator,
+  ItemReviewScreen,
+} from "@/components/exam/vue/item-review-screen"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Spinner } from "@/components/ui/spinner"
 import { GenerationStatusBanner } from "@/components/generation/generation-tracker"
+import { getExamBlueprint } from "@/lib/exams"
+import { examShowsAwsServiceHelp } from "@/lib/exams/aws-service-abbreviations"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import { useSessionSync } from "@/hooks/use-session-sync"
 import { useCountdown, formatClock } from "@/hooks/use-countdown"
-import type { PracticeSession } from "@/types"
+import type { DragAnswer, PracticeSession } from "@/types"
+import { isExamQuestionAnswered } from "@/lib/exam-answer-state"
 import { cn } from "@/lib/utils"
+
+type ExamPhase = "rules" | "exam" | "review" | "done"
 
 interface ExamRunnerProps {
   sessionId: string
@@ -122,7 +131,9 @@ interface InnerProps {
   onSubmit: (
     sessionId: string,
     answers: Record<string, string[]>,
+    flagged: string[],
     timeUsedSec: number,
+    dragAnswers: Record<string, DragAnswer>,
   ) => Promise<void>
   onExit: () => void
 }
@@ -135,58 +146,70 @@ function ExamRunnerInner({
   onSubmit,
   onExit,
 }: InnerProps) {
+  const blueprint = getExamBlueprint(session.examCode)
   const total = Math.max(expectedTotal, availableCount, session.questions.length)
   const durationSec = session.durationSec ?? 30 * 60
   const canSubmit = !isGenerating && availableCount >= expectedTotal
+  const passMark = session.passMark ?? blueprint?.passMark ?? 72
+  const durationMin = Math.round(durationSec / 60)
 
+  const [phase, setPhase] = useState<ExamPhase>("rules")
+  const [timerActive, setTimerActive] = useState(false)
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string[]>>({})
+  const [dragAnswers, setDragAnswers] = useState<Record<string, DragAnswer>>({})
   const [flagged, setFlagged] = useState<Set<string>>(new Set())
-  const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
 
-  const remaining = useCountdown(durationSec, !submitted && !submitting, () => {
+  const remaining = useCountdown(durationSec, timerActive && !submitting, () => {
     void handleSubmit()
   })
 
   const question = session.questions[index]
   const selected = answers[question?.id] ?? []
+  const dragAnswer = question ? dragAnswers[question.id] : undefined
   const answeredCount = useMemo(
-    () => session.questions.filter((q) => (answers[q.id] ?? []).length > 0).length,
-    [answers, session.questions],
+    () =>
+      session.questions.filter((q) =>
+        isExamQuestionAnswered(q, answers, dragAnswers),
+      ).length,
+    [answers, dragAnswers, session.questions],
   )
 
   async function handleSubmit() {
-    if (submitted || submitting || !canSubmit) return
+    if (phase === "done" || submitting || !canSubmit) return
     setSubmitting(true)
     try {
       const timeUsed = Math.min(durationSec, durationSec - remaining)
-      await onSubmit(session.id, answers, Math.max(0, timeUsed))
-      setSubmitted(true)
+      await onSubmit(
+        session.id,
+        answers,
+        [...flagged],
+        Math.max(0, timeUsed),
+        dragAnswers,
+      )
+      setPhase("done")
       setNavOpen(false)
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (submitting) {
-    return <LoadingScreen message="Scoring your exam…" />
+  function startExam() {
+    setPhase("exam")
+    setTimerActive(true)
   }
 
-  if (!question) {
-    return <LoadingScreen message="Preparing question…" />
-  }
-
-  if (submitted) {
-    return (
-      <div className="min-h-dvh px-4 py-8">
-        <ExamSummary session={session} timeUsedSec={durationSec - remaining} />
-      </div>
-    )
+  function goTo(i: number) {
+    const maxIndex = Math.max(availableCount - 1, 0)
+    setIndex(Math.min(Math.max(i, 0), maxIndex))
+    setNavOpen(false)
+    if (phase === "review") setPhase("exam")
   }
 
   function toggleOption(optionId: string) {
+    if (!question) return
     setAnswers((prev) => {
       const current = prev[question.id] ?? []
       let next: string[]
@@ -202,6 +225,7 @@ function ExamRunnerInner({
   }
 
   function toggleFlag() {
+    if (!question) return
     setFlagged((prev) => {
       const next = new Set(prev)
       if (next.has(question.id)) next.delete(question.id)
@@ -210,10 +234,109 @@ function ExamRunnerInner({
     })
   }
 
-  function goTo(i: number) {
-    const maxIndex = Math.max(availableCount - 1, 0)
-    setIndex(Math.min(Math.max(i, 0), maxIndex))
-    setNavOpen(false)
+  useEffect(() => {
+    if (phase !== "exam" || submitting) return
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (!event.altKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      if (key === "n" || event.key === "ArrowRight") {
+        event.preventDefault()
+        if (index + 1 < availableCount) goTo(index + 1)
+        else if (canSubmit) setPhase("review")
+      } else if (key === "p" || event.key === "ArrowLeft") {
+        event.preventDefault()
+        if (index > 0) goTo(index - 1)
+      } else if (key === "f") {
+        event.preventDefault()
+        if (!question) return
+        setFlagged((prev) => {
+          const next = new Set(prev)
+          if (next.has(question.id)) next.delete(question.id)
+          else next.add(question.id)
+          return next
+        })
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [
+    phase,
+    submitting,
+    index,
+    availableCount,
+    canSubmit,
+    question?.id,
+  ])
+
+  function beginReviewFilter(mode: "all" | "incomplete" | "flagged") {
+    const ids = session.questions.map((q) => q.id)
+    let target = 0
+    if (mode === "incomplete") {
+      target = session.questions.findIndex(
+        (q) => !isExamQuestionAnswered(q, answers, dragAnswers),
+      )
+    } else if (mode === "flagged") {
+      target = ids.findIndex((id) => flagged.has(id))
+    }
+    setIndex(target >= 0 ? target : 0)
+    setPhase("exam")
+  }
+
+  if (submitting) {
+    return <LoadingScreen message="Scoring your exam…" />
+  }
+
+  if (phase === "done") {
+    return (
+      <div className="min-h-dvh px-4 py-8">
+        <ExamSummary session={session} timeUsedSec={durationSec - remaining} />
+      </div>
+    )
+  }
+
+  if (phase === "rules") {
+    return (
+      <ExamRules
+        examCode={session.examCode}
+        examName={session.exam}
+        questionCount={total}
+        durationMin={durationMin}
+        passMark={passMark}
+        questionsReady={session.questions.length > 0}
+        isGenerating={isGenerating}
+        onStart={startExam}
+      />
+    )
+  }
+
+  if (phase === "review") {
+    return (
+      <ItemReviewScreen
+        total={total}
+        answeredCount={answeredCount}
+        flaggedCount={flagged.size}
+        canSubmit={canSubmit}
+        onReviewAll={() => beginReviewFilter("all")}
+        onReviewIncomplete={() => beginReviewFilter("incomplete")}
+        onReviewFlagged={() => beginReviewFilter("flagged")}
+        onEndReview={() => void handleSubmit()}
+      />
+    )
+  }
+
+  if (!question) {
+    return <LoadingScreen message="Preparing question…" />
   }
 
   const isFlagged = flagged.has(question.id)
@@ -221,9 +344,8 @@ function ExamRunnerInner({
   const warnTime = remaining <= 300 && !lowTime
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      {/* Focus-mode header with countdown */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-lg">
+    <div className="flex min-h-dvh flex-col bg-muted/20">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -235,8 +357,7 @@ function ExamRunnerInner({
               <AlertDialogHeader>
                 <AlertDialogTitle>Leave the exam?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Your exam won&apos;t be scored and progress will be lost. The
-                  timer stops when you leave.
+                  Your exam won&apos;t be scored and progress will be lost.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -263,7 +384,7 @@ function ExamRunnerInner({
 
           <div
             className={cn(
-              "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold tabular-nums",
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold tabular-nums",
               lowTime
                 ? "bg-destructive/15 text-destructive"
                 : warnTime
@@ -288,59 +409,23 @@ function ExamRunnerInner({
         </div>
       </header>
 
-      {/* Question body */}
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={question.id}
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-5"
-          >
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{question.topic}</Badge>
-                <Badge variant="outline" className="capitalize">
-                  {question.difficulty}
-                </Badge>
-                {question.multiSelect && (
-                  <Badge variant="outline">Select all that apply</Badge>
-                )}
-                {isFlagged && (
-                  <Badge variant="outline" className="gap-1 text-chart-3">
-                    <Flag className="size-3" />
-                    Flagged
-                  </Badge>
-                )}
-              </div>
-              <h1 className="text-balance text-xl font-medium leading-relaxed sm:text-2xl">
-                {question.prompt}
-              </h1>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              {question.options.map((option, i) => (
-                <OptionCard
-                  key={option.id}
-                  option={option}
-                  index={i}
-                  selected={selected.includes(option.id)}
-                  revealed={false}
-                  isCorrect={false}
-                  multiSelect={question.multiSelect}
-                  disabled={false}
-                  onToggle={() => toggleOption(option.id)}
-                />
-              ))}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6">
+        {examShowsAwsServiceHelp(session.examCode) && <AwsServiceHelp />}
+        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+          <ExamQuestionPane
+            question={question}
+            selected={selected}
+            dragAnswer={dragAnswer}
+            isFlagged={isFlagged}
+            onToggleOption={toggleOption}
+            onDragAnswerChange={(next) =>
+              setDragAnswers((prev) => ({ ...prev, [question.id]: next }))
+            }
+          />
+        </div>
       </div>
 
-      {/* Sticky action footer */}
-      <footer className="sticky bottom-0 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg">
+      <footer className="sticky bottom-0 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-3">
           <Button
             variant="ghost"
@@ -352,7 +437,7 @@ function ExamRunnerInner({
             <ArrowLeft />
           </Button>
           <Button
-            variant={isFlagged ? "secondary" : "ghost"}
+            variant={isFlagged ? "secondary" : "outline"}
             size="lg"
             onClick={toggleFlag}
             className={cn(isFlagged && "text-chart-3")}
@@ -367,21 +452,20 @@ function ExamRunnerInner({
               <ArrowRight data-icon="inline-end" />
             </Button>
           ) : (
-            <SubmitButton
-              answeredCount={answeredCount}
-              total={total}
-              submitting={submitting}
-              disabled={!canSubmit}
-              onSubmit={() => void handleSubmit()}
+            <Button
+              size="lg"
               className="flex-1"
-            />
+              disabled={!canSubmit}
+              onClick={() => setPhase("review")}
+            >
+              {canSubmit ? "Review & submit" : "Waiting for questions…"}
+            </Button>
           )}
         </div>
       </footer>
 
-      {/* Question navigator */}
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Question navigator</SheetTitle>
             <SheetDescription>
@@ -389,121 +473,32 @@ function ExamRunnerInner({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex flex-wrap gap-2 overflow-y-auto px-4">
-            {session.questions.map((q, i) => {
-              const isAnswered = (answers[q.id] ?? []).length > 0
-              const qFlagged = flagged.has(q.id)
-              const isCurrent = i === index
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => goTo(i)}
-                  aria-label={`Go to question ${i + 1}`}
-                  aria-current={isCurrent ? "true" : undefined}
-                  className={cn(
-                    "relative flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
-                    isCurrent && "ring-2 ring-ring ring-offset-2 ring-offset-popover",
-                    isAnswered
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40",
-                  )}
-                >
-                  {i + 1}
-                  {qFlagged && (
-                    <span className="absolute -right-1 -top-1 flex size-3 items-center justify-center rounded-full bg-chart-3 text-[8px] text-background">
-                      <Flag className="size-2" />
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+          <div className="flex-1 overflow-y-auto px-4">
+            <ExamNavigator
+              total={total}
+              currentIndex={index}
+              answers={answers}
+              dragAnswers={dragAnswers}
+              questions={session.questions}
+              flagged={flagged}
+              questionIds={session.questions.map((q) => q.id)}
+              onGoTo={goTo}
+            />
           </div>
 
-          <div className="mt-auto flex flex-col gap-3 border-t border-border p-4">
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="size-3 rounded border border-primary bg-primary/15" />
-                Answered
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-3 rounded border border-border" />
-                Unanswered
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Flag className="size-3 text-chart-3" />
-                Flagged
-              </span>
-            </div>
-            <SubmitButton
-              answeredCount={answeredCount}
-              total={total}
-              submitting={submitting}
+          <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
+            <Button
               disabled={!canSubmit}
-              onSubmit={() => void handleSubmit()}
-            />
+              onClick={() => {
+                setNavOpen(false)
+                setPhase("review")
+              }}
+            >
+              Review & submit
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
     </div>
-  )
-}
-
-function SubmitButton({
-  answeredCount,
-  total,
-  submitting,
-  disabled,
-  onSubmit,
-  className,
-}: {
-  answeredCount: number
-  total: number
-  submitting: boolean
-  disabled?: boolean
-  onSubmit: () => void
-  className?: string
-}) {
-  const unanswered = total - answeredCount
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button size="lg" className={className} disabled={submitting || disabled}>
-          {submitting ? (
-            <>
-              <Spinner data-icon="inline-start" />
-              Submitting…
-            </>
-          ) : disabled ? (
-            "Waiting for questions…"
-          ) : (
-            "Submit exam"
-          )}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Submit your exam?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {unanswered > 0
-              ? `You have ${unanswered} unanswered question${unanswered === 1 ? "" : "s"}. They'll be marked incorrect.`
-              : "You've answered every question. Ready to see your score?"}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep working</AlertDialogCancel>
-          <AlertDialogAction onClick={onSubmit} disabled={submitting}>
-            {submitting ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Scoring…
-              </>
-            ) : (
-              "Submit & score"
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }

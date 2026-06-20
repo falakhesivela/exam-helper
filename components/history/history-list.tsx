@@ -20,9 +20,15 @@ function formatDate(iso: string) {
 
 export function HistoryList() {
   const sessions = useSessionStore((s) => s.sessions)
+  const inProgress = sessions
+    .filter((s) => s.status === "in-progress")
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
   const completed = sessions.filter((s) => s.status === "completed")
 
-  if (completed.length === 0) {
+  if (completed.length === 0 && inProgress.length === 0) {
     return (
       <Empty className="rounded-2xl border border-border py-12">
         <EmptyHeader>
@@ -39,8 +45,57 @@ export function HistoryList() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {completed.map((s) => {
+    <div className="flex flex-col gap-6">
+      {inProgress.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            In progress
+          </h2>
+          <div className="flex flex-col gap-3">
+            {inProgress.map((s) => {
+              const href =
+                s.mode === "exam" ? `/exam/${s.id}` : `/quiz/${s.id}`
+              const total = Math.max(
+                s.expectedQuestionCount ?? 0,
+                s.questions.length,
+              )
+              return (
+                <Link key={s.id} href={href}>
+                  <Card className="border-primary/30 transition-colors hover:border-primary/50">
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <ListChecks className="size-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{s.examCode}</p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {s.focusTopics.join(", ")}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Continue · question {s.currentIndex + 1}
+                          {total > 0 ? ` of ${total}` : ""}
+                        </p>
+                      </div>
+                      <Badge variant="outline">Resume</Badge>
+                      <ChevronRight className="size-4 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {completed.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {inProgress.length > 0 && (
+            <h2 className="text-sm font-medium text-muted-foreground">
+              Completed
+            </h2>
+          )}
+          <div className="flex flex-col gap-3">
+            {completed.map((s) => {
         const { correct, total, pct } = scoreOf(s)
         return (
           <Link key={s.id} href={`/history/${s.id}`}>
@@ -70,7 +125,10 @@ export function HistoryList() {
             </Card>
           </Link>
         )
-      })}
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

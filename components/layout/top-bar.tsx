@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlarmClock, Compass, Flame, History, LayoutDashboard, User } from "lucide-react"
+import { AlarmClock, BookOpen, Compass, Flame, History, LayoutDashboard, User } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/exam", label: "Exam", icon: AlarmClock },
   { href: "/history", label: "History", icon: History },
   { href: "/profile", label: "Profile", icon: User },

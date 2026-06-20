@@ -2,16 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlarmClock, Compass, History, LayoutDashboard, User } from "lucide-react"
+import { AlarmClock, BookOpen, Compass, History, LayoutDashboard, User } from "lucide-react"
 import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
 
 const items = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/exam", label: "Exam", icon: AlarmClock },
   { href: "/history", label: "History", icon: History },
-  { href: "/profile", label: "Profile", icon: User },
 ]
 
 /** Mobile-first bottom navigation bar. Hidden on large screens. */

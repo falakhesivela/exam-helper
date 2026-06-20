@@ -188,7 +188,9 @@ function buildAnswers(
     const isCorrect = i < correctCount
     answers[q.id] = {
       questionId: q.id,
-      selectedOptionIds: isCorrect ? q.correctOptionIds : [q.options[0].id],
+      selectedOptionIds: isCorrect
+        ? (q.correctOptionIds ?? [])
+        : [q.options?.[0]?.id ?? "a"],
       isCorrect,
       markedForReview: false,
       skipped: false,

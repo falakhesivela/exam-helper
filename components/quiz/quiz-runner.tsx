@@ -28,6 +28,9 @@ import {
 import { OptionCard } from "@/components/quiz/option-card"
 import { ExplanationPanel } from "@/components/quiz/explanation-panel"
 import { SessionSummary } from "@/components/quiz/session-summary"
+import { QuestionStem } from "@/components/exam/vue/question-stem"
+import { ExamQuestionPane } from "@/components/exam/vue/exam-question-pane"
+import { AiTutorPanel } from "@/components/quiz/ai-tutor-panel"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Spinner } from "@/components/ui/spinner"
 import { GenerationStatusBanner } from "@/components/generation/generation-tracker"
@@ -35,7 +38,9 @@ import { useSessionStore } from "@/lib/store/use-session-store"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import { useSessionSync } from "@/hooks/use-session-sync"
 import { formatTime, useStopwatch } from "@/hooks/use-stopwatch"
-import type { PracticeSession } from "@/types"
+import { formatClock, useCountdown } from "@/hooks/use-countdown"
+import type { DragAnswer, PracticeSession } from "@/types"
+import { isMcqQuestion, isQuestionAnswered } from "@/lib/session-utils"
 import { cn } from "@/lib/utils"
 
 interface QuizRunnerProps {
@@ -129,6 +134,7 @@ interface InnerProps {
     questionId: string,
     selected: string[],
     time: number,
+    dragAnswer?: DragAnswer,
   ) => Promise<{ isCorrect: boolean }>
   onMark: (sessionId: string, questionId: string) => Promise<void>
   onSkip: (sessionId: string, questionId: string) => Promise<void>
@@ -157,6 +163,7 @@ function QuizRunnerInner({
     return Math.min(Math.max(start, 0), Math.max(session.questions.length - 1, 0))
   })
   const [selected, setSelected] = useState<string[]>([])
+  const [dragAnswer, setDragAnswer] = useState<DragAnswer | undefined>()
   const [revealed, setRevealed] = useState(false)
   const [answerCorrect, setAnswerCorrect] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -165,6 +172,14 @@ function QuizRunnerInner({
   const [advancing, setAdvancing] = useState(false)
   const [waitingForNext, setWaitingForNext] = useState(false)
   const [finished, setFinished] = useState(false)
+  const timedPractice = (session.durationSec ?? 0) > 0
+  const sessionRemaining = useCountdown(
+    session.durationSec ?? 0,
+    timedPractice && !finished,
+    () => {
+      void onComplete(session.id).then(() => setFinished(true))
+    },
+  )
   const { seconds, reset } = useStopwatch(!finished)
 
   const busy = submitting || skipping || marking || advancing || waitingForNext
@@ -201,10 +216,17 @@ function QuizRunnerInner({
   }
 
   async function handleSubmit() {
-    if (selected.length === 0 || submitting) return
+    if (!question || submitting) return
+    if (!isQuestionAnswered(question, selected, dragAnswer)) return
     setSubmitting(true)
     try {
-      const result = await onAnswer(session.id, question.id, selected, seconds)
+      const result = await onAnswer(
+        session.id,
+        question.id,
+        selected,
+        seconds,
+        dragAnswer,
+      )
       setAnswerCorrect(result.isCorrect)
       setRevealed(true)
     } finally {
@@ -253,6 +275,7 @@ function QuizRunnerInner({
       // Clear feedback state before switching questions — option ids (a–d) repeat
       // across questions, and awaiting onGoTo would otherwise flash stale styling.
       setSelected([])
+      setDragAnswer(undefined)
       setRevealed(false)
       setAnswerCorrect(false)
       setIndex(next)
@@ -317,7 +340,7 @@ function QuizRunnerInner({
               </span>
               <span className="flex items-center gap-1 tabular-nums">
                 <Clock className="size-3.5" />
-                {formatTime(seconds)}
+                {timedPractice ? formatClock(sessionRemaining) : formatTime(seconds)}
               </span>
             </div>
             <Progress value={progress} className="h-1.5" />
@@ -370,29 +393,49 @@ function QuizRunnerInner({
                   <Badge variant="outline">Select all that apply</Badge>
                 )}
               </div>
-              <h1 className="text-balance text-xl font-medium leading-relaxed sm:text-2xl">
-                {question.prompt}
-              </h1>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              {question.options.map((option, i) => (
-                <OptionCard
-                  key={`${question.id}-${option.id}`}
-                  option={option}
-                  index={i}
-                  selected={selected.includes(option.id)}
-                  revealed={revealed}
-                  isCorrect={question.correctOptionIds.includes(option.id)}
-                  multiSelect={question.multiSelect}
-                  disabled={revealed || busy}
-                  onToggle={() => toggleOption(option.id)}
+              {isMcqQuestion(question) ? (
+                <>
+                  <QuestionStem question={question} />
+                  <div className="flex flex-col gap-2.5">
+                    {(question.options ?? []).map((option, i) => (
+                      <OptionCard
+                        key={`${question.id}-${option.id}`}
+                        option={option}
+                        index={i}
+                        selected={selected.includes(option.id)}
+                        revealed={revealed}
+                        isCorrect={(question.correctOptionIds ?? []).includes(
+                          option.id,
+                        )}
+                        multiSelect={Boolean(question.multiSelect)}
+                        disabled={revealed || busy}
+                        onToggle={() => toggleOption(option.id)}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <ExamQuestionPane
+                  question={question}
+                  selected={selected}
+                  dragAnswer={dragAnswer}
+                  isFlagged={marked}
+                  onToggleOption={toggleOption}
+                  onDragAnswerChange={setDragAnswer}
                 />
-              ))}
+              )}
             </div>
 
             {revealed && (
-              <ExplanationPanel question={question} isCorrect={correct} />
+              <>
+                <ExplanationPanel question={question} isCorrect={correct} />
+                {!correct && isMcqQuestion(question) && (
+                  <AiTutorPanel
+                    question={question}
+                    selectedOptionIds={selected}
+                  />
+                )}
+              </>
             )}
           </motion.div>
         </AnimatePresence>
@@ -420,7 +463,9 @@ function QuizRunnerInner({
               <Button
                 size="lg"
                 className="flex-1"
-                disabled={selected.length === 0 || busy}
+                disabled={
+                  !isQuestionAnswered(question, selected, dragAnswer) || busy
+                }
                 onClick={handleSubmit}
               >
                 {submitting ? (

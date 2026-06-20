@@ -9,8 +9,8 @@ export default function ExamPage() {
           Exam simulation
         </h1>
         <p className="text-sm text-muted-foreground text-pretty">
-          Practice under real exam conditions — a fixed set of questions and a
-          countdown timer that auto-submits when time runs out.
+          Practice under real exam conditions — domain-weighted questions, a
+          countdown timer, and a review screen before you submit.
         </p>
       </header>
 

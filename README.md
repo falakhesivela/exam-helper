@@ -34,11 +34,17 @@ Fill in your Supabase URL, publishable key, secret key (or legacy service role k
 
 Apply migrations in order from `supabase/migrations/`:
 
-1. `001_schema.sql` — tables
+1. `001_schema.sql` — core tables
 2. `002_rls.sql` — row-level security policies
-3. `003_triggers.sql` — profile auto-create on signup
-4. `004_questions_public_view.sql` — safe question view (no answers)
-5. `005_storage.sql` — PDF uploads bucket
+3. `002_session_generation.sql` — session generation status columns
+4. `003_triggers.sql` — profile auto-create on signup
+5. `004_questions_public_view.sql` — safe question view (no answers)
+6. `005_storage.sql` — PDF uploads bucket
+7. `006_learning.sql` — learn lessons and progress tables
+8. `006_question_drag.sql` — drag-and-drop question types (`question_type`, `drag_data`, `drag_answer`)
+9. `007_fix_seed_auth_users.sql` — seed user auth fix (optional, with `seed.sql`)
+10. `008_question_stem_domain.sql` — scenario stems and `domain_id` for scorecards
+11. `009_review_schedule.sql` — spaced repetition schedule for missed questions
 
 **Supabase CLI (recommended):**
 
@@ -97,7 +103,7 @@ Correct answers and explanations are **never** sent to the client until practice
 | `POST /api/intake/clarify` | AI clarifying questions |
 | `POST /api/intake/generate` | Generate practice session |
 | `POST /api/uploads` | Syllabus PDF upload + text extraction |
-| `POST /api/exams` | Start timed mock exam |
+| `POST /api/exams` | Start timed mock exam (presets, custom grounding, weak-area focus) |
 | `GET /api/sessions` | Session history |
 | `PATCH /api/sessions/:id/answer` | Grade practice answer (server-side) |
 | `POST /api/sessions/:id/submit` | Submit & grade exam |
@@ -108,6 +114,14 @@ Correct answers and explanations are **never** sent to the client until practice
 1. Import the repo as a Vercel project.
 2. Add all env vars from `.env.example`.
 3. Deploy — API routes and frontend ship as one app.
+
+## Exam simulation
+
+Timed mock exams support **11 certification presets** (AWS, Azure, GCP, CompTIA, Cisco, ISC2) with domain-weighted AI generation, drag-and-drop items on selected certs, scenario stems, and domain scorecards.
+
+- **Custom exams:** exam name, optional code (recognizes presets like `SAA-C03`), domains/topics, syllabus PDF, and free-text context
+- **Weak-area exams:** dashboard shortcut focuses generation on low-mastery blueprint domains
+- **Keyboard shortcuts in exam mode:** Alt+N / Alt+P / Alt+F
 
 ## Freemium
 

@@ -3,7 +3,11 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "webworker"
+    ],
+    "types": [
+      "@serwist/turbopack/typings"
     ],
     "allowJs": true,
     "target": "ES6",

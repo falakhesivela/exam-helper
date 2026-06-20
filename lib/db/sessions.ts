@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { GeneratedQuestion } from "@/lib/ai/schemas"
-import type { GenerationStatus, Question } from "@/types"
+import type { DragAnswer, GenerationStatus, Question } from "@/types"
 import {
+  generatedQuestionToDb,
   stripAnswersForExam,
   toAnswerRecord,
   toPracticeSession,
@@ -55,19 +56,13 @@ export async function appendQuestion(
   question: GeneratedQuestion,
   position: number,
 ): Promise<Question> {
+  const row = generatedQuestionToDb(question)
   const { data: inserted, error } = await admin
     .from("questions")
     .insert({
       session_id: sessionId,
-      topic: question.topic,
-      difficulty: question.difficulty,
-      multi_select: question.multiSelect,
-      prompt: question.prompt,
-      options: question.options,
-      correct_option_ids: question.correctOptionIds,
-      explanation: question.explanation,
-      references: question.references,
       position,
+      ...row,
     })
     .select()
     .single()
@@ -121,7 +116,12 @@ export async function loadSession(
 
   const answeredIds = new Set(
     Object.entries(answerMap)
-      .filter(([, a]) => a.selectedOptionIds.length > 0 || a.skipped)
+      .filter(
+        ([, a]) =>
+          a.selectedOptionIds.length > 0 ||
+          a.dragAnswer != null ||
+          a.skipped,
+      )
       .map(([id]) => id),
   )
 
@@ -215,6 +215,42 @@ export function gradeAnswer(
   )
 }
 
+export function gradeDragAnswer(
+  dragData: Question["dragData"],
+  answer: DragAnswer | undefined,
+): boolean {
+  if (!dragData || !answer || dragData.type !== answer.type) return false
+
+  if (dragData.type === "drag_match" && answer.type === "drag_match") {
+    const keys = Object.keys(dragData.correctMatch).sort()
+    if (keys.length === 0) return false
+    return keys.every((k) => dragData.correctMatch[k] === answer.mapping[k])
+  }
+
+  if (dragData.type === "drag_order" && answer.type === "drag_order") {
+    if (dragData.correctOrder.length === 0) return false
+    return (
+      dragData.correctOrder.length === answer.order.length &&
+      dragData.correctOrder.every((id, i) => id === answer.order[i])
+    )
+  }
+
+  if (dragData.type === "drag_categorize" && answer.type === "drag_categorize") {
+    const keys = Object.keys(dragData.correctBuckets).sort()
+    if (keys.length === 0) return false
+    return keys.every((catId) => {
+      const expected = [...(dragData.correctBuckets[catId] ?? [])].sort()
+      const actual = [...(answer.buckets[catId] ?? [])].sort()
+      return (
+        expected.length === actual.length &&
+        expected.every((id, i) => id === actual[i])
+      )
+    })
+  }
+
+  return false
+}
+
 export async function updateStreak(
   admin: SupabaseClient,
   userId: string,
@@ -261,25 +297,52 @@ export async function updateTopicMastery(
   topic: string,
   isCorrect: boolean,
 ) {
-  const { data: existing } = await admin
+  await batchUpdateTopicMastery(admin, userId, [{ topic, isCorrect }])
+}
+
+export async function batchUpdateTopicMastery(
+  admin: SupabaseClient,
+  userId: string,
+  events: { topic: string; isCorrect: boolean }[],
+) {
+  if (events.length === 0) return
+
+  const topics = [...new Set(events.map((e) => e.topic))]
+
+  const { data: existingRows } = await admin
     .from("topic_mastery")
     .select("*")
     .eq("user_id", userId)
-    .eq("topic", topic)
-    .maybeSingle()
+    .in("topic", topics)
 
-  const answered = (existing?.questions_answered ?? 0) + 1
-  const prevMastery = Number(existing?.mastery ?? 50)
-  const delta = isCorrect ? 5 : -3
-  const mastery = Math.min(100, Math.max(0, prevMastery + delta))
+  const state = new Map<string, { mastery: number; questions_answered: number }>()
+  for (const topic of topics) {
+    const existing = existingRows?.find((r) => r.topic === topic)
+    state.set(topic, {
+      mastery: Number(existing?.mastery ?? 50),
+      questions_answered: existing?.questions_answered ?? 0,
+    })
+  }
 
-  await admin.from("topic_mastery").upsert(
-    {
-      user_id: userId,
-      topic,
-      mastery,
-      questions_answered: answered,
-    },
-    { onConflict: "user_id,topic" },
-  )
+  for (const event of events) {
+    const current = state.get(event.topic)!
+    const delta = event.isCorrect ? 5 : -3
+    state.set(event.topic, {
+      mastery: Math.min(100, Math.max(0, current.mastery + delta)),
+      questions_answered: current.questions_answered + 1,
+    })
+  }
+
+  const rows = [...state.entries()].map(([topic, { mastery, questions_answered }]) => ({
+    user_id: userId,
+    topic,
+    mastery,
+    questions_answered,
+  }))
+
+  const { error } = await admin
+    .from("topic_mastery")
+    .upsert(rows, { onConflict: "user_id,topic" })
+
+  if (error) throw error
 }

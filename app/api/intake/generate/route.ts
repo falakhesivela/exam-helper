@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/api/auth"
 import { apiError, getTimezone, handleRouteError, rateLimit } from "@/lib/api/route-utils"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enforceFreemium } from "@/lib/db/usage"
+import { getExamBlueprint } from "@/lib/exams"
 
 export const runtime = "nodejs"
 
@@ -13,6 +14,12 @@ const bodySchema = z.object({
   clarifications: z.record(z.string(), z.string()).optional(),
   fileId: z.string().uuid().optional(),
   count: z.number().int().min(1).max(20).optional(),
+  focusTopics: z.array(z.string()).optional(),
+  exam: z.string().optional(),
+  examCode: z.string().optional(),
+  focusDomainIds: z.array(z.string()).optional(),
+  adaptive: z.boolean().optional(),
+  durationSec: z.number().int().min(0).optional(),
 })
 
 export async function POST(request: Request) {
@@ -45,6 +52,12 @@ export async function POST(request: Request) {
       .eq("id", user.id)
       .single()
 
+    const blueprint = body.examCode ? getExamBlueprint(body.examCode) : null
+    const useBlueprint =
+      blueprint != null &&
+      ((body.adaptive && (body.focusDomainIds?.length ?? 0) > 0) ||
+        (body.focusDomainIds?.length ?? 0) > 0)
+
     const timezone = profile?.timezone ?? getTimezone(request)
     const remainingFreeQuestions =
       check.remaining === Infinity
@@ -61,6 +74,12 @@ export async function POST(request: Request) {
           count,
           groundingText,
           mode: "practice",
+          focusTopics: body.focusTopics,
+          exam: body.exam ?? blueprint?.exam,
+          examCode: body.examCode ?? blueprint?.examCode,
+          durationSec: body.durationSec,
+          blueprint: useBlueprint ? blueprint ?? undefined : undefined,
+          focusDomainIds: body.focusDomainIds,
         },
         send,
         { timezone, remainingFreeQuestions },

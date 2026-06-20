@@ -10,6 +10,8 @@ import { StatCard } from "@/components/dashboard/stat-card"
 import { MasteryOverview } from "@/components/dashboard/mastery-overview"
 import { WeakTopics } from "@/components/dashboard/weak-topics"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { ContinueSession } from "@/components/dashboard/continue-session"
+import { MissedReviewCard } from "@/components/dashboard/missed-review-card"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 export default function DashboardPage() {
@@ -47,6 +49,8 @@ export default function DashboardPage() {
       </motion.div>
 
       <DailyLimitBanner />
+
+      <ContinueSession sessions={sessions} />
 
       {/* Primary calls to action */}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -118,8 +122,11 @@ export default function DashboardPage() {
       <MasteryOverview mastery={overallMastery} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <WeakTopics topics={topicMastery} />
-        <RecentActivity sessions={sessions} />
+        <WeakTopics topics={topicMastery} sessions={sessions} />
+        <div className="flex flex-col gap-6">
+          <MissedReviewCard />
+          <RecentActivity sessions={sessions} />
+        </div>
       </div>
     </div>
   )

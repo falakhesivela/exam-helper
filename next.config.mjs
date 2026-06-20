@@ -1,3 +1,5 @@
+import { withSerwist } from "@serwist/turbopack"
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -6,7 +8,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  serverExternalPackages: ['pdf-parse'],
+  serverExternalPackages: ["pdf-parse", "esbuild"],
 }
 
-export default nextConfig
+export default withSerwist(nextConfig)

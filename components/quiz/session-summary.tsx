@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { motion } from "motion/react"
-import { Home, RotateCcw, Trophy } from "lucide-react"
+import { BookOpen, Home, RotateCcw, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import type { PracticeSession } from "@/types"
 import { scoreOf, topicBreakdown } from "@/lib/session-utils"
+import { resolveTopicName } from "@/lib/learning/topic-resolver"
 
 interface SessionSummaryProps {
   session: PracticeSession
@@ -19,6 +20,12 @@ export function SessionSummary({ session }: SessionSummaryProps) {
   const { correct, total, pct } = scoreOf(session)
   const breakdown = topicBreakdown(session)
   const weakest = [...breakdown].sort((a, b) => a.pct - b.pct)[0]
+  const flaggedCount = Object.values(session.answers).filter(
+    (a) => a.markedForReview,
+  ).length
+  const learnSlug = weakest
+    ? resolveTopicName(weakest.topic, session.examCode).slug
+    : null
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
@@ -62,11 +69,21 @@ export function SessionSummary({ session }: SessionSummaryProps) {
             </div>
           ))}
           {weakest && weakest.pct < 100 && (
-            <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2.5 text-sm">
-              <Badge variant="secondary">Focus next</Badge>
-              <span className="text-muted-foreground">
-                Revisit <span className="text-foreground">{weakest.topic}</span>
-              </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2.5 text-sm">
+                <Badge variant="secondary">Focus next</Badge>
+                <span className="text-muted-foreground">
+                  Revisit <span className="text-foreground">{weakest.topic}</span>
+                </span>
+              </div>
+              {learnSlug && (
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={`/learn/${learnSlug}`}>
+                    <BookOpen data-icon="inline-start" />
+                    Study {weakest.topic}
+                  </Link>
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -82,6 +99,13 @@ export function SessionSummary({ session }: SessionSummaryProps) {
         <Button asChild size="lg" variant="secondary" className="flex-1">
           <Link href={`/history/${session.id}`}>Review answers</Link>
         </Button>
+        {flaggedCount > 0 && (
+          <Button asChild size="lg" variant="outline" className="flex-1">
+            <Link href={`/history/${session.id}?filter=flagged`}>
+              Flagged ({flaggedCount})
+            </Link>
+          </Button>
+        )}
         <Button asChild size="lg" variant="ghost" className="flex-1">
           <Link href="/dashboard">
             <Home data-icon="inline-start" />

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server"
 import { requireUser } from "@/lib/api/auth"
 import { handleRouteError } from "@/lib/api/route-utils"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { toTopicMastery } from "@/lib/db/mappers"
+import {
+  buildMasteryTopicKey,
+  enrichTopicMastery,
+} from "@/lib/exams/mastery-keys"
 
 export const runtime = "nodejs"
 
@@ -19,7 +22,7 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json((data ?? []).map(toTopicMastery))
+    return NextResponse.json((data ?? []).map((row) => enrichTopicMastery(row)))
   } catch (err) {
     return handleRouteError(err)
   }

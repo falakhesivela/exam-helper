@@ -3,7 +3,10 @@ import { zodResponseFormat } from "openai/helpers/zod"
 import type { z } from "zod"
 import {
   clarifyResponseSchema,
+  generatedDragBatchSchema,
   generatedQuestionsSchema,
+  type GeneratedDragQuestion,
+  type GeneratedMcqQuestion,
   type GeneratedQuestion,
 } from "./schemas"
 import {
@@ -12,7 +15,7 @@ import {
   generateSystemPrompt,
   generateUserPrompt,
 } from "./prompts"
-import { filterValidQuestions } from "./validator"
+import { filterValidDragQuestions, filterValidMcqQuestions } from "./validator"
 
 const TIMEOUT_MS = 60_000
 const MAX_REGEN_ATTEMPTS = 2
@@ -108,9 +111,9 @@ function isClarifyQuestionComplete(
   )
 }
 
-function isGeneratedQuestionComplete(
-  q: Partial<GeneratedQuestion>,
-): q is GeneratedQuestion {
+function isGeneratedMcqComplete(
+  q: Partial<GeneratedMcqQuestion>,
+): q is GeneratedMcqQuestion {
   return Boolean(
     q.topic &&
       q.prompt &&
@@ -122,6 +125,41 @@ function isGeneratedQuestionComplete(
       q.correctOptionIds.length > 0 &&
       q.explanation,
   )
+}
+
+function isGeneratedDragComplete(
+  q: Partial<GeneratedDragQuestion>,
+): q is GeneratedDragQuestion {
+  if (!q.topic || !q.prompt || !q.difficulty || !q.explanation) return false
+  if (q.questionType === "drag_match") {
+    return Boolean(
+      Array.isArray(q.items) &&
+        q.items.length >= 3 &&
+        Array.isArray(q.targets) &&
+        q.targets.length >= 3 &&
+        q.correctMatch &&
+        Object.keys(q.correctMatch).length > 0,
+    )
+  }
+  if (q.questionType === "drag_order") {
+    return Boolean(
+      Array.isArray(q.items) &&
+        q.items.length >= 4 &&
+        Array.isArray(q.correctOrder) &&
+        q.correctOrder.length >= 4,
+    )
+  }
+  if (q.questionType === "drag_categorize") {
+    return Boolean(
+      Array.isArray(q.categories) &&
+        q.categories.length >= 2 &&
+        Array.isArray(q.items) &&
+        q.items.length >= 4 &&
+        q.correctBuckets &&
+        Object.keys(q.correctBuckets).length > 0,
+    )
+  }
+  return false
 }
 
 export async function streamClarify(
@@ -163,6 +201,16 @@ export async function streamGenerateQuestions(
     clarifications?: Record<string, string>
     count: number
     groundingText?: string
+    /** Override the default practice system prompt (used for exam simulation). */
+    systemPrompt?: string
+    /** When set, user prompt is used as-is instead of generateUserPrompt(). */
+    userPrompt?: string
+    /** Pin exam metadata instead of trusting model output. */
+    fixedExam?: {
+      exam: string
+      examCode: string
+      focusTopics: string[]
+    }
   },
   onEvent: {
     onMetadata?: (meta: { exam?: string; examCode?: string; focusTopics?: string[] }) => void
@@ -183,11 +231,21 @@ export async function streamGenerateQuestions(
     let emittedQuestions = 0
     let lastMetadataKey = ""
 
+    const system = params.systemPrompt ?? generateSystemPrompt()
+    const user =
+      params.userPrompt ??
+      generateUserPrompt({
+        description: params.description,
+        clarifications: params.clarifications,
+        count: params.count,
+        groundingText: params.groundingText,
+      })
+
     const result = await withStreamingFailover((provider) =>
       streamStructured<z.infer<typeof generatedQuestionsSchema>>(
         provider,
-        generateSystemPrompt(),
-        generateUserPrompt(params) +
+        system,
+        user +
           (attempt > 0
             ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
             : ""),
@@ -220,8 +278,8 @@ export async function streamGenerateQuestions(
 
           for (let i = emittedQuestions; i < questions.length; i++) {
             const q = questions[i]
-            if (isGeneratedQuestionComplete(q)) {
-              onEvent.onQuestion?.(i, q)
+            if (isGeneratedMcqComplete(q)) {
+              onEvent.onQuestion?.(i, { ...q, questionType: "mcq" })
               emittedQuestions = i + 1
             }
           }
@@ -229,14 +287,20 @@ export async function streamGenerateQuestions(
       ),
     )
 
-    const valid = filterValidQuestions(result.questions)
+    const valid = filterValidMcqQuestions(
+      result.questions.map((q) => ({ ...q, questionType: "mcq" as const })),
+    )
     lastValid = valid
 
     if (valid.length >= params.count) {
+      const exam = params.fixedExam?.exam ?? result.exam
+      const examCode = params.fixedExam?.examCode ?? result.examCode
+      const focusTopics =
+        params.fixedExam?.focusTopics ?? result.focusTopics
       return {
-        exam: result.exam,
-        examCode: result.examCode,
-        focusTopics: result.focusTopics,
+        exam,
+        examCode,
+        focusTopics,
         questions: valid.slice(0, params.count),
       }
     }
@@ -247,9 +311,74 @@ export async function streamGenerateQuestions(
   }
 
   return {
-    exam: "Certification Exam",
-    examCode: "CUSTOM",
-    focusTopics: ["Mixed topics"],
+    exam: params.fixedExam?.exam ?? "Certification Exam",
+    examCode: params.fixedExam?.examCode ?? "CUSTOM",
+    focusTopics: params.fixedExam?.focusTopics ?? ["Mixed topics"],
     questions: lastValid,
   }
+}
+
+export async function streamGenerateDragQuestions(
+  params: {
+    description: string
+    count: number
+    dragType: "drag_match" | "drag_order" | "drag_categorize"
+    systemPrompt: string
+    userPrompt: string
+  },
+  onEvent: {
+    onQuestionPreview?: (index: number, preview: { topic?: string; difficulty?: string }) => void
+    onQuestion?: (index: number, question: GeneratedDragQuestion) => void
+  },
+): Promise<GeneratedDragQuestion[]> {
+  let lastValid: GeneratedDragQuestion[] = []
+
+  for (let attempt = 0; attempt <= MAX_REGEN_ATTEMPTS; attempt++) {
+    let emittedPreviews = 0
+    let emittedQuestions = 0
+
+    const result = await withStreamingFailover((provider) =>
+      streamStructured<z.infer<typeof generatedDragBatchSchema>>(
+        provider,
+        params.systemPrompt,
+        params.userPrompt +
+          (attempt > 0
+            ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
+            : ""),
+        generatedDragBatchSchema,
+        "generated_drag_questions",
+        (partial) => {
+          const questions = partial?.questions ?? []
+          for (let i = emittedPreviews; i < questions.length; i++) {
+            const q = questions[i]
+            if (q?.topic || q?.prompt) {
+              onEvent.onQuestionPreview?.(i, {
+                topic: q.topic,
+                difficulty: q.difficulty,
+              })
+              emittedPreviews = i + 1
+            }
+          }
+
+          for (let i = emittedQuestions; i < questions.length; i++) {
+            const q = questions[i]
+            if (isGeneratedDragComplete(q)) {
+              onEvent.onQuestion?.(i, q)
+              emittedQuestions = i + 1
+            }
+          }
+        },
+      ),
+    )
+
+    lastValid = filterValidDragQuestions(result.questions)
+    if (lastValid.length >= params.count) {
+      return lastValid.slice(0, params.count)
+    }
+  }
+
+  if (lastValid.length === 0) {
+    throw new Error("Failed to generate valid drag questions after retries")
+  }
+  return lastValid
 }

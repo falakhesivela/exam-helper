@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import type { PracticeSession } from "@/types"
-import { scoreOf, topicBreakdown } from "@/lib/session-utils"
+import { scoreOf, domainBreakdown } from "@/lib/session-utils"
+import { getExamBlueprint } from "@/lib/exams"
 import { formatClock } from "@/hooks/use-countdown"
 import { cn } from "@/lib/utils"
 
@@ -20,7 +21,8 @@ interface ExamSummaryProps {
 /** End-of-exam results: pass/fail verdict, score, time used and breakdown. */
 export function ExamSummary({ session, timeUsedSec }: ExamSummaryProps) {
   const { correct, total, pct } = scoreOf(session)
-  const breakdown = topicBreakdown(session)
+  const blueprint = getExamBlueprint(session.examCode)
+  const breakdown = domainBreakdown(session, blueprint)
   const passMark = session.passMark ?? 72
   const passed = pct >= passMark
 
@@ -77,7 +79,7 @@ export function ExamSummary({ session, timeUsedSec }: ExamSummaryProps) {
 
       <Card>
         <CardContent className="flex flex-col gap-4 p-5">
-          <p className="text-sm font-medium">Topic breakdown</p>
+          <p className="text-sm font-medium">Domain breakdown</p>
           {breakdown.map((t) => (
             <div key={t.topic} className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-sm">

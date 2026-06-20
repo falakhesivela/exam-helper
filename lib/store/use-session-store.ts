@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { AnswerRecord, LearnTopic, PracticeSession, TopicLesson, TopicMastery, UserProfile } from "@/types"
+import type { AnswerRecord, DragAnswer, LearnTopic, PracticeSession, TopicMastery, TopicLesson, UserProfile } from "@/types"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import {
   buildMockLearnTopics,
@@ -16,7 +16,7 @@ import {
   mockTopicMastery,
   type ExamConfig,
 } from "@/lib/mock-data"
-import { isAnswerCorrect } from "@/lib/session-utils"
+import { isAnswerCorrect, isQuestionAnswered } from "@/lib/session-utils"
 
 interface SessionState {
   profile: UserProfile
@@ -31,6 +31,7 @@ interface SessionState {
 
   hydrate: () => Promise<void>
   refreshProfile: () => Promise<void>
+  refreshTopicMastery: () => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -49,13 +50,16 @@ interface SessionState {
   submitExam: (
     sessionId: string,
     answers: Record<string, string[]>,
+    flagged: string[],
     timeUsedSec: number,
+    dragAnswers?: Record<string, DragAnswer>,
   ) => Promise<void>
   answerQuestion: (
     sessionId: string,
     questionId: string,
     selectedOptionIds: string[],
     timeSpentSec: number,
+    dragAnswer?: import("@/types").DragAnswer,
   ) => Promise<{ isCorrect: boolean }>
   toggleMarkForReview: (sessionId: string, questionId: string) => Promise<void>
   skipQuestion: (sessionId: string, questionId: string) => Promise<void>
@@ -112,6 +116,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const profile = await api.me()
       set({ profile })
+    } catch {
+      // ignore
+    }
+  },
+
+  refreshTopicMastery: async () => {
+    if (USE_MOCKS) return
+    try {
+      const topicMastery = await api.topicMastery()
+      set({ topicMastery })
     } catch {
       // ignore
     }
@@ -219,7 +233,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return session.id
   },
 
-  submitExam: async (sessionId, answers, timeUsedSec) => {
+  submitExam: async (sessionId, answers, flagged, timeUsedSec, dragAnswers = {}) => {
+    const flaggedSet = new Set(flagged)
     if (USE_MOCKS) {
       set((state) => {
         let answeredCount = 0
@@ -228,13 +243,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           const records: PracticeSession["answers"] = {}
           for (const q of s.questions) {
             const selected = answers[q.id] ?? []
-            const answered = selected.length > 0
+            const dragAnswer = dragAnswers[q.id]
+            const answered = isQuestionAnswered(q, selected, dragAnswer)
             if (answered) answeredCount += 1
             records[q.id] = {
               questionId: q.id,
               selectedOptionIds: selected,
-              isCorrect: answered ? isAnswerCorrect(q, selected) : false,
-              markedForReview: s.answers[q.id]?.markedForReview ?? false,
+              dragAnswer,
+              isCorrect: answered
+                ? isAnswerCorrect(q, selected, dragAnswer)
+                : false,
+              markedForReview: flaggedSet.has(q.id),
               skipped: !answered,
               timeSpentSec: 0,
             }
@@ -258,14 +277,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return
     }
 
-    const session = await api.submitExam(sessionId, answers, timeUsedSec)
+    const session = await api.submitExam(
+      sessionId,
+      answers,
+      flagged,
+      timeUsedSec,
+      dragAnswers,
+    )
     set((state) => ({
       sessions: upsertSession(state.sessions, session),
     }))
-    await get().refreshProfile()
+    void Promise.all([get().refreshProfile(), get().refreshTopicMastery()])
   },
 
-  answerQuestion: async (sessionId, questionId, selectedOptionIds, timeSpentSec) => {
+  answerQuestion: async (
+    sessionId,
+    questionId,
+    selectedOptionIds,
+    timeSpentSec,
+    dragAnswer?,
+  ) => {
     if (USE_MOCKS) {
       const session = get().sessions.find((s) => s.id === sessionId)
       const question = session?.questions.find((q) => q.id === questionId)
@@ -296,6 +327,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const result = await api.answerQuestion(sessionId, {
       questionId,
       selectedOptionIds,
+      dragAnswer,
       timeSpentSec,
     })
 
@@ -312,7 +344,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }),
     }))
 
-    await get().refreshProfile()
+    await Promise.all([get().refreshProfile(), get().refreshTopicMastery()])
     return { isCorrect: result.answer.isCorrect }
   },
 
