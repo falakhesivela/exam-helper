@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
 import { Logo } from "@/components/layout/logo"
 import { Spinner } from "@/components/ui/spinner"
@@ -145,10 +146,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </Field>
             <Field>
               <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 placeholder="••••••••"
                 autoComplete={isSignup ? "new-password" : "current-password"}
                 required
@@ -161,10 +161,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             {isSignup && (
               <Field data-invalid={passwordMismatch}>
                 <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
                   placeholder="••••••••"
                   autoComplete="new-password"
                   required
