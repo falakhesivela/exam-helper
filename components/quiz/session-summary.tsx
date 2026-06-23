@@ -77,7 +77,7 @@ export function SessionSummary({ session }: SessionSummaryProps) {
                 </span>
               </div>
               {learnSlug && (
-                <Button asChild variant="outline" size="sm" className="w-full">
+                <Button asChild variant="outline" size="lg" className="w-full">
                   <Link href={`/learn/${learnSlug}`}>
                     <BookOpen data-icon="inline-start" />
                     Study {weakest.topic}
@@ -89,24 +89,24 @@ export function SessionSummary({ session }: SessionSummaryProps) {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-2.5 sm:flex-row">
-        <Button asChild size="lg" className="flex-1">
+      <div className="flex flex-col gap-2.5">
+        <Button asChild size="lg" className="w-full">
           <Link href="/intake">
             <RotateCcw data-icon="inline-start" />
             New session
           </Link>
         </Button>
-        <Button asChild size="lg" variant="secondary" className="flex-1">
+        <Button asChild size="lg" variant="secondary" className="w-full">
           <Link href={`/history/${session.id}`}>Review answers</Link>
         </Button>
         {flaggedCount > 0 && (
-          <Button asChild size="lg" variant="outline" className="flex-1">
+          <Button asChild size="lg" variant="outline" className="w-full">
             <Link href={`/history/${session.id}?filter=flagged`}>
               Flagged ({flaggedCount})
             </Link>
           </Button>
         )}
-        <Button asChild size="lg" variant="ghost" className="flex-1">
+        <Button asChild size="lg" variant="ghost" className="w-full">
           <Link href="/dashboard">
             <Home data-icon="inline-start" />
             Dashboard
