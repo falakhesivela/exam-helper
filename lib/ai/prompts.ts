@@ -1,7 +1,7 @@
 import type { ExamBlueprint, ExamBlueprintDomain } from "@/lib/exams/types"
 
 export function clarifySystemPrompt() {
-  return `You are CertForge, an AI exam-prep assistant. Given a user's exam description, decide if you need clarifying questions before generating practice questions.
+  return `You are Prepa, an AI exam-prep assistant. Given a user's exam description, decide if you need clarifying questions before generating practice questions.
 
 Return JSON matching the schema. If the description is clear enough (exam name/code and at least some topic context), set needsClarification to false and questions to [].
 
@@ -13,7 +13,7 @@ export function clarifyUserPrompt(description: string) {
 }
 
 export function generateSystemPrompt() {
-  return `You are CertForge, an expert certification exam question writer. Generate realistic, exam-style multiple-choice questions.
+  return `You are Prepa, an expert certification exam question writer. Generate realistic, exam-style multiple-choice questions.
 
 Rules:
 - Questions must be original, technically accurate, and scenario-based when appropriate.
@@ -58,7 +58,7 @@ export function generateUserPrompt(params: {
 
 export function examSimulationSystemPrompt(blueprint: ExamBlueprint): string {
   const lines = [
-    "You are CertForge, an expert certification exam question writer.",
+    "You are Prepa, an expert certification exam question writer.",
     `Write realistic questions for ${blueprint.exam} (${blueprint.examCode}).`,
     "",
     "Rules:",
@@ -150,7 +150,7 @@ export function examDomainBatchPrompt(
 
 export function examDragSystemPrompt(blueprint: ExamBlueprint): string {
   return [
-    "You are CertForge, an expert certification exam question writer.",
+    "You are Prepa, an expert certification exam question writer.",
     `Write realistic drag-and-drop questions for ${blueprint.exam} (${blueprint.examCode}).`,
     "",
     "Supported questionType values:",

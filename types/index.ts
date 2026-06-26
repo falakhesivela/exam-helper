@@ -1,4 +1,4 @@
-// Core domain types for CertForge
+// Core domain types for Prepa
 
 /** A single answer option on a question. */
 export interface QuestionOption {

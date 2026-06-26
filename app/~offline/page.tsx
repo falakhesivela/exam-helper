@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 export const metadata = {
-  title: "Offline — CertForge",
+  title: "Offline — Prepa",
 }
 
 /** Shown when navigation fails while the app is offline. */
@@ -16,7 +16,7 @@ export default function OfflinePage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">You&apos;re offline</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          CertForge needs a connection for quizzes, AI tutoring, and syncing your
+          Prepa needs a connection for quizzes, AI tutoring, and syncing your
           progress. Cached pages may still be available once you reconnect.
         </p>
       </div>

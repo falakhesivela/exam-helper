@@ -62,7 +62,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         if (error) throw error
 
         if (data.session) {
-          toast.success("Account created — welcome to CertForge!")
+          toast.success("Account created — welcome to Prepa!")
           goToApp()
           return
         }
@@ -72,7 +72,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           await supabase.auth.signInWithPassword({ email, password })
 
         if (!signInError && signInData.session) {
-          toast.success("Account created — welcome to CertForge!")
+          toast.success("Account created — welcome to Prepa!")
           goToApp()
           return
         }
@@ -183,7 +183,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          {isSignup ? "Already have an account? " : "New to CertForge? "}
+          {isSignup ? "Already have an account? " : "New to Prepa? "}
           <Link
             href={isSignup ? "/login" : "/signup"}
             className="font-medium text-foreground underline-offset-4 hover:underline"

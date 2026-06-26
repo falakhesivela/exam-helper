@@ -104,7 +104,7 @@ export default function ProfilePage() {
           <CardContent className="flex flex-col gap-3 p-5">
             <div className="flex items-center gap-2 text-primary">
               <Sparkles className="size-4" />
-              <span className="text-sm font-semibold">CertForge Pro</span>
+              <span className="text-sm font-semibold">Prepa Pro</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Unlimited daily questions, exam simulations, and detailed analytics.

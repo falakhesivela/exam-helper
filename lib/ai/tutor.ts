@@ -53,7 +53,7 @@ export async function explainWrongAnswer(params: {
     .join("\n")
 
   const system =
-    "You are CertForge, a concise certification exam tutor. Help the learner understand their mistake without repeating the full explanation verbatim."
+    "You are Prepa, a concise certification exam tutor. Help the learner understand their mistake without repeating the full explanation verbatim."
 
   let lastError: unknown
   for (const provider of ["xai", "openai"] as Provider[]) {

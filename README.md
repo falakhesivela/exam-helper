@@ -1,4 +1,4 @@
-# CertForge
+# Prepa
 
 AI-powered certification exam prep. Describe your exam, get tailored multiple-choice questions, practice with instant feedback or sit timed mock exams, and track mastery over time.
 
@@ -45,6 +45,7 @@ Apply migrations in order from `supabase/migrations/`:
 9. `007_fix_seed_auth_users.sql` — seed user auth fix (optional, with `seed.sql`)
 10. `008_question_stem_domain.sql` — scenario stems and `domain_id` for scorecards
 11. `009_review_schedule.sql` — spaced repetition schedule for missed questions
+12. `010_readiness_snapshots.sql` — daily exam-readiness score snapshots for the readiness trend
 
 **Supabase CLI (recommended):**
 

@@ -26,7 +26,7 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/dashboard" aria-label="CertForge home">
+        <Link href="/dashboard" aria-label="Prepa home">
           <Logo />
         </Link>
 

@@ -17,7 +17,7 @@ export default async function IntakePage({
         <p className="text-sm text-muted-foreground text-pretty">
           {topic
             ? `Focused practice on ${decodeURIComponent(topic)}. Adjust the description if needed, then generate questions.`
-            : "Describe your exam in your own words. CertForge will ask a couple of clarifying questions, then generate fresh questions tailored to you."}
+            : "Describe your exam in your own words. Prepa will ask a couple of clarifying questions, then generate fresh questions tailored to you."}
         </p>
       </header>
 

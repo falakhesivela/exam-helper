@@ -7,11 +7,11 @@ import { StoreHydrator } from '@/components/providers/store-hydrator'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const APP_NAME = 'CertForge'
-const APP_DEFAULT_TITLE = 'CertForge — AI Exam Prep'
-const APP_TITLE_TEMPLATE = '%s — CertForge'
+const APP_NAME = 'Prepa'
+const APP_DEFAULT_TITLE = 'Prepa — AI Exam Prep'
+const APP_TITLE_TEMPLATE = '%s — Prepa'
 const APP_DESCRIPTION =
-  'CertForge generates fresh, tailored multiple-choice questions for high-stakes certification exams, with instant feedback and progress tracking.'
+  'Prepa generates fresh, tailored multiple-choice questions for high-stakes certification exams, with instant feedback and progress tracking.'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({

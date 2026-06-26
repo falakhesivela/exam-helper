@@ -51,7 +51,7 @@ export function InstallPrompt() {
   return (
     <div
       role="region"
-      aria-label="Install CertForge"
+      aria-label="Install Prepa"
       className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-lg rounded-xl border border-border bg-card p-4 shadow-lg md:bottom-6"
     >
       <div className="flex items-start gap-3">
@@ -59,9 +59,9 @@ export function InstallPrompt() {
           <Download className="size-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-medium">Install CertForge</p>
+          <p className="font-medium">Install Prepa</p>
           <p className="text-sm text-muted-foreground">
-            Add CertForge to your home screen for quick access while you study.
+            Add Prepa to your home screen for quick access while you study.
           </p>
         </div>
         <Button

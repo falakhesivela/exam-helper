@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next"
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "CertForge — AI Exam Prep",
-    short_name: "CertForge",
+    name: "Prepa — AI Exam Prep",
+    short_name: "Prepa",
     description:
       "AI-powered, adaptive practice questions for high-stakes certification exams.",
     start_url: "/dashboard",

@@ -1,4 +1,4 @@
-import { Hammer } from "lucide-react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 interface LogoProps {
@@ -6,16 +6,21 @@ interface LogoProps {
   showWordmark?: boolean
 }
 
-/** CertForge brand lockup: an emerald mark plus optional wordmark. */
+/** Prepa brand lockup: the app icon mark plus an optional wordmark. */
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Hammer className="size-4.5" />
-      </span>
+      <Image
+        src="/icon.svg"
+        alt="Prepa"
+        width={32}
+        height={32}
+        className="size-8 rounded-lg"
+        priority
+      />
       {showWordmark && (
         <span className="text-lg font-semibold tracking-tight">
-          Cert<span className="text-primary">Forge</span>
+          Prep<span className="text-primary">a</span>
         </span>
       )}
     </div>
