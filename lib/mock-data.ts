@@ -35,13 +35,15 @@ export const emptyProfile: UserProfile = {
   streakDays: 0,
 }
 
+// Canonical `EXAMCODE::domainId` keys mirror the enriched shape the API
+// returns, so mock mode exercises the same blueprint-mapping code as prod.
 export const mockTopicMastery: TopicMastery[] = [
-  { topic: "Networking", mastery: 48, questionsAnswered: 64 },
-  { topic: "Security & Identity", mastery: 56, questionsAnswered: 72 },
-  { topic: "Storage", mastery: 81, questionsAnswered: 90 },
-  { topic: "Compute", mastery: 74, questionsAnswered: 58 },
-  { topic: "Databases", mastery: 67, questionsAnswered: 41 },
-  { topic: "Resilience", mastery: 62, questionsAnswered: 33 },
+  { topic: "SAA-C03::design-resilient", displayTopic: "Networking", domainId: "design-resilient", examCode: "SAA-C03", mastery: 48, questionsAnswered: 64 },
+  { topic: "SAA-C03::design-secure", displayTopic: "Security & Identity", domainId: "design-secure", examCode: "SAA-C03", mastery: 56, questionsAnswered: 72 },
+  { topic: "SAA-C03::design-high-performing", displayTopic: "Storage", domainId: "design-high-performing", examCode: "SAA-C03", mastery: 81, questionsAnswered: 90 },
+  { topic: "SAA-C03::design-resilient", displayTopic: "Compute", domainId: "design-resilient", examCode: "SAA-C03", mastery: 74, questionsAnswered: 58 },
+  { topic: "SAA-C03::design-high-performing", displayTopic: "Databases", domainId: "design-high-performing", examCode: "SAA-C03", mastery: 67, questionsAnswered: 41 },
+  { topic: "SAA-C03::design-resilient", displayTopic: "Resilience", domainId: "design-resilient", examCode: "SAA-C03", mastery: 62, questionsAnswered: 33 },
 ]
 
 /** Mastery trend over the last 7 sessions, for the dashboard chart. */
@@ -348,10 +350,10 @@ const MOCK_LESSON_CONTENT: TopicLessonContent = {
 
 export function buildMockLearnTopics(): LearnTopic[] {
   return mockTopicMastery.map((t) => {
-    const resolved = resolveTopicName(t.topic, "SAA-C03")
+    const resolved = resolveTopicName(t.displayTopic ?? t.topic, "SAA-C03")
     const hasAi = t.mastery < 70
     return {
-      topic: t.topic,
+      topic: t.displayTopic ?? t.topic,
       slug: resolved.slug,
       mastery: t.mastery,
       questionsAnswered: t.questionsAnswered,
