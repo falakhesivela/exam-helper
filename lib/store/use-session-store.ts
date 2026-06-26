@@ -13,6 +13,7 @@ import {
   mockHistory,
   mockMasteryTrend,
   mockProfile,
+  mockReadinessTrend,
   mockTopicMastery,
   type ExamConfig,
 } from "@/lib/mock-data"
@@ -23,6 +24,8 @@ interface SessionState {
   sessions: PracticeSession[]
   topicMastery: TopicMastery[]
   masteryTrend: { label: string; mastery: number }[]
+  examAccuracy: Record<string, { accuracy: number; questions: number }>
+  readinessTrend: { label: string; score: number }[]
   learnTopics: LearnTopic[]
   hydrated: boolean
 
@@ -32,6 +35,7 @@ interface SessionState {
   hydrate: () => Promise<void>
   refreshProfile: () => Promise<void>
   refreshTopicMastery: () => Promise<void>
+  refreshExamAccuracy: () => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -83,6 +87,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: USE_MOCKS ? mockHistory : [],
   topicMastery: USE_MOCKS ? mockTopicMastery : [],
   masteryTrend: USE_MOCKS ? mockMasteryTrend : [],
+  examAccuracy: {},
+  readinessTrend: USE_MOCKS ? mockReadinessTrend : [],
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   hydrated: false,
 
@@ -97,17 +103,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hydrate: async () => {
     if (USE_MOCKS || get().hydrated) return
     try {
-      const [profile, sessions, topicMastery, masteryTrend, learnTopics] =
+      const [profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend] =
         await Promise.all([
           api.me(),
           api.listSessions(),
           api.topicMastery(),
           api.masteryTrend(),
           api.learnTopics(),
+          // Non-fatal: missing readiness data must not blank the dashboard.
+          api.examAccuracy().catch(() => ({})),
+          api.readinessTrend().catch(() => []),
         ])
-      set({ profile, sessions, topicMastery, masteryTrend, learnTopics, hydrated: true })
+      set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, hydrated: true })
     } catch {
-      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], learnTopics: [], hydrated: true })
+      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], learnTopics: [], hydrated: true })
     }
   },
 
@@ -126,6 +135,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const topicMastery = await api.topicMastery()
       set({ topicMastery })
+    } catch {
+      // ignore
+    }
+  },
+
+  refreshExamAccuracy: async () => {
+    if (USE_MOCKS) return
+    try {
+      const [examAccuracy, readinessTrend] = await Promise.all([
+        api.examAccuracy(),
+        api.readinessTrend().catch(() => get().readinessTrend),
+      ])
+      set({ examAccuracy, readinessTrend })
     } catch {
       // ignore
     }
@@ -287,7 +309,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       sessions: upsertSession(state.sessions, session),
     }))
-    void Promise.all([get().refreshProfile(), get().refreshTopicMastery()])
+    void Promise.all([
+      get().refreshProfile(),
+      get().refreshTopicMastery(),
+      get().refreshExamAccuracy(),
+    ])
   },
 
   answerQuestion: async (

@@ -267,6 +267,16 @@ export const api = {
   masteryTrend: () =>
     request<{ label: string; mastery: number }[]>("/api/progress/trend"),
 
+  examAccuracy: () =>
+    request<Record<string, { accuracy: number; questions: number }>>(
+      "/api/progress/exam-accuracy",
+    ),
+
+  readinessTrend: () =>
+    request<{ label: string; score: number }[]>(
+      "/api/progress/readiness/trend",
+    ),
+
   progressSummary: () =>
     request<{
       overallMastery: number
