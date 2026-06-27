@@ -4,8 +4,11 @@ import { useState } from "react"
 import {
   AlarmClock,
   BookOpen,
+  CalendarDays,
   Check,
+  Download,
   Lightbulb,
+  List,
   RotateCcw,
   Sparkles,
   Target,
@@ -14,6 +17,8 @@ import {
 import { toast } from "sonner"
 import type { StudyPlan, StudyPlanTask, StudyTaskType } from "@/types"
 import { computePlanPace, type PlanPaceStatus } from "@/lib/plan/pace"
+import { buildPlanIcs } from "@/lib/plan/ics"
+import { PlanCalendar } from "@/components/plan/plan-calendar"
 import {
   Card,
   CardContent,
@@ -49,6 +54,19 @@ export function PlanView({ plan }: { plan: StudyPlan }) {
   const updatePlanTask = useSessionStore((s) => s.updatePlanTask)
   const createPlan = useSessionStore((s) => s.createPlan)
   const [regenerating, setRegenerating] = useState(false)
+  const [view, setView] = useState<"timeline" | "calendar">("timeline")
+
+  function downloadIcs() {
+    const ics = buildPlanIcs(plan)
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `prepa-${plan.examCode.toLowerCase()}-plan.ics`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success("Calendar file downloaded — import it into your calendar.")
+  }
 
   const done = plan.tasks.filter((t) => t.status === "done").length
   const total = plan.tasks.length
@@ -126,23 +144,52 @@ export function PlanView({ plan }: { plan: StudyPlan }) {
 
       <CoachingCard />
 
-      <div className="flex flex-col gap-2">
-        {plan.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            isToday={task.scheduledDate === today}
-            launching={launchingId === task.id}
-            onStart={() => launch(task)}
-            onToggleDone={() =>
-              void updatePlanTask(
-                task.id,
-                task.status === "done" ? "pending" : "done",
-              )
-            }
-          />
-        ))}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 rounded-lg border p-0.5">
+          <Button
+            variant={view === "timeline" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setView("timeline")}
+          >
+            <List data-icon="inline-start" />
+            Timeline
+          </Button>
+          <Button
+            variant={view === "calendar" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setView("calendar")}
+          >
+            <CalendarDays data-icon="inline-start" />
+            Calendar
+          </Button>
+        </div>
+        <Button variant="outline" size="sm" onClick={downloadIcs}>
+          <Download data-icon="inline-start" />
+          Add to calendar
+        </Button>
       </div>
+
+      {view === "calendar" ? (
+        <PlanCalendar plan={plan} />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {plan.tasks.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              isToday={task.scheduledDate === today}
+              launching={launchingId === task.id}
+              onStart={() => launch(task)}
+              onToggleDone={() =>
+                void updatePlanTask(
+                  task.id,
+                  task.status === "done" ? "pending" : "done",
+                )
+              }
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
