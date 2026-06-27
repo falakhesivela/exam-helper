@@ -51,6 +51,7 @@ Apply migrations in order from `supabase/migrations/`:
 15. `013_select_grid.sql` — allows the `select_grid` (Yes/No statement grid) question type
 16. `014_answer_confidence.sql` — per-answer `confidence` (sure/unsure) for confidence-based answering
 17. `015_question_bookmarks.sql` — saved/bookmarked questions per user
+18. `016_organizations.sql` — teams/orgs, members, and invite links
 
 **Supabase CLI (recommended):**
 

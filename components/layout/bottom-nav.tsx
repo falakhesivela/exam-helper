@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Menu,
   User,
+  Users,
 } from "lucide-react"
 import { motion } from "motion/react"
 import {
@@ -34,6 +35,7 @@ const primaryItems = [
 const moreItems = [
   { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/history", label: "History", icon: History },
+  { href: "/team", label: "Team", icon: Users },
   { href: "/profile", label: "Profile", icon: User },
 ]
 

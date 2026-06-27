@@ -93,6 +93,27 @@ export interface Question {
 }
 
 /** The per-question record of how a user responded during a session. */
+export type OrgRole = "owner" | "admin" | "member"
+
+export interface TeamMember {
+  userId: string
+  name: string
+  email: string
+  role: OrgRole
+  overallMastery: number
+  questionsAnswered: number
+  streakDays: number
+  lastActiveDate: string | null
+}
+
+export interface Team {
+  id: string
+  name: string
+  /** The current user's role in this team. */
+  role: OrgRole
+  members: TeamMember[]
+}
+
 /** A saved question the learner can revisit across sessions. */
 export interface Bookmark {
   questionId: string

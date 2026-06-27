@@ -282,6 +282,23 @@ export const SAMPLE_QUESTIONS: Question[] = [
   },
 ]
 
+/** Mock team for org-account mock mode. */
+export function buildMockTeam(): import("@/types").Team {
+  const today = new Date().toISOString().slice(0, 10)
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+  return {
+    id: "org-1",
+    name: "Cloud Bootcamp · Cohort 7",
+    role: "owner",
+    members: [
+      { userId: "u-jordan", name: "Jordan Avery", email: "jordan@certforge.app", role: "owner", overallMastery: 65, questionsAnswered: 358, streakDays: 12, lastActiveDate: today },
+      { userId: "u-sam", name: "Sam Okoye", email: "sam@example.com", role: "member", overallMastery: 78, questionsAnswered: 512, streakDays: 5, lastActiveDate: today },
+      { userId: "u-mia", name: "Mia Chen", email: "mia@example.com", role: "member", overallMastery: 44, questionsAnswered: 96, streakDays: 0, lastActiveDate: yesterday },
+      { userId: "u-leo", name: "Leo Martins", email: "leo@example.com", role: "admin", overallMastery: 71, questionsAnswered: 240, streakDays: 21, lastActiveDate: today },
+    ],
+  }
+}
+
 /** Mock saved questions for the bookmarks list. */
 export function buildMockBookmarks() {
   const ids = ["q2", "q4"]

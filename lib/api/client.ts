@@ -7,7 +7,7 @@ import type {
   UserProfile,
 } from "@/types"
 import { consumeSse } from "./stream"
-import { buildMockBookmarks, buildMockMissedQuestions } from "@/lib/mock-data"
+import { buildMockBookmarks, buildMockMissedQuestions, buildMockTeam } from "@/lib/mock-data"
 
 export class ApiClientError extends Error {
   status: number
@@ -388,6 +388,39 @@ export const api = {
     return request<{ ok: boolean }>("/api/bookmarks", {
       method: "DELETE",
       body: JSON.stringify({ questionId }),
+    })
+  },
+
+  team: () => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
+    return request<import("@/types").Team | null>("/api/team")
+  },
+
+  createTeam: (name: string) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
+    return request<import("@/types").Team>("/api/team", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    })
+  },
+
+  inviteToTeam: () => {
+    if (USE_MOCKS) return Promise.resolve({ token: "mock-invite-token" })
+    return request<{ token: string }>("/api/team/invite", { method: "POST" })
+  },
+
+  joinTeam: (token: string) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
+    return request<import("@/types").Team>("/api/team/join", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    })
+  },
+
+  removeTeamMember: (userId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true })
+    return request<{ ok: boolean }>(`/api/team/members/${userId}`, {
+      method: "DELETE",
     })
   },
 }
