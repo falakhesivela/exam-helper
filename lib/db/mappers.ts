@@ -7,6 +7,10 @@ import type {
   Question,
   QuestionOption,
   QuestionType,
+  StudyPlan,
+  StudyPlanTask,
+  StudyTaskStatus,
+  StudyTaskType,
   TopicMastery,
   UserProfile,
 } from "@/types"
@@ -276,4 +280,58 @@ export function stripAnswersForExam(
       dragData: q.dragData ? stripDragAnswerKey(q.dragData) : undefined,
     }
   })
+}
+
+export interface DbStudyPlanTask {
+  id: string
+  day_index: number
+  scheduled_date: string
+  type: StudyTaskType
+  domain_id: string | null
+  domain_name: string | null
+  question_count: number
+  title: string
+  rationale: string
+  status: StudyTaskStatus
+}
+
+export interface DbStudyPlan {
+  id: string
+  exam_code: string
+  exam: string
+  target_date: string
+  target_score: number
+  projected_score: number
+}
+
+export function toStudyPlanTask(row: DbStudyPlanTask): StudyPlanTask {
+  return {
+    id: row.id,
+    dayIndex: row.day_index,
+    scheduledDate: row.scheduled_date,
+    type: row.type,
+    domainId: row.domain_id ?? undefined,
+    domainName: row.domain_name ?? undefined,
+    questionCount: row.question_count,
+    title: row.title,
+    rationale: row.rationale,
+    status: row.status,
+  }
+}
+
+export function toStudyPlan(
+  row: DbStudyPlan,
+  tasks: DbStudyPlanTask[],
+): StudyPlan {
+  return {
+    id: row.id,
+    examCode: row.exam_code,
+    exam: row.exam,
+    targetDate: row.target_date,
+    targetScore: row.target_score,
+    projectedScore: row.projected_score,
+    tasks: tasks
+      .map(toStudyPlanTask)
+      .sort((a, b) => a.dayIndex - b.dayIndex),
+  }
 }

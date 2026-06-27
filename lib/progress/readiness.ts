@@ -50,6 +50,8 @@ export interface Readiness {
   totalAnswered: number
   domainsCovered: number
   totalDomains: number
+  /** Effective mastery for every blueprint domain (drives the study plan). */
+  domains: DomainReadiness[]
   /** Up to three domains dragging the score down most. */
   weakestDomains: DomainReadiness[]
   /** Graded questions from recent mock exams folded into the score (0 if none). */
@@ -184,6 +186,7 @@ export function computeExamReadiness(
     totalAnswered,
     domainsCovered,
     totalDomains: domains.length,
+    domains,
     weakestDomains,
     mockExamQuestions,
   }

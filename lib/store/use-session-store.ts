@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { AnswerRecord, DragAnswer, LearnTopic, PracticeSession, TopicMastery, TopicLesson, UserProfile } from "@/types"
+import type { AnswerRecord, DragAnswer, LearnTopic, PracticeSession, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import {
   buildMockLearnTopics,
@@ -10,6 +10,7 @@ import {
   createSessionFromIntake,
   generateMockTopicLesson,
   emptyProfile,
+  buildMockStudyPlan,
   mockHistory,
   mockMasteryTrend,
   mockProfile,
@@ -26,6 +27,7 @@ interface SessionState {
   masteryTrend: { label: string; mastery: number }[]
   examAccuracy: Record<string, { accuracy: number; questions: number }>
   readinessTrend: { label: string; score: number }[]
+  plan: StudyPlan | null
   learnTopics: LearnTopic[]
   hydrated: boolean
 
@@ -36,6 +38,9 @@ interface SessionState {
   refreshProfile: () => Promise<void>
   refreshTopicMastery: () => Promise<void>
   refreshExamAccuracy: () => Promise<void>
+  refreshPlan: () => Promise<void>
+  createPlan: (targetDate: string) => Promise<StudyPlan>
+  updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -89,6 +94,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   masteryTrend: USE_MOCKS ? mockMasteryTrend : [],
   examAccuracy: {},
   readinessTrend: USE_MOCKS ? mockReadinessTrend : [],
+  plan: USE_MOCKS ? buildMockStudyPlan() : null,
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   hydrated: false,
 
@@ -103,20 +109,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hydrate: async () => {
     if (USE_MOCKS || get().hydrated) return
     try {
-      const [profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend] =
+      const [profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan] =
         await Promise.all([
           api.me(),
           api.listSessions(),
           api.topicMastery(),
           api.masteryTrend(),
           api.learnTopics(),
-          // Non-fatal: missing readiness data must not blank the dashboard.
+          // Non-fatal: missing readiness/plan data must not blank the dashboard.
           api.examAccuracy().catch(() => ({})),
           api.readinessTrend().catch(() => []),
+          api.getPlan().catch(() => null),
         ])
-      set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, hydrated: true })
+      set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan, hydrated: true })
     } catch {
-      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], learnTopics: [], hydrated: true })
+      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], plan: null, learnTopics: [], hydrated: true })
     }
   },
 
@@ -150,6 +157,49 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ examAccuracy, readinessTrend })
     } catch {
       // ignore
+    }
+  },
+
+  refreshPlan: async () => {
+    if (USE_MOCKS) return
+    try {
+      const plan = await api.getPlan()
+      set({ plan })
+    } catch {
+      // ignore
+    }
+  },
+
+  createPlan: async (targetDate) => {
+    if (USE_MOCKS) {
+      const plan = get().plan ?? buildMockStudyPlan()
+      set({ plan })
+      return plan
+    }
+    const plan = await api.createPlan(targetDate)
+    set({ plan })
+    return plan
+  },
+
+  updatePlanTask: async (taskId, status) => {
+    // Optimistic local update, then persist.
+    set((state) =>
+      state.plan
+        ? {
+            plan: {
+              ...state.plan,
+              tasks: state.plan.tasks.map((t) =>
+                t.id === taskId ? { ...t, status } : t,
+              ),
+            },
+          }
+        : state,
+    )
+    if (USE_MOCKS) return
+    try {
+      await api.updatePlanTask(taskId, status)
+    } catch {
+      await get().refreshPlan()
     }
   },
 

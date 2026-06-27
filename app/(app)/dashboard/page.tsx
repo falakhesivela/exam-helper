@@ -12,6 +12,7 @@ import { WeakTopics } from "@/components/dashboard/weak-topics"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { ContinueSession } from "@/components/dashboard/continue-session"
 import { ReadinessCard } from "@/components/dashboard/readiness-card"
+import { PlanTodayCard } from "@/components/dashboard/plan-today-card"
 import { MissedReviewCard } from "@/components/dashboard/missed-review-card"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
@@ -53,7 +54,10 @@ export default function DashboardPage() {
 
       <ContinueSession sessions={sessions} />
 
-      <ReadinessCard />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ReadinessCard />
+        <PlanTodayCard />
+      </div>
 
       {/* Primary calls to action */}
       <div className="grid gap-3 sm:grid-cols-2">

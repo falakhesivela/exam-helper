@@ -277,6 +277,23 @@ export const api = {
       "/api/progress/readiness/trend",
     ),
 
+  getPlan: () => request<import("@/types").StudyPlan | null>("/api/plan"),
+
+  createPlan: (targetDate: string) =>
+    request<import("@/types").StudyPlan>("/api/plan", {
+      method: "POST",
+      body: JSON.stringify({ targetDate }),
+    }),
+
+  updatePlanTask: (
+    taskId: string,
+    status: import("@/types").StudyTaskStatus,
+  ) =>
+    request<import("@/types").StudyPlanTask>(`/api/plan/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
   progressSummary: () =>
     request<{
       overallMastery: number

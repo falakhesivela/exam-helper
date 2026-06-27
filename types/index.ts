@@ -163,6 +163,32 @@ export interface LearnTopic {
   hasAiContent: boolean
 }
 
+export type StudyTaskType = "practice" | "exam" | "lesson" | "review"
+export type StudyTaskStatus = "pending" | "done" | "skipped"
+
+export interface StudyPlanTask {
+  id: string
+  dayIndex: number
+  scheduledDate: string // ISO YYYY-MM-DD
+  type: StudyTaskType
+  domainId?: string
+  domainName?: string
+  questionCount: number
+  title: string
+  rationale: string
+  status: StudyTaskStatus
+}
+
+export interface StudyPlan {
+  id: string
+  examCode: string
+  exam: string
+  targetDate: string // ISO YYYY-MM-DD
+  targetScore: number
+  projectedScore: number
+  tasks: StudyPlanTask[]
+}
+
 /** Full lesson view combining curated outline and AI content. */
 export interface TopicLesson {
   id?: string

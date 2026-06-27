@@ -3,12 +3,14 @@ import type {
   LearnTopic,
   PracticeSession,
   Question,
+  StudyPlan,
   TopicLesson,
   TopicLessonContent,
   TopicMastery,
   UserProfile,
 } from "@/types"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
+import { buildStudyPlan } from "@/lib/plan/schedule"
 import { DEFAULT_FREE_DAILY_QUESTION_LIMIT } from "@/lib/config/freemium"
 
 // ---------------------------------------------------------------------------
@@ -66,6 +68,48 @@ export const mockReadinessTrend = [
   { label: "Jun 24", score: 67 },
   { label: "Jun 26", score: 70 },
 ]
+
+/** A realistic in-progress study plan for mock mode. */
+export function buildMockStudyPlan(): StudyPlan {
+  const today = new Date().toISOString().slice(0, 10)
+  const target = new Date()
+  target.setDate(target.getDate() + 21)
+  const built = buildStudyPlan({
+    examCode: "SAA-C03",
+    targetScore: 75,
+    startDate: today,
+    targetDate: target.toISOString().slice(0, 10),
+    dailyLimit: 20,
+    fullExamQuestionCount: 65,
+    domains: [
+      { id: "design-resilient", name: "Design Resilient Architectures", weightPercent: 30, mastery: 60 },
+      { id: "design-high-performing", name: "Design High-Performing Architectures", weightPercent: 28, mastery: 75 },
+      { id: "design-secure", name: "Design Secure Architectures", weightPercent: 24, mastery: 55 },
+      { id: "design-cost-optimized", name: "Design Cost-Optimized Architectures", weightPercent: 18, mastery: 35 },
+    ],
+  })
+  return {
+    id: "mock-plan-1",
+    examCode: "SAA-C03",
+    exam: "AWS Certified Solutions Architect – Associate",
+    targetDate: built.targetDate,
+    targetScore: built.targetScore,
+    projectedScore: built.projectedScore,
+    tasks: built.tasks.map((t, i) => ({
+      id: `mock-task-${i}`,
+      dayIndex: t.dayIndex,
+      scheduledDate: t.date,
+      type: t.type,
+      domainId: t.domainId,
+      domainName: t.domainName,
+      questionCount: t.questionCount,
+      title: t.title,
+      rationale: t.rationale,
+      // Mark the first two days complete for a believable "in progress" demo.
+      status: t.dayIndex < 2 ? "done" : "pending",
+    })),
+  }
+}
 
 export const SAMPLE_QUESTIONS: Question[] = [
   {
