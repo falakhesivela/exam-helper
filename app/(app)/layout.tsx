@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-dvh">
       <GenerationTracker />
       <TopBar />
-      <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-6 sm:px-6 md:pb-10">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-6 sm:px-6 lg:pb-10">
         {children}
       </main>
       <BottomNav />
