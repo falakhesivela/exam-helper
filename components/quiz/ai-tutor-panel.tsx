@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { motion } from "motion/react"
-import { MessageCircle, Sparkles } from "lucide-react"
+import { Send, Sparkles } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
+import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api/client"
 import type { DragAnswer, Question } from "@/types"
+import { cn } from "@/lib/utils"
 
 interface AiTutorPanelProps {
   question: Question
@@ -13,36 +15,67 @@ interface AiTutorPanelProps {
   dragAnswer?: DragAnswer
 }
 
-/** Optional AI follow-up when the learner misses a question. */
-export function AiTutorPanel({
-  question,
-  selectedOptionIds,
-}: AiTutorPanelProps) {
-  const [reply, setReply] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+type ChatMessage = { role: "user" | "assistant"; content: string }
 
+const SUGGESTIONS = [
+  "Why is the correct answer right?",
+  "Give me a mnemonic",
+  "Explain like I'm new",
+]
+
+/** AI tutor thread: an opening tip on a missed item, then free-form follow-ups. */
+export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState("")
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const threadRef = useRef<HTMLDivElement>(null)
+
+  // Load the opening explanation when the panel mounts for a question.
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    setMessages([])
+    setInitialLoading(true)
     setError(null)
     void api
-      .practiceTutor(question.id, selectedOptionIds)
+      .practiceTutor(question.id, selectedOptionIds, [])
       .then((res) => {
-        if (!cancelled) setReply(res.reply)
+        if (!cancelled) setMessages([{ role: "assistant", content: res.reply }])
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load tutor tip")
-        }
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Tutor unavailable")
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setInitialLoading(false)
       })
     return () => {
       cancelled = true
     }
   }, [question.id, selectedOptionIds])
+
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight })
+  }, [messages, sending])
+
+  async function send(text: string) {
+    const trimmed = text.trim()
+    if (!trimmed || sending) return
+    const next: ChatMessage[] = [...messages, { role: "user", content: trimmed }]
+    setMessages(next)
+    setInput("")
+    setSending(true)
+    setError(null)
+    try {
+      const res = await api.practiceTutor(question.id, selectedOptionIds, next)
+      setMessages([...next, { role: "assistant", content: res.reply }])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tutor unavailable")
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
     <motion.div
@@ -50,23 +83,83 @@ export function AiTutorPanel({
       animate={{ opacity: 1, height: "auto" }}
       className="overflow-hidden"
     >
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
           <Sparkles className="size-3.5" />
           AI tutor
         </p>
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner className="size-4" />
-            Thinking about your answer…
-          </div>
-        ) : error ? (
-          <p className="text-sm text-muted-foreground">{error}</p>
-        ) : (
-          <p className="flex gap-2 text-sm leading-relaxed text-foreground/90">
-            <MessageCircle className="mt-0.5 size-4 shrink-0 text-primary" />
-            {reply}
-          </p>
+
+        <div ref={threadRef} className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+          {initialLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Spinner className="size-4" />
+              Thinking about your answer…
+            </div>
+          ) : (
+            messages.map((m, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed",
+                  m.role === "assistant"
+                    ? "self-start bg-card text-foreground/90"
+                    : "self-end bg-primary text-primary-foreground",
+                )}
+              >
+                {m.content}
+              </div>
+            ))
+          )}
+          {sending && (
+            <div className="flex items-center gap-2 self-start text-sm text-muted-foreground">
+              <Spinner className="size-4" />
+              Typing…
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        {!initialLoading && (
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={sending}
+                  onClick={() => void send(s)}
+                  className="rounded-full border border-primary/30 px-2.5 py-1 text-xs text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                void send(input)
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask a follow-up…"
+                disabled={sending}
+                className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={sending || !input.trim()}
+                aria-label="Send"
+              >
+                <Send className="size-4" />
+              </Button>
+            </form>
+          </>
         )}
       </div>
     </motion.div>

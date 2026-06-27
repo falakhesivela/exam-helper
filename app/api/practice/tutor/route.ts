@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { requireUser } from "@/lib/api/auth"
-import { handleRouteError } from "@/lib/api/route-utils"
-import { explainWrongAnswer } from "@/lib/ai/tutor"
+import { apiError, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { tutorReply } from "@/lib/ai/tutor"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { toQuestion, type DbQuestion } from "@/lib/db/mappers"
 
@@ -11,11 +11,25 @@ export const runtime = "nodejs"
 const bodySchema = z.object({
   questionId: z.string().uuid(),
   selectedOptionIds: z.array(z.string()).default([]),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(1000),
+      }),
+    )
+    .max(20)
+    .default([]),
 })
 
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
+    if (!rateLimit(`tutor:${user.id}`, 20, 60_000)) {
+      return apiError("Slow down a moment and try again.", 429, {
+        code: "RATE_LIMITED",
+      })
+    }
     const body = bodySchema.parse(await request.json())
     const admin = createAdminClient()
 
@@ -44,14 +58,17 @@ export async function POST(request: Request) {
 
     const mapped = toQuestion(q)
 
-    const reply = await explainWrongAnswer({
-      prompt: mapped.prompt,
-      scenario: mapped.scenario,
-      options: mapped.options ?? [],
-      correctOptionIds: mapped.correctOptionIds ?? [],
-      userSelectedIds: body.selectedOptionIds,
-      explanation: mapped.explanation,
-    })
+    const reply = await tutorReply(
+      {
+        prompt: mapped.prompt,
+        scenario: mapped.scenario,
+        options: mapped.options ?? [],
+        correctOptionIds: mapped.correctOptionIds ?? [],
+        userSelectedIds: body.selectedOptionIds,
+        explanation: mapped.explanation,
+      },
+      body.messages,
+    )
 
     return NextResponse.json({ reply })
   } catch (err) {

@@ -258,11 +258,20 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  practiceTutor: (questionId: string, selectedOptionIds: string[]) =>
-    request<{ reply: string }>("/api/practice/tutor", {
+  practiceTutor: (
+    questionId: string,
+    selectedOptionIds: string[],
+    messages: { role: "user" | "assistant"; content: string }[] = [],
+  ) => {
+    if (USE_MOCKS) {
+      const last = messages.filter((m) => m.role === "user").at(-1)?.content ?? ""
+      return Promise.resolve({ reply: mockTutorReply(last) })
+    }
+    return request<{ reply: string }>("/api/practice/tutor", {
       method: "POST",
-      body: JSON.stringify({ questionId, selectedOptionIds }),
-    }),
+      body: JSON.stringify({ questionId, selectedOptionIds, messages }),
+    })
+  },
 
   masteryTrend: () =>
     request<{ label: string; mastery: number }[]>("/api/progress/trend"),
@@ -346,3 +355,18 @@ export const api = {
 export const USE_MOCKS =
   process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
   (!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NODE_ENV === "development")
+
+/** Canned tutor replies for mock mode (no AI call). */
+function mockTutorReply(lastUserMessage: string): string {
+  const msg = lastUserMessage.toLowerCase()
+  if (msg.includes("mnemonic")) {
+    return "Try \"RICE\": Read-replicas Improve Concurrent rEads. When a question stresses read scaling without touching writes, RICE points you to read replicas."
+  }
+  if (msg.includes("correct") || msg.includes("right")) {
+    return "The correct option directly addresses read scalability: read replicas serve read traffic off the primary, so latency drops during peak reads. The others fix availability or backups, not read throughput."
+  }
+  if (msg.includes("beginner") || msg.includes("new") || msg.includes("simply")) {
+    return "Think of one busy cashier (the primary database). Read replicas are extra cashiers who can only ring up 'read' customers, so the line moves faster — without changing how new stock is added (writes)."
+  }
+  return "Good question. Focus on what the scenario optimizes for: here it's read latency under load. Map each option to the bottleneck it solves, and pick the one that targets reads specifically."
+}
