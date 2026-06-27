@@ -11,6 +11,7 @@ import type { PracticeSession } from "@/types"
 import { scoreOf, domainBreakdown } from "@/lib/session-utils"
 import { getExamBlueprint } from "@/lib/exams"
 import { formatClock } from "@/hooks/use-countdown"
+import { ShareScoreCard } from "@/components/exam/share-score-card"
 import { cn } from "@/lib/utils"
 
 interface ExamSummaryProps {
@@ -93,6 +94,15 @@ export function ExamSummary({ session, timeUsedSec }: ExamSummaryProps) {
           ))}
         </CardContent>
       </Card>
+
+      <ShareScoreCard
+        examCode={session.examCode}
+        exam={session.exam}
+        pct={pct}
+        correct={correct}
+        total={total}
+        passed={passed}
+      />
 
       <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button asChild size="lg" className="flex-1">
