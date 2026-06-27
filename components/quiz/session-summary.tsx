@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import type { PracticeSession } from "@/types"
-import { scoreOf, topicBreakdown } from "@/lib/session-utils"
+import { scoreOf, topicBreakdown, confidenceBreakdown } from "@/lib/session-utils"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
 
 interface SessionSummaryProps {
@@ -19,6 +19,7 @@ interface SessionSummaryProps {
 export function SessionSummary({ session }: SessionSummaryProps) {
   const { correct, total, pct } = scoreOf(session)
   const breakdown = topicBreakdown(session)
+  const confidence = confidenceBreakdown(session)
   const weakest = [...breakdown].sort((a, b) => a.pct - b.pct)[0]
   const flaggedCount = Object.values(session.answers).filter(
     (a) => a.markedForReview,
@@ -88,6 +89,33 @@ export function SessionSummary({ session }: SessionSummaryProps) {
           )}
         </CardContent>
       </Card>
+
+      {confidence.rated > 0 && (
+        <Card>
+          <CardContent className="flex flex-col gap-3 p-5">
+            <p className="text-sm font-medium">Confidence check</p>
+            {confidence.overconfident > 0 ? (
+              <div className="flex items-start gap-2 rounded-lg border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-3 py-2.5 text-sm text-[#f59e0b]">
+                <span>
+                  You were <strong>sure but wrong</strong> on{" "}
+                  {confidence.overconfident}{" "}
+                  {confidence.overconfident === 1 ? "question" : "questions"} —
+                  worth reviewing closely.
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No over-confident misses — your self-assessment is well calibrated.
+              </p>
+            )}
+            {confidence.lucky > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Unsure but right on {confidence.lucky} — you know more than you think.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-2.5">
         <Button asChild size="lg" className="w-full">

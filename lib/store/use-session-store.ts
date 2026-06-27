@@ -76,6 +76,7 @@ interface SessionState {
     selectedOptionIds: string[],
     timeSpentSec: number,
     dragAnswer?: import("@/types").DragAnswer,
+    confidence?: import("@/types").Confidence,
   ) => Promise<{ isCorrect: boolean }>
   toggleMarkForReview: (sessionId: string, questionId: string) => Promise<void>
   skipQuestion: (sessionId: string, questionId: string) => Promise<void>
@@ -416,6 +417,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     selectedOptionIds,
     timeSpentSec,
     dragAnswer?,
+    confidence?,
   ) => {
     if (USE_MOCKS) {
       const session = get().sessions.find((s) => s.id === sessionId)
@@ -437,6 +439,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             markedForReview: s.answers[questionId]?.markedForReview ?? false,
             skipped: false,
             timeSpentSec,
+            confidence,
           }
           return { ...s, answers: { ...s.answers, [questionId]: record } }
         }),
@@ -449,6 +452,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       selectedOptionIds,
       dragAnswer,
       timeSpentSec,
+      confidence,
     })
 
     set((state) => ({

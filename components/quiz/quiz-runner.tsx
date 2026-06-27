@@ -39,7 +39,7 @@ import { api, USE_MOCKS } from "@/lib/api/client"
 import { useSessionSync } from "@/hooks/use-session-sync"
 import { formatTime, useStopwatch } from "@/hooks/use-stopwatch"
 import { formatClock, useCountdown } from "@/hooks/use-countdown"
-import type { DragAnswer, PracticeSession } from "@/types"
+import type { Confidence, DragAnswer, PracticeSession } from "@/types"
 import { isMcqQuestion, isQuestionAnswered } from "@/lib/session-utils"
 import { cn } from "@/lib/utils"
 
@@ -135,6 +135,7 @@ interface InnerProps {
     selected: string[],
     time: number,
     dragAnswer?: DragAnswer,
+    confidence?: Confidence,
   ) => Promise<{ isCorrect: boolean }>
   onMark: (sessionId: string, questionId: string) => Promise<void>
   onSkip: (sessionId: string, questionId: string) => Promise<void>
@@ -164,6 +165,7 @@ function QuizRunnerInner({
   })
   const [selected, setSelected] = useState<string[]>([])
   const [dragAnswer, setDragAnswer] = useState<DragAnswer | undefined>()
+  const [confidence, setConfidence] = useState<Confidence | undefined>()
   const [revealed, setRevealed] = useState(false)
   const [answerCorrect, setAnswerCorrect] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -226,6 +228,7 @@ function QuizRunnerInner({
         selected,
         seconds,
         dragAnswer,
+        confidence,
       )
       setAnswerCorrect(result.isCorrect)
       setRevealed(true)
@@ -276,6 +279,7 @@ function QuizRunnerInner({
       // across questions, and awaiting onGoTo would otherwise flash stale styling.
       setSelected([])
       setDragAnswer(undefined)
+      setConfidence(undefined)
       setRevealed(false)
       setAnswerCorrect(false)
       setIndex(next)
@@ -443,6 +447,28 @@ function QuizRunnerInner({
 
       {/* Sticky action footer */}
       <footer className="sticky bottom-0 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg">
+        {!revealed && (
+          <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 pt-2.5 text-xs">
+            <span className="text-muted-foreground">How sure are you?</span>
+            {(["sure", "unsure"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setConfidence((cur) => (cur === c ? undefined : c))}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 font-medium capitalize transition-colors",
+                  confidence === c
+                    ? c === "sure"
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-[#f59e0b] bg-[#f59e0b]/15 text-[#f59e0b]"
+                    : "border-border text-muted-foreground hover:border-foreground/40",
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           {!revealed ? (
             <>

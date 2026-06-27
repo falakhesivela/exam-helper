@@ -92,6 +92,7 @@ export interface DbAnswer {
   skipped: boolean
   time_spent_sec: number
   answered_at?: string | null
+  confidence?: "sure" | "unsure" | null
 }
 
 function generatedToDragData(question: GeneratedQuestion): DragQuestionData | undefined {
@@ -213,6 +214,7 @@ export function toAnswerRecord(row: DbAnswer): AnswerRecord {
     markedForReview: row.marked_for_review,
     skipped: row.skipped,
     timeSpentSec: row.time_spent_sec,
+    confidence: row.confidence ?? undefined,
   }
 }
 

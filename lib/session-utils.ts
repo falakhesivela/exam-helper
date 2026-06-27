@@ -66,6 +66,44 @@ export function isAnswerCorrect(
   )
 }
 
+export interface ConfidenceBreakdown {
+  /** Answers that carried a confidence rating. */
+  rated: number
+  /** Sure + correct. */
+  solid: number
+  /** Sure + wrong — the dangerous quadrant. */
+  overconfident: number
+  /** Unsure + correct — knows more than they think. */
+  lucky: number
+  /** Unsure + wrong — expected gaps. */
+  shaky: number
+}
+
+/** Tally the confidence-vs-correctness quadrants for a session. */
+export function confidenceBreakdown(
+  session: PracticeSession,
+): ConfidenceBreakdown {
+  const out: ConfidenceBreakdown = {
+    rated: 0,
+    solid: 0,
+    overconfident: 0,
+    lucky: 0,
+    shaky: 0,
+  }
+  for (const a of Object.values(session.answers)) {
+    if (!a.confidence) continue
+    out.rated += 1
+    if (a.confidence === "sure") {
+      if (a.isCorrect) out.solid += 1
+      else out.overconfident += 1
+    } else {
+      if (a.isCorrect) out.lucky += 1
+      else out.shaky += 1
+    }
+  }
+  return out
+}
+
 /** Computes the score (answered-correct / answered-total) for a session. */
 export function scoreOf(session: PracticeSession): {
   correct: number

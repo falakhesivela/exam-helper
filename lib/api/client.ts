@@ -180,6 +180,7 @@ export const api = {
       selectedOptionIds: string[]
       dragAnswer?: import("@/types").DragAnswer
       timeSpentSec: number
+      confidence?: import("@/types").Confidence
     },
   ) =>
     request<{

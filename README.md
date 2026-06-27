@@ -49,6 +49,7 @@ Apply migrations in order from `supabase/migrations/`:
 13. `011_study_plans.sql` — study plans and per-day tasks for the study-plan generator
 14. `012_streaks.sql` — `longest_streak` and `daily_goal` columns for streak mechanics
 15. `013_select_grid.sql` — allows the `select_grid` (Yes/No statement grid) question type
+16. `014_answer_confidence.sql` — per-answer `confidence` (sure/unsure) for confidence-based answering
 
 **Supabase CLI (recommended):**
 

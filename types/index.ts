@@ -93,6 +93,9 @@ export interface Question {
 }
 
 /** The per-question record of how a user responded during a session. */
+/** How sure the learner felt when answering. */
+export type Confidence = "sure" | "unsure"
+
 export interface AnswerRecord {
   questionId: string
   selectedOptionIds: string[]
@@ -101,6 +104,7 @@ export interface AnswerRecord {
   markedForReview: boolean
   skipped: boolean
   timeSpentSec: number
+  confidence?: Confidence
 }
 
 export type SessionStatus = "in-progress" | "completed"

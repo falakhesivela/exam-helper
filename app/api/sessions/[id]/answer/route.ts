@@ -42,6 +42,7 @@ const bodySchema = z.object({
   selectedOptionIds: z.array(z.string()).default([]),
   dragAnswer: dragAnswerSchema.optional(),
   timeSpentSec: z.number().int().min(0).default(0),
+  confidence: z.enum(["sure", "unsure"]).optional(),
 })
 
 export async function PATCH(
@@ -111,6 +112,7 @@ export async function PATCH(
         skipped: !answered,
         time_spent_sec: body.timeSpentSec,
         answered_at: new Date().toISOString(),
+        confidence: body.confidence ?? null,
       },
       { onConflict: "session_id,question_id" },
     )
@@ -165,6 +167,7 @@ export async function PATCH(
         markedForReview: false,
         skipped: !answered,
         timeSpentSec: body.timeSpentSec,
+        confidence: body.confidence,
       },
       question: revealedQuestion,
       session: updatedSession,
