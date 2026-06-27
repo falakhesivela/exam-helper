@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from "@/types"
 import { consumeSse } from "./stream"
+import { buildMockMissedQuestions } from "@/lib/mock-data"
 
 export class ApiClientError extends Error {
   status: number
@@ -228,8 +229,12 @@ export const api = {
 
   topicMastery: () => request<TopicMastery[]>("/api/progress/mastery"),
 
-  missedQuestions: (dueOnly = false) =>
-    request<{
+  missedQuestions: (dueOnly = false) => {
+    if (USE_MOCKS) {
+      const items = buildMockMissedQuestions()
+      return Promise.resolve({ items, count: items.length })
+    }
+    return request<{
       items: Array<{
         questionId: string
         sessionId: string
@@ -239,7 +244,8 @@ export const api = {
         question: PracticeSession["questions"][number]
       }>
       count: number
-    }>(`/api/progress/missed?due=${dueOnly}`),
+    }>(`/api/progress/missed?due=${dueOnly}`)
+  },
 
   retryMissedQuestion: (
     questionId: string,

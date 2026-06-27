@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Brain, CalendarClock } from "lucide-react"
+import { Brain, CalendarClock, Layers } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -26,6 +26,12 @@ export function MissedReviewCard() {
           <Link href="/practice/missed?due=true">
             <CalendarClock data-icon="inline-start" />
             Due for review today
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" className="w-full">
+          <Link href="/practice/flashcards">
+            <Layers data-icon="inline-start" />
+            Flashcards
           </Link>
         </Button>
       </CardContent>

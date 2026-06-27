@@ -282,6 +282,22 @@ export const SAMPLE_QUESTIONS: Question[] = [
   },
 ]
 
+/** Mock missed questions (a few wrong-answered samples) for flashcards/review. */
+export function buildMockMissedQuestions() {
+  const missedIds = ["q1", "q3", "q5"]
+  const ts = Date.now()
+  return SAMPLE_QUESTIONS.filter((q) => missedIds.includes(q.id)).map(
+    (question, i) => ({
+      questionId: question.id,
+      sessionId: "s-1001",
+      exam: "AWS Certified Solutions Architect – Associate",
+      examCode: "SAA-C03",
+      answeredAt: new Date(ts - i * 3600_000).toISOString(),
+      question,
+    }),
+  )
+}
+
 export const mockClarifyingQuestions: ClarifyingQuestion[] = [
   {
     id: "c1",
