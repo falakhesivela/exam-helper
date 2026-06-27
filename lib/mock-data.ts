@@ -4,6 +4,7 @@ import type {
   PlanCoaching,
   PracticeSession,
   Question,
+  StreakSummary,
   StudyPlan,
   TopicLesson,
   TopicLessonContent,
@@ -26,6 +27,8 @@ export const mockProfile: UserProfile = {
   dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
   questionsUsedToday: 8,
   streakDays: 12,
+  longestStreak: 21,
+  dailyGoal: 10,
 }
 
 /** Blank profile used before API hydration (never show mock demo data). */
@@ -36,6 +39,8 @@ export const emptyProfile: UserProfile = {
   dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
   questionsUsedToday: 0,
   streakDays: 0,
+  longestStreak: 0,
+  dailyGoal: 10,
 }
 
 // Canonical `EXAMCODE::domainId` keys mirror the enriched shape the API
@@ -69,6 +74,29 @@ export const mockReadinessTrend = [
   { label: "Jun 24", score: 67 },
   { label: "Jun 26", score: 70 },
 ]
+
+/** A streak summary for mock mode, with a realistic 7-day activity row. */
+export function buildMockStreak(): StreakSummary {
+  const today = new Date().toISOString().slice(0, 10)
+  const counts = [12, 10, 0, 14, 11, 10, 6] // oldest→newest
+  const activity = counts.map((count, i) => {
+    const d = new Date(`${today}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - (6 - i))
+    return {
+      date: d.toISOString().slice(0, 10),
+      count,
+      goalMet: count >= 10,
+    }
+  })
+  return {
+    currentStreak: 12,
+    longestStreak: 21,
+    dailyGoal: 10,
+    questionsToday: counts[counts.length - 1],
+    atRisk: false,
+    activity,
+  }
+}
 
 /** Canned AI coaching for mock mode (no AI call). */
 export const mockPlanCoaching: PlanCoaching = {

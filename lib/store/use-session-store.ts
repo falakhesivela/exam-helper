@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { AnswerRecord, DragAnswer, LearnTopic, PlanCoaching, PracticeSession, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
+import type { AnswerRecord, DragAnswer, LearnTopic, PlanCoaching, PracticeSession, StreakSummary, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import {
   buildMockLearnTopics,
@@ -10,6 +10,7 @@ import {
   createSessionFromIntake,
   generateMockTopicLesson,
   emptyProfile,
+  buildMockStreak,
   buildMockStudyPlan,
   mockPlanCoaching,
   mockHistory,
@@ -30,6 +31,7 @@ interface SessionState {
   readinessTrend: { label: string; score: number }[]
   plan: StudyPlan | null
   coaching: PlanCoaching | null
+  streak: StreakSummary | null
   learnTopics: LearnTopic[]
   hydrated: boolean
 
@@ -44,6 +46,8 @@ interface SessionState {
   createPlan: (targetDate: string) => Promise<StudyPlan>
   updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>
   requestCoaching: () => Promise<void>
+  refreshStreak: () => Promise<void>
+  setDailyGoal: (dailyGoal: number) => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -99,6 +103,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   readinessTrend: USE_MOCKS ? mockReadinessTrend : [],
   plan: USE_MOCKS ? buildMockStudyPlan() : null,
   coaching: null,
+  streak: USE_MOCKS ? buildMockStreak() : null,
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   hydrated: false,
 
@@ -126,8 +131,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           api.getPlan().catch(() => null),
         ])
       set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan, hydrated: true })
+      // Streak is non-critical; fetch separately so it never blocks the shell.
+      void get().refreshStreak()
     } catch {
-      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], plan: null, learnTopics: [], hydrated: true })
+      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], plan: null, streak: null, learnTopics: [], hydrated: true })
     }
   },
 
@@ -214,6 +221,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
     const coaching = await api.coachPlan()
     set({ coaching })
+  },
+
+  refreshStreak: async () => {
+    if (USE_MOCKS) return
+    try {
+      const streak = await api.streak()
+      set({ streak })
+    } catch {
+      // ignore — streak is non-critical
+    }
+  },
+
+  setDailyGoal: async (dailyGoal) => {
+    set((state) => ({
+      profile: { ...state.profile, dailyGoal },
+      streak: state.streak ? { ...state.streak, dailyGoal } : state.streak,
+    }))
+    if (USE_MOCKS) return
+    try {
+      await api.updateDailyGoal(dailyGoal)
+      await get().refreshStreak()
+    } catch {
+      // ignore
+    }
   },
 
   refreshLearnTopics: async () => {
@@ -433,7 +464,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }),
     }))
 
-    await Promise.all([get().refreshProfile(), get().refreshTopicMastery()])
+    await Promise.all([
+      get().refreshProfile(),
+      get().refreshTopicMastery(),
+      get().refreshStreak(),
+    ])
     return { isCorrect: result.answer.isCorrect }
   },
 

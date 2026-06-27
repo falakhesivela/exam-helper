@@ -24,6 +24,8 @@ export interface DbProfile {
   plan: "free" | "pro"
   daily_limit: number
   streak_days: number
+  longest_streak: number
+  daily_goal: number
   last_active_date: string | null
   timezone: string
 }
@@ -241,6 +243,8 @@ export function toUserProfile(
     dailyLimit: options?.dailyLimit ?? profile.daily_limit,
     questionsUsedToday,
     streakDays: profile.streak_days,
+    longestStreak: profile.longest_streak ?? 0,
+    dailyGoal: profile.daily_goal ?? 10,
   }
 }
 

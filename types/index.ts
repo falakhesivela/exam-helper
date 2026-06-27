@@ -132,6 +132,21 @@ export interface UserProfile {
   dailyLimit: number
   questionsUsedToday: number
   streakDays: number
+  longestStreak: number
+  /** Self-set target questions/day for the streak. */
+  dailyGoal: number
+}
+
+/** Streak + daily-goal snapshot with recent activity, for the streak card. */
+export interface StreakSummary {
+  currentStreak: number
+  longestStreak: number
+  dailyGoal: number
+  questionsToday: number
+  /** Whether the streak will break if the user doesn't practice today. */
+  atRisk: boolean
+  /** Last 7 days oldest→newest. */
+  activity: { date: string; count: number; goalMet: boolean }[]
 }
 
 /** A clarifying question the AI asks during intake. */

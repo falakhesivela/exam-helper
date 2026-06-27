@@ -259,7 +259,7 @@ export async function updateStreak(
   const today = getLocalDate(timezone)
   const { data: profile } = await admin
     .from("profiles")
-    .select("streak_days, last_active_date")
+    .select("streak_days, last_active_date, longest_streak")
     .eq("id", userId)
     .single()
 
@@ -285,9 +285,15 @@ export async function updateStreak(
     }
   }
 
+  const longestStreak = Math.max(profile.longest_streak ?? 0, streak)
+
   await admin
     .from("profiles")
-    .update({ streak_days: streak, last_active_date: today })
+    .update({
+      streak_days: streak,
+      last_active_date: today,
+      longest_streak: longestStreak,
+    })
     .eq("id", userId)
 }
 

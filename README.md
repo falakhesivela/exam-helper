@@ -47,6 +47,7 @@ Apply migrations in order from `supabase/migrations/`:
 11. `009_review_schedule.sql` — spaced repetition schedule for missed questions
 12. `010_readiness_snapshots.sql` — daily exam-readiness score snapshots for the readiness trend
 13. `011_study_plans.sql` — study plans and per-day tasks for the study-plan generator
+14. `012_streaks.sql` — `longest_streak` and `daily_goal` columns for streak mechanics
 
 **Supabase CLI (recommended):**
 

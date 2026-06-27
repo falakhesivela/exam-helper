@@ -299,6 +299,14 @@ export const api = {
       method: "POST",
     }),
 
+  streak: () => request<import("@/types").StreakSummary>("/api/streak"),
+
+  updateDailyGoal: (dailyGoal: number) =>
+    request<{ dailyGoal: number }>("/api/streak", {
+      method: "PATCH",
+      body: JSON.stringify({ dailyGoal }),
+    }),
+
   progressSummary: () =>
     request<{
       overallMastery: number
