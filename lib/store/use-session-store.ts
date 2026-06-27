@@ -10,6 +10,7 @@ import {
   createSessionFromIntake,
   generateMockTopicLesson,
   emptyProfile,
+  buildMockBookmarks,
   buildMockStreak,
   buildMockStudyPlan,
   mockPlanCoaching,
@@ -32,6 +33,7 @@ interface SessionState {
   plan: StudyPlan | null
   coaching: PlanCoaching | null
   streak: StreakSummary | null
+  bookmarkedIds: string[]
   learnTopics: LearnTopic[]
   hydrated: boolean
 
@@ -48,6 +50,7 @@ interface SessionState {
   requestCoaching: () => Promise<void>
   refreshStreak: () => Promise<void>
   setDailyGoal: (dailyGoal: number) => Promise<void>
+  toggleBookmark: (questionId: string) => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -105,6 +108,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   plan: USE_MOCKS ? buildMockStudyPlan() : null,
   coaching: null,
   streak: USE_MOCKS ? buildMockStreak() : null,
+  bookmarkedIds: USE_MOCKS ? buildMockBookmarks().map((b) => b.questionId) : [],
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   hydrated: false,
 
@@ -132,8 +136,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           api.getPlan().catch(() => null),
         ])
       set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan, hydrated: true })
-      // Streak is non-critical; fetch separately so it never blocks the shell.
+      // Non-critical extras; fetch separately so they never block the shell.
       void get().refreshStreak()
+      void api
+        .bookmarkIds()
+        .then(({ ids }) => set({ bookmarkedIds: ids }))
+        .catch(() => {})
     } catch {
       set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], plan: null, streak: null, learnTopics: [], hydrated: true })
     }
@@ -245,6 +253,28 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       await get().refreshStreak()
     } catch {
       // ignore
+    }
+  },
+
+  toggleBookmark: async (questionId) => {
+    const wasBookmarked = get().bookmarkedIds.includes(questionId)
+    // Optimistic update.
+    set((state) => ({
+      bookmarkedIds: wasBookmarked
+        ? state.bookmarkedIds.filter((id) => id !== questionId)
+        : [...state.bookmarkedIds, questionId],
+    }))
+    if (USE_MOCKS) return
+    try {
+      if (wasBookmarked) await api.removeBookmark(questionId)
+      else await api.addBookmark(questionId)
+    } catch {
+      // Revert on failure.
+      set((state) => ({
+        bookmarkedIds: wasBookmarked
+          ? [...state.bookmarkedIds, questionId]
+          : state.bookmarkedIds.filter((id) => id !== questionId),
+      }))
     }
   },
 

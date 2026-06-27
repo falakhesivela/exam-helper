@@ -93,6 +93,16 @@ export interface Question {
 }
 
 /** The per-question record of how a user responded during a session. */
+/** A saved question the learner can revisit across sessions. */
+export interface Bookmark {
+  questionId: string
+  exam: string
+  examCode: string
+  note?: string
+  createdAt: string
+  question: Question
+}
+
 /** How sure the learner felt when answering. */
 export type Confidence = "sure" | "unsure"
 

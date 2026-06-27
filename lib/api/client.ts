@@ -7,7 +7,7 @@ import type {
   UserProfile,
 } from "@/types"
 import { consumeSse } from "./stream"
-import { buildMockMissedQuestions } from "@/lib/mock-data"
+import { buildMockBookmarks, buildMockMissedQuestions } from "@/lib/mock-data"
 
 export class ApiClientError extends Error {
   status: number
@@ -357,6 +357,39 @@ export const api = {
 
   signOut: () =>
     request<{ ok: boolean }>("/api/auth/signout", { method: "POST" }),
+
+  bookmarks: () => {
+    if (USE_MOCKS) {
+      const items = buildMockBookmarks()
+      return Promise.resolve({ items, count: items.length })
+    }
+    return request<{ items: import("@/types").Bookmark[]; count: number }>(
+      "/api/bookmarks",
+    )
+  },
+
+  bookmarkIds: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve({ ids: buildMockBookmarks().map((b) => b.questionId) })
+    }
+    return request<{ ids: string[] }>("/api/bookmarks/ids")
+  },
+
+  addBookmark: (questionId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId })
+    return request<{ ok: boolean }>("/api/bookmarks", {
+      method: "POST",
+      body: JSON.stringify({ questionId }),
+    })
+  },
+
+  removeBookmark: (questionId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId })
+    return request<{ ok: boolean }>("/api/bookmarks", {
+      method: "DELETE",
+      body: JSON.stringify({ questionId }),
+    })
+  },
 }
 
 export const USE_MOCKS =

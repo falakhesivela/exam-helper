@@ -282,6 +282,19 @@ export const SAMPLE_QUESTIONS: Question[] = [
   },
 ]
 
+/** Mock saved questions for the bookmarks list. */
+export function buildMockBookmarks() {
+  const ids = ["q2", "q4"]
+  const ts = Date.now()
+  return SAMPLE_QUESTIONS.filter((q) => ids.includes(q.id)).map((question, i) => ({
+    questionId: question.id,
+    exam: "AWS Certified Solutions Architect – Associate",
+    examCode: "SAA-C03",
+    createdAt: new Date(ts - i * 86_400_000).toISOString(),
+    question,
+  }))
+}
+
 /** Mock missed questions (a few wrong-answered samples) for flashcards/review. */
 export function buildMockMissedQuestions() {
   const missedIds = ["q1", "q3", "q5"]
