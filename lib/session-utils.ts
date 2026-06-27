@@ -35,6 +35,15 @@ export function isQuestionAnswered(
       const assigned = Object.values(dragAnswer.buckets).flat()
       return assigned.length >= question.dragData.items.length
     }
+    if (
+      dragAnswer.type === "select_grid" &&
+      question.dragData.type === "select_grid"
+    ) {
+      // Every row must have a selection.
+      return question.dragData.rows.every(
+        (r) => dragAnswer.selections[r.id] != null,
+      )
+    }
     return false
   }
   return selectedIds.length > 0

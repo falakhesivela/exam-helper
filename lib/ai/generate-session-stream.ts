@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { streamGenerateDragQuestions, streamGenerateQuestions } from "@/lib/ai/stream"
 import type { SseSend } from "@/lib/ai/sse"
 import type { GeneratedQuestion } from "@/lib/ai/schemas"
+import { verifyReferences } from "@/lib/ai/verify-references"
 import type { Question } from "@/types"
 import {
   examDomainBatchPrompt,
@@ -386,7 +387,17 @@ export async function runGenerateSessionStream(
 
     let saved: Question
     if ((existing ?? 0) === 0) {
-      saved = await appendQuestion(admin, sessionId, question, index)
+      // Keep only official-domain, non-dead citations before persisting.
+      const references = await verifyReferences(
+        question.references,
+        params.blueprint?.provider ?? "custom",
+      )
+      saved = await appendQuestion(
+        admin,
+        sessionId,
+        { ...question, references },
+        index,
+      )
     } else {
       const session = await loadSession(admin, sessionId, userId)
       const existingQuestion = session?.questions[index]

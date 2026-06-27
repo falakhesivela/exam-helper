@@ -248,6 +248,14 @@ export function gradeDragAnswer(
     })
   }
 
+  if (dragData.type === "select_grid" && answer.type === "select_grid") {
+    const rowIds = Object.keys(dragData.correctByRow)
+    if (rowIds.length === 0) return false
+    return rowIds.every(
+      (rowId) => dragData.correctByRow[rowId] === answer.selections[rowId],
+    )
+  }
+
   return false
 }
 

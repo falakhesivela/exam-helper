@@ -23,11 +23,12 @@ export interface ExamBlueprint {
   durationMin: number
   passMark: number
   questionMix: { singleChoice: number; multipleResponse: number }
-  /** Fraction of questions per drag type (remainder is MCQ). */
+  /** Fraction of questions per structured type (remainder is MCQ). */
   questionTypeMix?: {
     drag_match?: number
     drag_order?: number
     drag_categorize?: number
+    select_grid?: number
   }
   styleGuide?: {
     scenarioHeavy?: boolean

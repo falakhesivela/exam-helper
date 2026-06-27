@@ -17,6 +17,8 @@ import {
 import { filterValidMcqQuestions } from "./validator"
 import { topicLessonContentSchema } from "./lesson-schemas"
 import { lessonSystemPrompt, lessonUserPrompt } from "./lesson-prompts"
+import { verifyReferences } from "./verify-references"
+import { getExamBlueprint } from "@/lib/exams"
 import type { TopicLessonContent } from "@/types"
 
 const TIMEOUT_MS = 60_000
@@ -178,7 +180,10 @@ export async function generateTopicLesson(params: {
     deepDive: result.deepDive,
     commonTraps: result.commonTraps,
     recap: result.recap,
-    references: result.references,
+    references: await verifyReferences(
+      result.references,
+      getExamBlueprint(params.examCode)?.provider ?? "custom",
+    ),
   }
 }
 

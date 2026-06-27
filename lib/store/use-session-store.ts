@@ -421,7 +421,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const session = get().sessions.find((s) => s.id === sessionId)
       const question = session?.questions.find((q) => q.id === questionId)
       const isCorrect = question
-        ? isAnswerCorrect(question, selectedOptionIds)
+        ? isAnswerCorrect(question, selectedOptionIds, dragAnswer)
         : false
       set((state) => ({
         profile: {

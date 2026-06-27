@@ -31,6 +31,10 @@ const dragAnswerSchema = z.discriminatedUnion("type", [
     type: z.literal("drag_categorize"),
     buckets: z.record(z.string(), z.array(z.string())),
   }),
+  z.object({
+    type: z.literal("select_grid"),
+    selections: z.record(z.string(), z.string()),
+  }),
 ])
 
 const bodySchema = z.object({

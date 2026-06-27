@@ -63,10 +63,19 @@ export const generatedDragCategorizeSchema = z.object({
   correctBuckets: z.record(z.string(), z.array(z.string())),
 })
 
+export const generatedSelectGridSchema = z.object({
+  questionType: z.literal("select_grid"),
+  ...baseQuestionFields,
+  rows: z.array(z.object({ id: z.string(), statement: z.string() })).min(2).max(6),
+  columns: z.array(z.object({ id: z.string(), label: z.string() })).min(2).max(4),
+  correctByRow: z.record(z.string(), z.string()),
+})
+
 export const generatedDragQuestionSchema = z.discriminatedUnion("questionType", [
   generatedDragMatchSchema,
   generatedDragOrderSchema,
   generatedDragCategorizeSchema,
+  generatedSelectGridSchema,
 ])
 
 export const questionSchema = z.object({

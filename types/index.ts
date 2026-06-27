@@ -11,6 +11,7 @@ export type QuestionType =
   | "drag_match"
   | "drag_order"
   | "drag_categorize"
+  | "select_grid"
 
 export interface DragItem {
   id: string
@@ -22,6 +23,22 @@ export interface DropTarget {
   label: string
 }
 
+/** One statement row in a select-grid (e.g. Azure-style Yes/No) question. */
+export interface GridRow {
+  id: string
+  statement: string
+}
+
+/** A column choice shared across all grid rows (e.g. Yes / No). */
+export interface GridColumn {
+  id: string
+  label: string
+}
+
+/**
+ * Structured (non-MCQ) question payloads. Stored together in the `drag_data`
+ * JSONB column; `select_grid` reuses the same storage/answer pipeline as drag.
+ */
 export type DragQuestionData =
   | {
       type: "drag_match"
@@ -40,11 +57,19 @@ export type DragQuestionData =
       items: DragItem[]
       correctBuckets: Record<string, string[]>
     }
+  | {
+      type: "select_grid"
+      rows: GridRow[]
+      columns: GridColumn[]
+      /** rowId → correct columnId. */
+      correctByRow: Record<string, string>
+    }
 
 export type DragAnswer =
   | { type: "drag_match"; mapping: Record<string, string> }
   | { type: "drag_order"; order: string[] }
   | { type: "drag_categorize"; buckets: Record<string, string[]> }
+  | { type: "select_grid"; selections: Record<string, string> }
 
 /** A certification exam question (MCQ or drag-and-drop). */
 export interface Question {

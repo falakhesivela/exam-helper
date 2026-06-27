@@ -159,6 +159,16 @@ function isGeneratedDragComplete(
         Object.keys(q.correctBuckets).length > 0,
     )
   }
+  if (q.questionType === "select_grid") {
+    return Boolean(
+      Array.isArray(q.rows) &&
+        q.rows.length >= 2 &&
+        Array.isArray(q.columns) &&
+        q.columns.length >= 2 &&
+        q.correctByRow &&
+        Object.keys(q.correctByRow).length > 0,
+    )
+  }
   return false
 }
 
@@ -322,7 +332,7 @@ export async function streamGenerateDragQuestions(
   params: {
     description: string
     count: number
-    dragType: "drag_match" | "drag_order" | "drag_categorize"
+    dragType: "drag_match" | "drag_order" | "drag_categorize" | "select_grid"
     systemPrompt: string
     userPrompt: string
   },

@@ -79,6 +79,19 @@ export function validateDragQuestion(q: GeneratedDragQuestion): string | null {
     if (seen.size !== q.items.length) return "Items not fully categorized"
   }
 
+  if (q.questionType === "select_grid") {
+    const colIds = new Set(q.columns.map((c) => c.id))
+    const rowIds = new Set(q.rows.map((r) => r.id))
+    if (rowIds.size !== q.rows.length) return "Duplicate row ids"
+    if (colIds.size < 2) return "Need at least two columns"
+    if (Object.keys(q.correctByRow).length !== q.rows.length) {
+      return "Every row needs a correct answer"
+    }
+    for (const [rowId, colId] of Object.entries(q.correctByRow)) {
+      if (!rowIds.has(rowId) || !colIds.has(colId)) return "Invalid grid answer id"
+    }
+  }
+
   return null
 }
 

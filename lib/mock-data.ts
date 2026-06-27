@@ -253,6 +253,33 @@ export const SAMPLE_QUESTIONS: Question[] = [
       { label: "AWS Docs — RDS read replicas", url: "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html" },
     ],
   },
+  {
+    id: "q6",
+    topic: "Storage",
+    difficulty: "medium",
+    questionType: "select_grid",
+    prompt:
+      "For each of the following statements about Amazon S3 storage classes, select Yes if the statement is true, otherwise select No.",
+    dragData: {
+      type: "select_grid",
+      rows: [
+        { id: "r1", statement: "S3 Standard-IA charges a per-GB retrieval fee." },
+        { id: "r2", statement: "S3 Glacier Deep Archive offers millisecond retrieval by default." },
+        { id: "r3", statement: "S3 Intelligent-Tiering moves objects between tiers automatically." },
+      ],
+      columns: [
+        { id: "yes", label: "Yes" },
+        { id: "no", label: "No" },
+      ],
+      correctByRow: { r1: "yes", r2: "no", r3: "yes" },
+    },
+    correctOptionIds: [],
+    explanation:
+      "Standard-IA has lower storage cost but charges per-GB retrieval. Glacier Deep Archive is the lowest-cost class with retrieval times of hours, not milliseconds. Intelligent-Tiering automatically moves objects between access tiers based on usage.",
+    references: [
+      { label: "AWS Docs — S3 storage classes", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html" },
+    ],
+  },
 ]
 
 export const mockClarifyingQuestions: ClarifyingQuestion[] = [

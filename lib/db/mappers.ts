@@ -111,6 +111,14 @@ function generatedToDragData(question: GeneratedQuestion): DragQuestionData | un
       correctOrder: question.correctOrder,
     }
   }
+  if (question.questionType === "select_grid") {
+    return {
+      type: "select_grid",
+      rows: question.rows,
+      columns: question.columns,
+      correctByRow: question.correctByRow,
+    }
+  }
   return {
     type: "drag_categorize",
     categories: question.categories,
@@ -165,6 +173,8 @@ function stripDragAnswerKey(data: DragQuestionData): DragQuestionData {
       return { ...data, correctOrder: [] }
     case "drag_categorize":
       return { ...data, correctBuckets: {} }
+    case "select_grid":
+      return { ...data, correctByRow: {} }
   }
 }
 

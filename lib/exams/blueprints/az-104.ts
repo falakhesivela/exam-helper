@@ -8,7 +8,7 @@ export const az104Blueprint: ExamBlueprint = {
   durationMin: 100,
   passMark: 70,
   questionMix: { singleChoice: 0.75, multipleResponse: 0.25 },
-  questionTypeMix: { drag_match: 0.05, drag_order: 0.04 },
+  questionTypeMix: { drag_match: 0.05, drag_order: 0.04, select_grid: 0.08 },
   styleGuide: { scenarioHeavy: true },
   domains: [
     {

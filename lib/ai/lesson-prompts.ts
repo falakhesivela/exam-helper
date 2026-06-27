@@ -7,7 +7,7 @@ Rules:
 - Each deep-dive section should teach one distinct concept with practical context.
 - Common traps should describe realistic wrong answers or misconceptions on the exam.
 - Recap should be 3-5 sentences summarizing the most testable points.
-- References should point to official documentation when possible.
+- references MUST link only to official vendor/standards documentation (the product's own docs site). Use real, specific pages — never invent URLs; omit a reference rather than guess.
 - Do not invent exam codes or question numbers.`
 }
 

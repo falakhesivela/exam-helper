@@ -6,6 +6,7 @@ import { questionTypeOf } from "@/lib/session-utils"
 import { DragCategorizePane } from "./drag-categorize-pane"
 import { DragMatchPane } from "./drag-match-pane"
 import { DragOrderPane } from "./drag-order-pane"
+import { SelectGridPane } from "./select-grid-pane"
 import { ExamOptionRow } from "./exam-option-row"
 import { QuestionStem } from "./question-stem"
 
@@ -68,6 +69,12 @@ export function ExamQuestionPane({
         />
       ) : type === "drag_order" ? (
         <DragOrderPane
+          question={question}
+          answer={dragAnswer}
+          onChange={onDragAnswerChange}
+        />
+      ) : type === "select_grid" ? (
+        <SelectGridPane
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}

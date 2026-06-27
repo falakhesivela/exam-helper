@@ -1,4 +1,5 @@
 import type { ExamBlueprint, ExamBlueprintDomain } from "@/lib/exams/types"
+import { officialDomainGuidance } from "@/lib/ai/citations"
 
 export function clarifySystemPrompt() {
   return `You are Prepa, an AI exam-prep assistant. Given a user's exam description, decide if you need clarifying questions before generating practice questions.
@@ -23,7 +24,8 @@ Rules:
 - Include a mix of difficulties unless told otherwise.
 - multiSelect is true only when the stem asks for TWO or more correct answers.
 - correctOptionIds must reference option ids you provide.
-- explanations teach the concept; references should point to official docs when possible.
+- explanations teach the concept.
+${officialDomainGuidance()}
 - Never put the correct answer verbatim in the stem.`
 }
 
@@ -68,7 +70,8 @@ export function examSimulationSystemPrompt(blueprint: ExamBlueprint): string {
     "- For multi-select stems, include phrasing like 'Select TWO answers' or 'Choose THREE responses'.",
     "- correctOptionIds must reference option ids you provide.",
     "- Set topic to the exam domain name provided in the user prompt.",
-    "- explanations teach the concept; references should point to official docs when possible.",
+    "- explanations teach the concept.",
+    officialDomainGuidance(blueprint.provider),
     "- Never put the correct answer verbatim in the stem.",
     "- When no separate scenario paragraph is needed, set scenario to null.",
   ]
@@ -157,15 +160,18 @@ export function examDragSystemPrompt(blueprint: ExamBlueprint): string {
     "- drag_match: match each item to exactly one target (e.g. port to protocol, term to definition).",
     "- drag_order: put steps or phases in the correct sequence.",
     "- drag_categorize: sort items into 2-4 category buckets.",
+    "- select_grid: 2-6 statements, each answered from shared columns (e.g. Yes/No or True/False). Use for 'For each statement, select Yes or No' style questions.",
     "",
     "Rules:",
     "- Questions must be original and technically accurate.",
     "- Use short, clear item and target labels suitable for mobile tap-to-assign UI.",
-    "- Provide unique ids for items, targets, and categories.",
+    "- Provide unique ids for items, targets, categories, rows, and columns.",
     "- correctMatch maps each target id to exactly one item id.",
     "- correctOrder lists item ids in the correct sequence.",
     "- correctBuckets maps each category id to the item ids that belong there.",
-    "- explanations teach the concept; references point to official docs when possible.",
+    "- For select_grid: rows are statements, columns are the shared choices (e.g. Yes/No), and correctByRow maps each row id to the correct column id.",
+    "- explanations teach the concept.",
+    officialDomainGuidance(blueprint.provider),
   ].join("\n")
 }
 
@@ -173,14 +179,16 @@ export function examDragBatchPrompt(
   blueprint: ExamBlueprint,
   domain: ExamBlueprintDomain,
   count: number,
-  dragType: "drag_match" | "drag_order" | "drag_categorize",
+  dragType: "drag_match" | "drag_order" | "drag_categorize" | "select_grid",
 ): string {
   const typeLabel =
     dragType === "drag_match"
       ? "match items to targets"
       : dragType === "drag_order"
         ? "order steps correctly"
-        : "categorize items into buckets"
+        : dragType === "select_grid"
+          ? "answer each statement from shared columns (e.g. Yes/No)"
+          : "categorize items into buckets"
 
   return [
     `Generate exactly ${count} ${dragType} questions that ${typeLabel}.`,

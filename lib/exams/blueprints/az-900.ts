@@ -8,7 +8,7 @@ export const az900Blueprint: ExamBlueprint = {
   durationMin: 45,
   passMark: 70,
   questionMix: { singleChoice: 0.9, multipleResponse: 0.1 },
-  questionTypeMix: { drag_match: 0.05 },
+  questionTypeMix: { drag_match: 0.05, select_grid: 0.08 },
   styleGuide: { scenarioHeavy: false },
   domains: [
     {
