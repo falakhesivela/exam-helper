@@ -8,6 +8,7 @@ import {
   Clock,
   Flag,
   LayoutGrid,
+  Timer,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -165,6 +166,21 @@ function ExamRunnerInner({
   const remaining = useCountdown(durationSec, timerActive && !submitting, () => {
     void handleSubmit()
   })
+
+  // Per-question pace: time spent on the current question vs the exam's average
+  // allowance, so the learner feels real exam-day time pressure.
+  const targetPerQuestion = total > 0 ? Math.round(durationSec / total) : 60
+  const [qElapsed, setQElapsed] = useState(0)
+  useEffect(() => {
+    setQElapsed(0)
+  }, [index])
+  useEffect(() => {
+    if (!timerActive || submitting || phase !== "exam") return
+    const id = setInterval(() => setQElapsed((e) => e + 1), 1000)
+    return () => clearInterval(id)
+  }, [timerActive, submitting, phase])
+  const qOver = qElapsed > targetPerQuestion
+  const qWayOver = qElapsed > targetPerQuestion * 1.6
 
   const question = session.questions[index]
   const selected = answers[question?.id] ?? []
@@ -380,6 +396,22 @@ function ExamRunnerInner({
                 {availableCount} of {expectedTotal} questions ready
               </p>
             )}
+          </div>
+
+          <div
+            className={cn(
+              "hidden items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium tabular-nums sm:flex",
+              qWayOver
+                ? "bg-destructive/15 text-destructive"
+                : qOver
+                  ? "bg-chart-3/15 text-chart-3"
+                  : "bg-secondary/60 text-muted-foreground",
+            )}
+            title={`Target ~${formatClock(targetPerQuestion)} per question`}
+            aria-label="Time on this question"
+          >
+            <Timer className="size-3.5" />
+            {formatClock(qElapsed)}
           </div>
 
           <div
