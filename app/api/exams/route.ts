@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { runGenerateSessionStream } from "@/lib/ai/generate-session-stream"
+import { loadAdaptiveDifficulty } from "@/lib/progress/adaptive"
 import { createEventStream } from "@/lib/ai/sse"
 import { requireUser } from "@/lib/api/auth"
 import { apiError, getTimezone, handleRouteError, rateLimit } from "@/lib/api/route-utils"
@@ -98,6 +99,12 @@ export async function POST(request: Request) {
       .eq("id", user.id)
       .single()
 
+    const adaptiveDifficulty = await loadAdaptiveDifficulty(
+      admin,
+      user.id,
+      examCode ?? undefined,
+    )
+
     const timezone = profile?.timezone ?? getTimezone(request)
     const remainingFreeQuestions =
       check.remaining === Infinity
@@ -120,6 +127,7 @@ export async function POST(request: Request) {
           passMark,
           blueprint: blueprint ?? undefined,
           focusDomainIds: body.focusDomainIds,
+          adaptiveDifficulty: adaptiveDifficulty ?? undefined,
         },
         send,
         { timezone, remainingFreeQuestions },

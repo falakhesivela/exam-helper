@@ -215,6 +215,8 @@ export async function streamGenerateQuestions(
     systemPrompt?: string
     /** When set, user prompt is used as-is instead of generateUserPrompt(). */
     userPrompt?: string
+    /** Adaptive difficulty guidance appended to the generated user prompt. */
+    difficultyHint?: string
     /** Pin exam metadata instead of trusting model output. */
     fixedExam?: {
       exam: string
@@ -249,6 +251,7 @@ export async function streamGenerateQuestions(
         clarifications: params.clarifications,
         count: params.count,
         groundingText: params.groundingText,
+        difficultyHint: params.difficultyHint,
       })
 
     const result = await withStreamingFailover((provider) =>

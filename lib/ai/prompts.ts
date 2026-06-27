@@ -34,11 +34,15 @@ export function generateUserPrompt(params: {
   clarifications?: Record<string, string>
   count: number
   groundingText?: string
+  difficultyHint?: string
 }) {
   const parts = [
     `Generate exactly ${params.count} certification exam questions.`,
     `\nUser description:\n${params.description}`,
   ]
+  if (params.difficultyHint) {
+    parts.push(`\n${params.difficultyHint}`)
+  }
   if (params.clarifications && Object.keys(params.clarifications).length > 0) {
     parts.push(
       `\nClarifications:\n${Object.entries(params.clarifications)

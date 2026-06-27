@@ -3,6 +3,8 @@ import { streamGenerateDragQuestions, streamGenerateQuestions } from "@/lib/ai/s
 import type { SseSend } from "@/lib/ai/sse"
 import type { GeneratedQuestion } from "@/lib/ai/schemas"
 import { verifyReferences } from "@/lib/ai/verify-references"
+import { difficultyGuidance } from "@/lib/ai/difficulty"
+import type { AdaptiveDifficulty } from "@/lib/progress/adaptive"
 import type { Question } from "@/types"
 import {
   examDomainBatchPrompt,
@@ -43,6 +45,8 @@ export interface GenerateSessionStreamParams {
   blueprint?: ExamBlueprint
   /** When set, generation is limited to these blueprint domain ids (weak-area exams). */
   focusDomainIds?: string[]
+  /** Per-domain/overall mastery to bias question difficulty (adaptive). */
+  adaptiveDifficulty?: AdaptiveDifficulty
 }
 
 function safeSend(send: SseSend, event: string, data: unknown) {
@@ -115,7 +119,7 @@ async function generateAllQuestions(
       callbacks,
       params.focusDomainIds,
       params.groundingText,
-      { includeDrag: true },
+      { includeDrag: true, adaptiveDifficulty: params.adaptiveDifficulty },
     )
   }
 
@@ -125,6 +129,9 @@ async function generateAllQuestions(
       clarifications: params.clarifications,
       count: total,
       groundingText: params.groundingText,
+      difficultyHint: params.adaptiveDifficulty
+        ? difficultyGuidance(params.adaptiveDifficulty.overall)
+        : undefined,
     },
     callbacks,
   )
@@ -152,13 +159,19 @@ async function generateBlueprintExamQuestions(
   callbacks: GenerationCallbacks,
   focusDomainIds?: string[],
   groundingText?: string,
-  options?: { includeDrag?: boolean },
+  options?: { includeDrag?: boolean; adaptiveDifficulty?: AdaptiveDifficulty },
 ): Promise<{
   exam: string
   examCode: string
   focusTopics: string[]
   questions: GeneratedQuestion[]
 }> {
+  const adaptive = options?.adaptiveDifficulty
+  const difficultyFor = (domainId: string): string[] => {
+    if (!adaptive) return []
+    const mastery = adaptive.byDomain[domainId] ?? adaptive.overall
+    return [difficultyGuidance(mastery)]
+  }
   const domainFilter =
     focusDomainIds && focusDomainIds.length > 0
       ? blueprint.domains.filter((d) => focusDomainIds.includes(d.id))
@@ -189,6 +202,7 @@ async function generateBlueprintExamQuestions(
     if (count <= 0) continue
     const userPrompt = [
       examDomainBatchPrompt(blueprint, domain, count),
+      ...difficultyFor(domain.id),
       "",
       domainGroundingText(domain),
       ...syllabusGroundingBlock(groundingText),
@@ -247,6 +261,7 @@ async function generateBlueprintExamQuestions(
 
         const userPrompt = [
           examDragBatchPrompt(blueprint, domain, batchCount, dragType),
+          ...difficultyFor(domain.id),
           "",
           domainGroundingText(domain),
           ...syllabusGroundingBlock(groundingText),

@@ -6,6 +6,7 @@ import { apiError, getTimezone, handleRouteError, rateLimit } from "@/lib/api/ro
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enforceFreemium } from "@/lib/db/usage"
 import { getExamBlueprint } from "@/lib/exams"
+import { loadAdaptiveDifficulty } from "@/lib/progress/adaptive"
 
 export const runtime = "nodejs"
 
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
       ((body.adaptive && (body.focusDomainIds?.length ?? 0) > 0) ||
         (body.focusDomainIds?.length ?? 0) > 0)
 
+    const adaptiveDifficulty = await loadAdaptiveDifficulty(
+      admin,
+      user.id,
+      body.examCode ?? blueprint?.examCode,
+    )
+
     const timezone = profile?.timezone ?? getTimezone(request)
     const remainingFreeQuestions =
       check.remaining === Infinity
@@ -80,6 +87,7 @@ export async function POST(request: Request) {
           durationSec: body.durationSec,
           blueprint: useBlueprint ? blueprint ?? undefined : undefined,
           focusDomainIds: body.focusDomainIds,
+          adaptiveDifficulty: adaptiveDifficulty ?? undefined,
         },
         send,
         { timezone, remainingFreeQuestions },
