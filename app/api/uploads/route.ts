@@ -32,13 +32,16 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const pdfModule = await import("pdf-parse")
-    const pdfParse =
-      "default" in pdfModule && typeof pdfModule.default === "function"
-        ? pdfModule.default
-        : (pdfModule as unknown as (data: Buffer) => Promise<{ text: string }>)
-    const parsed = await pdfParse(buffer)
-    const extractedText = (parsed.text ?? "").slice(0, 50_000)
+    // pdf-parse v2 exposes a PDFParse class (the v1 default-function API is gone).
+    const { PDFParse } = await import("pdf-parse")
+    const parser = new PDFParse({ data: new Uint8Array(buffer) })
+    let extractedText: string
+    try {
+      const result = await parser.getText()
+      extractedText = (result.text ?? "").slice(0, 50_000)
+    } finally {
+      await parser.destroy().catch(() => {})
+    }
 
     const admin = createAdminClient()
     const uploadId = crypto.randomUUID()
