@@ -16,6 +16,19 @@ const baseQuestionFields = {
   references: referencesSchema,
 }
 
+export const planCoachSchema = z.object({
+  /** One-line status + strategy, e.g. "You're 2 days behind — focus security." */
+  headline: z.string(),
+  /** Two or three encouraging, specific sentences of coaching. */
+  message: z.string(),
+  /** Up to three concrete, domain-specific tips. */
+  domainTips: z
+    .array(z.object({ domain: z.string(), tip: z.string() }))
+    .max(3),
+})
+
+export type PlanCoach = z.infer<typeof planCoachSchema>
+
 export const generatedMcqSchema = z.object({
   questionType: z.literal("mcq").optional().default("mcq"),
   ...baseQuestionFields,

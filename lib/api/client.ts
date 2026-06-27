@@ -294,6 +294,11 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
+  coachPlan: () =>
+    request<import("@/types").PlanCoaching>("/api/plan/coach", {
+      method: "POST",
+    }),
+
   progressSummary: () =>
     request<{
       overallMastery: number

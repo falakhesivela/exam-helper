@@ -5,12 +5,15 @@ import {
   AlarmClock,
   BookOpen,
   Check,
+  Lightbulb,
   RotateCcw,
   Sparkles,
   Target,
+  TrendingUp,
 } from "lucide-react"
 import { toast } from "sonner"
 import type { StudyPlan, StudyPlanTask, StudyTaskType } from "@/types"
+import { computePlanPace, type PlanPaceStatus } from "@/lib/plan/pace"
 import {
   Card,
   CardContent,
@@ -51,6 +54,7 @@ export function PlanView({ plan }: { plan: StudyPlan }) {
   const total = plan.tasks.length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
   const today = todayIso()
+  const pace = computePlanPace(plan, today)
 
   async function regenerate() {
     if (regenerating) return
@@ -117,6 +121,10 @@ export function PlanView({ plan }: { plan: StudyPlan }) {
           </Button>
         </CardContent>
       </Card>
+
+      <PaceBanner pace={pace} />
+
+      <CoachingCard />
 
       <div className="flex flex-col gap-2">
         {plan.tasks.map((task) => (
@@ -209,5 +217,119 @@ function TaskRow({
         </Button>
       )}
     </div>
+  )
+}
+
+const PACE_COPY: Record<
+  PlanPaceStatus,
+  { label: string; tone: string; detail: (p: ReturnType<typeof computePlanPace>) => string }
+> = {
+  behind: {
+    label: "Behind schedule",
+    tone: "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#f59e0b]",
+    detail: (p) =>
+      `You're ${p.behindBy} task${p.behindBy === 1 ? "" : "s"} behind. Aim for ~${p.requiredPerDay}/day to finish on time.`,
+  },
+  "on-track": {
+    label: "On track",
+    tone: "border-primary/40 bg-primary/10 text-primary",
+    detail: (p) => `${p.tasksRemaining} tasks left over ${p.daysRemaining} days. Keep it up.`,
+  },
+  ahead: {
+    label: "Ahead of schedule",
+    tone: "border-primary/40 bg-primary/10 text-primary",
+    detail: (p) => `Nicely ahead — ${p.tasksRemaining} tasks left with ${p.daysRemaining} days to spare.`,
+  },
+  complete: {
+    label: "Plan complete",
+    tone: "border-primary/40 bg-primary/10 text-primary",
+    detail: () => "Every task done. Book that exam! 🎉",
+  },
+}
+
+function PaceBanner({ pace }: { pace: ReturnType<typeof computePlanPace> }) {
+  const copy = PACE_COPY[pace.status]
+  return (
+    <div className={cn("flex items-center gap-3 rounded-lg border p-3", copy.tone)}>
+      <TrendingUp className="size-4 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">{copy.label}</p>
+        <p className="text-xs opacity-90">{copy.detail(pace)}</p>
+      </div>
+    </div>
+  )
+}
+
+function CoachingCard() {
+  const coaching = useSessionStore((s) => s.coaching)
+  const requestCoaching = useSessionStore((s) => s.requestCoaching)
+  const [loading, setLoading] = useState(false)
+
+  async function getCoaching() {
+    if (loading) return
+    setLoading(true)
+    try {
+      await requestCoaching()
+    } catch {
+      toast.error("Couldn't get coaching right now.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Lightbulb className="size-4 text-primary" />
+          AI coaching
+        </CardTitle>
+        <CardDescription>
+          Personalized strategy based on your pace and weakest domains.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {coaching ? (
+          <>
+            <p className="text-sm font-semibold">{coaching.headline}</p>
+            <p className="text-sm text-muted-foreground">{coaching.message}</p>
+            {coaching.domainTips.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {coaching.domainTips.map((t) => (
+                  <li key={t.domain} className="text-sm">
+                    <span className="font-medium text-primary">{t.domain}:</span>{" "}
+                    <span className="text-muted-foreground">{t.tip}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => void getCoaching()}
+              disabled={loading}
+            >
+              {loading ? <Spinner data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
+              Refresh coaching
+            </Button>
+          </>
+        ) : (
+          <Button onClick={() => void getCoaching()} disabled={loading} className="w-fit">
+            {loading ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Thinking…
+              </>
+            ) : (
+              <>
+                <Sparkles data-icon="inline-start" />
+                Get AI coaching
+              </>
+            )}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -20,7 +20,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useTaskLauncher } from "@/components/plan/use-task-launcher"
+import { computePlanPace, type PlanPaceStatus } from "@/lib/plan/pace"
 import { useSessionStore } from "@/lib/store/use-session-store"
+
+const PACE_LABEL: Record<PlanPaceStatus, { text: string; className: string }> = {
+  behind: { text: "Behind", className: "text-[#f59e0b]" },
+  "on-track": { text: "On track", className: "text-primary" },
+  ahead: { text: "Ahead", className: "text-primary" },
+  complete: { text: "Complete", className: "text-primary" },
+}
 
 const TASK_ICON: Record<StudyTaskType, typeof Sparkles> = {
   practice: Sparkles,
@@ -67,6 +75,7 @@ export function PlanTodayCard() {
 function PlanTodayInner({ plan }: { plan: NonNullable<ReturnType<typeof useSessionStore.getState>["plan"]> }) {
   const { launch, launchingId } = useTaskLauncher(plan)
   const today = todayIso()
+  const pace = PACE_LABEL[computePlanPace(plan, today).status]
 
   const pending = plan.tasks.filter((t) => t.status !== "done")
   const todays = pending.filter((t) => t.scheduledDate <= today)
@@ -82,7 +91,8 @@ function PlanTodayInner({ plan }: { plan: NonNullable<ReturnType<typeof useSessi
           Today&apos;s plan
         </CardTitle>
         <CardDescription>
-          {plan.examCode} · {done}/{plan.tasks.length} tasks done
+          {plan.examCode} · {done}/{plan.tasks.length} tasks ·{" "}
+          <span className={pace.className}>{pace.text}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

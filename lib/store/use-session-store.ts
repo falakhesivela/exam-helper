@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { AnswerRecord, DragAnswer, LearnTopic, PracticeSession, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
+import type { AnswerRecord, DragAnswer, LearnTopic, PlanCoaching, PracticeSession, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
 import { api, USE_MOCKS } from "@/lib/api/client"
 import {
   buildMockLearnTopics,
@@ -11,6 +11,7 @@ import {
   generateMockTopicLesson,
   emptyProfile,
   buildMockStudyPlan,
+  mockPlanCoaching,
   mockHistory,
   mockMasteryTrend,
   mockProfile,
@@ -28,6 +29,7 @@ interface SessionState {
   examAccuracy: Record<string, { accuracy: number; questions: number }>
   readinessTrend: { label: string; score: number }[]
   plan: StudyPlan | null
+  coaching: PlanCoaching | null
   learnTopics: LearnTopic[]
   hydrated: boolean
 
@@ -41,6 +43,7 @@ interface SessionState {
   refreshPlan: () => Promise<void>
   createPlan: (targetDate: string) => Promise<StudyPlan>
   updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>
+  requestCoaching: () => Promise<void>
   refreshLearnTopics: () => Promise<void>
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>
   generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
@@ -95,6 +98,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   examAccuracy: {},
   readinessTrend: USE_MOCKS ? mockReadinessTrend : [],
   plan: USE_MOCKS ? buildMockStudyPlan() : null,
+  coaching: null,
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   hydrated: false,
 
@@ -201,6 +205,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch {
       await get().refreshPlan()
     }
+  },
+
+  requestCoaching: async () => {
+    if (USE_MOCKS) {
+      set({ coaching: mockPlanCoaching })
+      return
+    }
+    const coaching = await api.coachPlan()
+    set({ coaching })
   },
 
   refreshLearnTopics: async () => {

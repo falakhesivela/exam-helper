@@ -189,6 +189,12 @@ export interface StudyPlan {
   tasks: StudyPlanTask[]
 }
 
+export interface PlanCoaching {
+  headline: string
+  message: string
+  domainTips: { domain: string; tip: string }[]
+}
+
 /** Full lesson view combining curated outline and AI content. */
 export interface TopicLesson {
   id?: string

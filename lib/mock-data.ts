@@ -1,6 +1,7 @@
 import type {
   ClarifyingQuestion,
   LearnTopic,
+  PlanCoaching,
   PracticeSession,
   Question,
   StudyPlan,
@@ -68,6 +69,18 @@ export const mockReadinessTrend = [
   { label: "Jun 24", score: 67 },
   { label: "Jun 26", score: 70 },
 ]
+
+/** Canned AI coaching for mock mode (no AI call). */
+export const mockPlanCoaching: PlanCoaching = {
+  headline: "On track — but Cost-Optimized is your soft spot.",
+  message:
+    "You're pacing well for your exam date and your mock scores are trending up. The biggest lever now is Cost-Optimized Architectures at 35% — a few focused sessions there will move your weighted score the most. Keep the weekly mock exams; they're your best readiness signal.",
+  domainTips: [
+    { domain: "Cost-Optimized", tip: "Drill S3 storage classes, EC2 pricing models, and when to use Savings Plans vs Reserved Instances." },
+    { domain: "Secure", tip: "Focus on IAM policy evaluation, KMS key policies, and VPC endpoint security." },
+    { domain: "Resilient", tip: "Review multi-AZ vs multi-Region patterns and RTO/RPO trade-offs." },
+  ],
+}
 
 /** A realistic in-progress study plan for mock mode. */
 export function buildMockStudyPlan(): StudyPlan {
