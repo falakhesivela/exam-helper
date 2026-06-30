@@ -6,6 +6,7 @@ type PaddleCheckoutItem = { priceId: string; quantity: number }
 
 export interface PaddleEvent {
   name: string
+  data?: { customer?: { email?: string } }
 }
 
 export interface PaddleApi {
@@ -24,9 +25,9 @@ export interface PaddleApi {
 }
 
 // Single global handler for Paddle.js events (e.g. checkout.completed).
-let eventHandler: ((name: string) => void) | null = null
+let eventHandler: ((event: PaddleEvent) => void) | null = null
 
-export function onPaddleEvent(fn: ((name: string) => void) | null): void {
+export function onPaddleEvent(fn: ((event: PaddleEvent) => void) | null): void {
   eventHandler = fn
 }
 
@@ -61,7 +62,7 @@ export function loadPaddle(): Promise<PaddleApi | null> {
       )
       P.Initialize({
         token,
-        eventCallback: (e) => eventHandler?.(e?.name),
+        eventCallback: (e) => eventHandler?.(e),
       })
       resolve(P)
     }

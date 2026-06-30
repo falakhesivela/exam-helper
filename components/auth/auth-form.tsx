@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,17 @@ function goToApp() {
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [loading, setLoading] = useState(false)
   const [passwordMismatch, setPasswordMismatch] = useState(false)
+  const [email, setEmail] = useState("")
+  // "Secure your Pro account" mode after a pay-first checkout (?pro=1).
+  const [secureMode, setSecureMode] = useState(false)
   const isSignup = mode === "signup"
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const prefill = params.get("email")
+    if (prefill) setEmail(prefill)
+    if (params.get("pro") === "1") setSecureMode(true)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -127,12 +137,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <Logo />
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight text-balance">
-              {isSignup ? "Create your account" : "Welcome back"}
+              {secureMode
+                ? "Secure your Pro account"
+                : isSignup
+                  ? "Create your account"
+                  : "Welcome back"}
             </h1>
             <p className="text-sm text-muted-foreground text-pretty">
-              {isSignup
-                ? "Start forging your certification readiness today."
-                : "Sign in to continue your study streak."}
+              {secureMode
+                ? "Your Pro access is active. Set a password so you can sign in on any device."
+                : isSignup
+                  ? "Start forging your certification readiness today."
+                  : "Sign in to continue your study streak."}
             </p>
           </div>
         </div>
@@ -160,6 +176,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </Field>
