@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function RefundPage() {
   return (
-    <article className="space-y-8 text-sm leading-relaxed text-muted-foreground">
+    <article className="legal-doc">
       <LegalHeading title="Refund Policy" />
 
       <p>
@@ -46,7 +46,7 @@ export default function RefundPage() {
           Email{" "}
           <a
             href={`mailto:${LEGAL.contactEmail}`}
-            className="text-foreground underline underline-offset-4"
+            className="legal-link"
           >
             {LEGAL.contactEmail}
           </a>{" "}
@@ -72,7 +72,7 @@ export default function RefundPage() {
           be read together with our{" "}
           <Link
             href="/terms"
-            className="text-foreground underline underline-offset-4"
+            className="legal-link"
           >
             Terms of Service
           </Link>

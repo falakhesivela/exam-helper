@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <article className="space-y-8 text-sm leading-relaxed text-muted-foreground">
+    <article className="legal-doc">
       <LegalHeading title="Terms of Service" />
 
       <p>
@@ -53,7 +53,7 @@ export default function TermsPage() {
           billing period. Refunds are handled under our{" "}
           <Link
             href="/refund"
-            className="text-foreground underline underline-offset-4"
+            className="legal-link"
           >
             Refund Policy
           </Link>
@@ -124,7 +124,7 @@ export default function TermsPage() {
           Questions about these Terms? Email us at{" "}
           <a
             href={`mailto:${LEGAL.contactEmail}`}
-            className="text-foreground underline underline-offset-4"
+            className="legal-link"
           >
             {LEGAL.contactEmail}
           </a>

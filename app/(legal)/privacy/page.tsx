@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <article className="space-y-8 text-sm leading-relaxed text-muted-foreground">
+    <article className="legal-doc">
       <LegalHeading title="Privacy Notice" />
 
       <p>
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
           For privacy questions or requests, email{" "}
           <a
             href={`mailto:${LEGAL.contactEmail}`}
-            className="text-foreground underline underline-offset-4"
+            className="legal-link"
           >
             {LEGAL.contactEmail}
           </a>
