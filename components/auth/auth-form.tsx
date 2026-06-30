@@ -191,6 +191,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             {isSignup ? "Sign in" : "Create one"}
           </Link>
         </p>
+
+        <nav className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <Link href="/terms" className="underline-offset-4 hover:text-foreground hover:underline">
+            Terms of Service
+          </Link>
+          <Link href="/privacy" className="underline-offset-4 hover:text-foreground hover:underline">
+            Privacy Notice
+          </Link>
+          <Link href="/refund" className="underline-offset-4 hover:text-foreground hover:underline">
+            Refund Policy
+          </Link>
+        </nav>
       </div>
     </div>
   )
