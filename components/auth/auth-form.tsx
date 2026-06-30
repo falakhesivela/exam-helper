@@ -54,6 +54,22 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
     try {
       if (isSignup) {
+        // If the visitor is already using the app anonymously, convert that
+        // account in place so their progress carries over, rather than
+        // creating a brand-new (empty) account.
+        const { data: current } = await supabase.auth.getUser()
+        if (current.user?.is_anonymous) {
+          const { error: convertError } = await supabase.auth.updateUser({
+            email,
+            password,
+            data: { name },
+          })
+          if (convertError) throw convertError
+          toast.success("Account created — your progress is saved!")
+          goToApp()
+          return
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,

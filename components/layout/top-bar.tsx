@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, User, Users } from "lucide-react"
+import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, Sparkles, User, Users } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
@@ -55,6 +56,14 @@ export function TopBar() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
+          {profile.plan !== "pro" ? (
+            <Button size="sm" variant="outline" className="gap-1.5" asChild>
+              <Link href="/upgrade">
+                <Sparkles className="size-3.5 text-primary" />
+                <span className="hidden sm:inline">Upgrade</span>
+              </Link>
+            </Button>
+          ) : null}
           {profile.name ? (
             <>
               <Badge variant="secondary" className="gap-1.5">

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Sparkles, Zap } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -31,9 +32,11 @@ export function DailyLimitBanner() {
           You&apos;ve used {used} of {limit} daily questions. Resets at midnight.
         </span>
         <Progress value={pct} className="h-1.5" />
-        <Button size="sm" className="w-full sm:w-auto sm:self-start">
-          <Sparkles data-icon="inline-start" />
-          Upgrade to Pro for unlimited
+        <Button size="sm" className="w-full sm:w-auto sm:self-start" asChild>
+          <Link href="/upgrade">
+            <Sparkles data-icon="inline-start" />
+            Upgrade to Pro for unlimited
+          </Link>
         </Button>
       </AlertDescription>
     </Alert>
