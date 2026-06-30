@@ -1,13 +1,19 @@
 // Paddle Billing (v2) client-side loader. Inert until configured via
 // NEXT_PUBLIC_PADDLE_CLIENT_TOKEN (+ NEXT_PUBLIC_PADDLE_ENV). Until then the
-// /upgrade page shows the plans but the Subscribe button explains checkout is
-// not yet live.
+// upgrade button explains checkout is not yet live.
 
 type PaddleCheckoutItem = { priceId: string; quantity: number }
 
+export interface PaddleEvent {
+  name: string
+}
+
 export interface PaddleApi {
   Environment: { set: (env: "sandbox" | "production") => void }
-  Initialize: (opts: { token: string }) => void
+  Initialize: (opts: {
+    token: string
+    eventCallback?: (e: PaddleEvent) => void
+  }) => void
   Checkout: {
     open: (opts: {
       items: PaddleCheckoutItem[]
@@ -15,6 +21,13 @@ export interface PaddleApi {
       customData?: Record<string, string>
     }) => void
   }
+}
+
+// Single global handler for Paddle.js events (e.g. checkout.completed).
+let eventHandler: ((name: string) => void) | null = null
+
+export function onPaddleEvent(fn: ((name: string) => void) | null): void {
+  eventHandler = fn
 }
 
 declare global {
@@ -46,7 +59,10 @@ export function loadPaddle(): Promise<PaddleApi | null> {
           ? "production"
           : "sandbox",
       )
-      P.Initialize({ token })
+      P.Initialize({
+        token,
+        eventCallback: (e) => eventHandler?.(e?.name),
+      })
       resolve(P)
     }
     s.onerror = () => resolve(null)

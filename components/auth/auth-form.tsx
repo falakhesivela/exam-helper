@@ -25,7 +25,10 @@ function authErrorMessage(err: unknown): string {
 }
 
 function goToApp() {
-  window.location.assign("/dashboard")
+  // Honour ?next= (e.g. returning to /upgrade after signing up to subscribe).
+  // Only internal paths, to avoid open redirects.
+  const next = new URLSearchParams(window.location.search).get("next")
+  window.location.assign(next && next.startsWith("/") ? next : "/dashboard")
 }
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
