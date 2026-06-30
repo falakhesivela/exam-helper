@@ -3,7 +3,8 @@ import { runGenerateSessionStream } from "@/lib/ai/generate-session-stream"
 import { loadAdaptiveDifficulty } from "@/lib/progress/adaptive"
 import { createEventStream } from "@/lib/ai/sse"
 import { requireUser } from "@/lib/api/auth"
-import { apiError, getTimezone, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { apiError, getTimezone, handleRouteError } from "@/lib/api/route-utils"
+import { checkRateLimit } from "@/lib/db/rate-limit"
 import { getExamBlueprint, resolveExamBlueprint } from "@/lib/exams"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enforceFreemium } from "@/lib/db/usage"
@@ -29,7 +30,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
-    if (!rateLimit(`exam:${user.id}`, 5)) {
+    if (!(await checkRateLimit(`exam:${user.id}`, 5))) {
       return apiError("Rate limit exceeded", 429)
     }
 

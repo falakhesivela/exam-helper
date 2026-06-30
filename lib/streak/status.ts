@@ -42,10 +42,12 @@ export function milestoneReached(
   current: number,
 ): number | null {
   if (current <= previous) return null
+  let reached: number | null = null
   for (const m of STREAK_MILESTONES) {
-    if (current >= m && previous < m) return m
+    // Keep the highest milestone crossed when the streak jumps several at once.
+    if (current >= m && previous < m) reached = m
   }
-  return null
+  return reached
 }
 
 export interface ActivityDay {

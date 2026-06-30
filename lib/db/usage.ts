@@ -33,19 +33,14 @@ export async function incrementUsage(
   count: number,
 ): Promise<number> {
   const usageDate = getLocalDate(timezone)
-  const current = await getTodayUsage(admin, userId, timezone)
-  const next = current + count
-
-  await admin.from("daily_usage").upsert(
-    {
-      user_id: userId,
-      usage_date: usageDate,
-      questions_used: next,
-    },
-    { onConflict: "user_id,usage_date" },
-  )
-
-  return next
+  const { data, error } = await admin.rpc("increment_daily_usage", {
+    p_user_id: userId,
+    p_usage_date: usageDate,
+    p_questions: count,
+    p_lessons: 0,
+  })
+  if (error) throw error
+  return (data as { questions_used: number }).questions_used
 }
 
 export async function checkFreemiumLimit(
@@ -115,19 +110,14 @@ export async function incrementLessonUsage(
   timezone: string,
 ): Promise<number> {
   const usageDate = getLocalDate(timezone)
-  const current = await getTodayLessonUsage(admin, userId, timezone)
-  const next = current + 1
-
-  await admin.from("daily_usage").upsert(
-    {
-      user_id: userId,
-      usage_date: usageDate,
-      lessons_generated: next,
-    },
-    { onConflict: "user_id,usage_date" },
-  )
-
-  return next
+  const { data, error } = await admin.rpc("increment_daily_usage", {
+    p_user_id: userId,
+    p_usage_date: usageDate,
+    p_questions: 0,
+    p_lessons: 1,
+  })
+  if (error) throw error
+  return (data as { lessons_generated: number }).lessons_generated
 }
 
 export async function checkLessonLimit(

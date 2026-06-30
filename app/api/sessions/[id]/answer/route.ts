@@ -73,7 +73,19 @@ export async function PATCH(
       )
     }
 
-    await enforceFreemium(admin, user.id, 1)
+    // Re-revealing an already-answered question must not charge the freemium
+    // limit again — only the first answer for this question counts.
+    const { data: existingAnswer } = await admin
+      .from("answers")
+      .select("question_id")
+      .eq("session_id", sessionId)
+      .eq("question_id", body.questionId)
+      .maybeSingle()
+    const firstAnswer = !existingAnswer
+
+    if (firstAnswer) {
+      await enforceFreemium(admin, user.id, 1)
+    }
 
     const { data: question } = await admin
       .from("questions")
@@ -123,12 +135,14 @@ export async function PATCH(
       .eq("id", user.id)
       .single()
 
-    await incrementUsage(
-      admin,
-      user.id,
-      profile?.timezone ?? getTimezone(request),
-      1,
-    )
+    if (firstAnswer) {
+      await incrementUsage(
+        admin,
+        user.id,
+        profile?.timezone ?? getTimezone(request),
+        1,
+      )
+    }
 
     if (answered) {
       await updateTopicMastery(

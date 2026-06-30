@@ -26,6 +26,13 @@ export async function POST(
       return NextResponse.json({ error: "Session not found" }, { status: 404 })
     }
 
+    // Idempotent: completing an already-completed session must not re-grant a
+    // streak (otherwise it can be POSTed repeatedly to farm streak days).
+    if (session.status === "completed") {
+      const current = await loadSession(admin, sessionId, user.id)
+      return NextResponse.json(current)
+    }
+
     await admin
       .from("sessions")
       .update({

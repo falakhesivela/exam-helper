@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { requireUser } from "@/lib/api/auth"
-import { apiError, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { apiError, handleRouteError } from "@/lib/api/route-utils"
+import { checkRateLimit } from "@/lib/db/rate-limit"
 import { tutorReply } from "@/lib/ai/tutor"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { toQuestion, type DbQuestion } from "@/lib/db/mappers"
@@ -25,7 +26,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
-    if (!rateLimit(`tutor:${user.id}`, 20, 60_000)) {
+    if (!(await checkRateLimit(`tutor:${user.id}`, 20, 60_000))) {
       return apiError("Slow down a moment and try again.", 429, {
         code: "RATE_LIMITED",
       })

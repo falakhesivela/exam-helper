@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireUser } from "@/lib/api/auth"
-import { getTimezone, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { getTimezone, handleRouteError } from "@/lib/api/route-utils"
+import { checkRateLimit } from "@/lib/db/rate-limit"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { generateAndCacheLesson } from "@/lib/db/lessons"
 
@@ -12,7 +13,7 @@ export async function POST(
 ) {
   try {
     const user = await requireUser()
-    if (!rateLimit(`lesson-generate:${user.id}`, 5)) {
+    if (!(await checkRateLimit(`lesson-generate:${user.id}`, 5))) {
       return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
     }
 

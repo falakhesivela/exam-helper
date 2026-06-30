@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react"
 /**
  * Counts down from `totalSeconds` to zero using a fixed deadline (so it stays
  * accurate even if the tab is backgrounded). Calls `onExpire` once when it
- * reaches zero. The deadline is anchored on first mount and is not affected by
- * re-renders.
+ * reaches zero. The deadline is anchored the first time `running` becomes true
+ * — not at mount — so any time spent before the countdown starts (e.g. on a
+ * pre-exam rules screen) isn't silently subtracted from the clock.
  */
 export function useCountdown(
   totalSeconds: number,
@@ -14,7 +15,7 @@ export function useCountdown(
   onExpire?: () => void,
 ) {
   const [remaining, setRemaining] = useState(totalSeconds)
-  const deadlineRef = useRef(Date.now() + totalSeconds * 1000)
+  const deadlineRef = useRef<number | null>(null)
   const onExpireRef = useRef(onExpire)
   const firedRef = useRef(false)
 
@@ -22,14 +23,23 @@ export function useCountdown(
     onExpireRef.current = onExpire
   })
 
+  // Until the countdown has started, keep the displayed value tracking
+  // `totalSeconds` (it may arrive asynchronously after mount).
+  useEffect(() => {
+    if (deadlineRef.current === null) setRemaining(totalSeconds)
+  }, [totalSeconds])
+
   useEffect(() => {
     if (!running) return
 
+    // Anchor the deadline on the first tick after the countdown starts.
+    if (deadlineRef.current === null) {
+      deadlineRef.current = Date.now() + totalSeconds * 1000
+    }
+    const deadline = deadlineRef.current
+
     const tick = () => {
-      const left = Math.max(
-        0,
-        Math.round((deadlineRef.current - Date.now()) / 1000),
-      )
+      const left = Math.max(0, Math.round((deadline - Date.now()) / 1000))
       setRemaining(left)
       if (left <= 0 && !firedRef.current) {
         firedRef.current = true
@@ -40,7 +50,7 @@ export function useCountdown(
     tick()
     const id = setInterval(tick, 250)
     return () => clearInterval(id)
-  }, [running])
+  }, [running, totalSeconds])
 
   return remaining
 }

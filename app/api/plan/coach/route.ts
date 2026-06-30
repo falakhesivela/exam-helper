@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireUser } from "@/lib/api/auth"
-import { apiError, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { apiError, handleRouteError } from "@/lib/api/route-utils"
+import { checkRateLimit } from "@/lib/db/rate-limit"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { coachPlan } from "@/lib/ai"
 import { computePlanPace } from "@/lib/plan/pace"
@@ -13,7 +14,7 @@ export const runtime = "nodejs"
 export async function POST() {
   try {
     const user = await requireUser()
-    if (!rateLimit(`coach:${user.id}`, 6, 60_000)) {
+    if (!(await checkRateLimit(`coach:${user.id}`, 6, 60_000))) {
       return apiError("Slow down a moment and try again.", 429, {
         code: "RATE_LIMITED",
       })

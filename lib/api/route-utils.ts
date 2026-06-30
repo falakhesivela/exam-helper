@@ -46,24 +46,6 @@ export function handleRouteError(err: unknown) {
   return apiError("Internal server error", 500, { code: "INTERNAL_ERROR" })
 }
 
-const rateBuckets = new Map<string, { count: number; resetAt: number }>()
-
-export function rateLimit(
-  key: string,
-  limit = 10,
-  windowMs = 60_000,
-): boolean {
-  const now = Date.now()
-  const bucket = rateBuckets.get(key)
-  if (!bucket || now > bucket.resetAt) {
-    rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-  if (bucket.count >= limit) return false
-  bucket.count += 1
-  return true
-}
-
 export function getTimezone(request: Request): string {
   return request.headers.get("x-timezone") ?? "UTC"
 }

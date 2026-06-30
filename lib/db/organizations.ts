@@ -34,12 +34,15 @@ export class OrgError extends Error {
 
 /** The org the user belongs to, with their role, or null. */
 async function getMembership(admin: SupabaseClient, userId: string) {
+  // limit(1) rather than maybeSingle() so a stray duplicate row (should be
+  // prevented by the user_id unique constraint) can't hard-error every read.
   const { data } = await admin
     .from("organization_members")
     .select("org_id, role")
     .eq("user_id", userId)
-    .maybeSingle()
-  return data as { org_id: string; role: OrgRole } | null
+    .order("joined_at", { ascending: true })
+    .limit(1)
+  return (data?.[0] as { org_id: string; role: OrgRole } | undefined) ?? null
 }
 
 /** Load the user's team with each member's progress snapshot, or null. */
@@ -121,9 +124,19 @@ export async function createOrg(
     .single()
   if (error || !org) throw error ?? new Error("Failed to create org")
 
-  await admin
+  const { error: memberError } = await admin
     .from("organization_members")
     .insert({ org_id: org.id, user_id: userId, role: "owner" })
+
+  if (memberError) {
+    // Lost a create/join race (user already a member elsewhere). Roll back the
+    // just-created org so it doesn't linger ownerless.
+    await admin.from("organizations").delete().eq("id", org.id)
+    if (memberError.code === "23505") {
+      throw new OrgError("You're already in a team.", "ALREADY_IN_ORG")
+    }
+    throw memberError
+  }
 
   return (await loadTeam(admin, userId))!
 }
@@ -135,7 +148,7 @@ export async function createInvite(
 ): Promise<string> {
   const membership = await getMembership(admin, userId)
   if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
-    throw new OrgError("Only owners can invite.", "FORBIDDEN", 403)
+    throw new OrgError("Only owners and admins can invite.", "FORBIDDEN", 403)
   }
   const token = randomBytes(18).toString("base64url")
   const expires = new Date()
@@ -167,9 +180,15 @@ export async function joinOrg(
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
     throw new OrgError("This invite has expired.", "EXPIRED_INVITE")
   }
-  await admin
+  const { error: memberError } = await admin
     .from("organization_members")
     .insert({ org_id: invite.org_id, user_id: userId, role: "member" })
+  if (memberError) {
+    if (memberError.code === "23505") {
+      throw new OrgError("You're already in a team.", "ALREADY_IN_ORG")
+    }
+    throw memberError
+  }
   return (await loadTeam(admin, userId))!
 }
 
@@ -183,15 +202,30 @@ export async function removeMember(
   if (!membership) throw new OrgError("Not in a team.", "NO_ORG", 404)
 
   const isSelf = targetUserId === userId
-  if (!isSelf && membership.role !== "owner") {
-    throw new OrgError("Only the owner can remove members.", "FORBIDDEN", 403)
-  }
   if (isSelf && membership.role === "owner") {
     throw new OrgError(
       "Owners can't leave their own team. Delete it instead.",
       "OWNER_CANNOT_LEAVE",
     )
   }
+
+  if (!isSelf) {
+    // Only owners and admins can remove others, and neither may remove an owner.
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      throw new OrgError("Only owners and admins can remove members.", "FORBIDDEN", 403)
+    }
+    const { data: target } = await admin
+      .from("organization_members")
+      .select("role")
+      .eq("org_id", membership.org_id)
+      .eq("user_id", targetUserId)
+      .maybeSingle()
+    if (!target) throw new OrgError("Member not found.", "NOT_FOUND", 404)
+    if (target.role === "owner") {
+      throw new OrgError("The owner can't be removed.", "FORBIDDEN", 403)
+    }
+  }
+
   await admin
     .from("organization_members")
     .delete()

@@ -2,7 +2,8 @@ import { z } from "zod"
 import { runGenerateSessionStream } from "@/lib/ai/generate-session-stream"
 import { createEventStream } from "@/lib/ai/sse"
 import { requireUser } from "@/lib/api/auth"
-import { apiError, getTimezone, handleRouteError, rateLimit } from "@/lib/api/route-utils"
+import { apiError, getTimezone, handleRouteError } from "@/lib/api/route-utils"
+import { checkRateLimit } from "@/lib/db/rate-limit"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enforceFreemium } from "@/lib/db/usage"
 import { getExamBlueprint } from "@/lib/exams"
@@ -26,7 +27,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireUser()
-    if (!rateLimit(`generate:${user.id}`, 10)) {
+    if (!(await checkRateLimit(`generate:${user.id}`, 10))) {
       return apiError("Rate limit exceeded", 429)
     }
 
