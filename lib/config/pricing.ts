@@ -2,12 +2,12 @@
 // Pricing copy lives here; the Paddle price id comes from env so it can differ
 // between sandbox and production.
 
-export const PRO_PRICE_LABEL = "R6"
+export const PRO_PRICE_LABEL = "$6"
 export const PRO_PRICE_CYCLE = "month"
 
 export const FREE_PLAN = {
   name: "Free",
-  price: "R0",
+  price: "$0",
   cycle: "forever",
   tagline: "Start practising right away — no account needed.",
   features: [

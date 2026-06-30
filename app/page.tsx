@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Newsreader, Public_Sans, Spline_Sans_Mono } from "next/font/google"
 import { Logo } from "@/components/layout/logo"
+import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -108,7 +109,7 @@ export default function LandingPage() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "22px" }}>
             <Link href="/dashboard" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", boxShadow: `0 8px 20px -8px color-mix(in oklab, ${ACCENT} 60%, transparent)` }}>Start practising free</Link>
-            <Link href="/upgrade" style={{ background: "#fff", color: INK, fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", border: "1px solid #DCD5C7" }}>See pricing</Link>
+            <a href="#pricing" style={{ background: "#fff", color: INK, fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", border: "1px solid #DCD5C7" }}>See pricing</a>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 18px", fontSize: "14px", color: "#6B6D64" }}>
             <span style={{ display: "flex", alignItems: "center", gap: "7px" }}><span style={check}>✓</span>20 free questions daily</span>
@@ -207,7 +208,7 @@ export default function LandingPage() {
       </section>
 
       {/* PRICING */}
-      <section style={{ maxWidth: "1180px", margin: "0 auto", padding: "40px 24px 60px" }}>
+      <section id="pricing" style={{ maxWidth: "1180px", margin: "0 auto", padding: "40px 24px 60px", scrollMarginTop: "80px" }}>
         <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 40px" }}>
           <div style={{ ...kicker, marginBottom: "14px" }}>Pricing</div>
           <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,3.6vw,42px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: "0 0 12px" }}>Start free. Go unlimited when you&apos;re serious.</h2>
@@ -217,7 +218,7 @@ export default function LandingPage() {
           {/* Free */}
           <div style={{ ...cardStyle, borderRadius: "18px", padding: "32px" }}>
             <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>Free</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>R0</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/forever</span></div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>$0</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/forever</span></div>
             <p style={{ fontSize: "14.5px", color: "#56584F", margin: "0 0 22px" }}>Start practising right away — no account needed.</p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
               {freeFeatures.map((f) => (
@@ -230,14 +231,14 @@ export default function LandingPage() {
           <div style={{ background: "#fff", border: `1.5px solid ${ACCENT}`, borderRadius: "18px", padding: "32px", position: "relative", boxShadow: `0 30px 60px -34px color-mix(in oklab, ${ACCENT} 50%, transparent)` }}>
             <span style={{ position: "absolute", top: "-12px", left: "32px", fontFamily: MONO, fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, color: "#fff", background: ACCENT, padding: "5px 12px", borderRadius: "99px" }}>Most popular</span>
             <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>Pro</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>R6</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/month</span></div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>$6</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/month</span></div>
             <p style={{ fontSize: "14.5px", color: "#56584F", margin: "0 0 22px" }}>Unlimited practice for serious exam prep.</p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
               {proFeatures.map((f) => (
                 <div key={f} style={{ display: "flex", gap: "10px", fontSize: "14.5px", color: "#3D403A" }}><span style={check}>✓</span>{f}</div>
               ))}
             </div>
-            <Link href="/upgrade" style={{ display: "block", textAlign: "center", background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "13px", borderRadius: "11px" }}>Upgrade to Pro</Link>
+            <LandingProButton />
           </div>
         </div>
       </section>
