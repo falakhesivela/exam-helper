@@ -3,6 +3,7 @@ import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 export interface AuthUser {
   id: string
   email?: string
+  isAnonymous: boolean
 }
 
 /** Verifies the session on the server — safe for API route protection. */

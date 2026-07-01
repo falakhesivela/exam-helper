@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
 import { ApiClientError } from "@/lib/api/client"
+import { AccountGate } from "@/components/auth/account-gate"
 import type { Team, TeamMember } from "@/types"
 
 function lastActiveLabel(date: string | null): string {
@@ -25,15 +26,17 @@ function lastActiveLabel(date: string | null): string {
 
 export default function TeamPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center py-20">
-          <Spinner className="size-6" />
-        </div>
-      }
-    >
-      <TeamPageInner />
-    </Suspense>
+    <AccountGate feature="Teams">
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-20">
+            <Spinner className="size-6" />
+          </div>
+        }
+      >
+        <TeamPageInner />
+      </Suspense>
+    </AccountGate>
   )
 }
 

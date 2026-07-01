@@ -35,6 +35,7 @@ export async function GET() {
           profile.plan === "pro"
             ? profile.daily_limit
             : getFreeDailyQuestionLimit(),
+        isAnonymous: user.isAnonymous,
       }),
     )
   } catch (err) {

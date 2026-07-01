@@ -187,6 +187,8 @@ export interface TopicMastery {
 export interface UserProfile {
   name: string
   email: string
+  /** True for anonymous sessions (no real account yet) — gates account-only UI. */
+  isAnonymous: boolean
   plan: "free" | "pro"
   /** Daily free-tier question allowance. */
   dailyLimit: number

@@ -246,11 +246,12 @@ export function toPracticeSession(
 export function toUserProfile(
   profile: DbProfile,
   questionsUsedToday: number,
-  options?: { dailyLimit?: number },
+  options?: { dailyLimit?: number; isAnonymous?: boolean },
 ): UserProfile {
   return {
     name: profile.name,
     email: profile.email,
+    isAnonymous: options?.isAnonymous ?? false,
     plan: profile.plan,
     dailyLimit: options?.dailyLimit ?? profile.daily_limit,
     questionsUsedToday,

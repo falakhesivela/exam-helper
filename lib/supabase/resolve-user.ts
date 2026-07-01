@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server"
 export interface ResolvedAuthUser {
   id: string
   email?: string
+  /** True for Supabase anonymous sessions (no real account yet). */
+  isAnonymous: boolean
 }
 
 /**
@@ -17,12 +19,11 @@ export async function resolveAuthUser(): Promise<ResolvedAuthUser | null> {
     await supabase.auth.getClaims()
 
   if (!claimsError && claimsData?.claims?.sub) {
+    const claims = claimsData.claims as { sub: string; email?: unknown; is_anonymous?: unknown }
     return {
-      id: claimsData.claims.sub,
-      email:
-        typeof claimsData.claims.email === "string"
-          ? claimsData.claims.email
-          : undefined,
+      id: claims.sub,
+      email: typeof claims.email === "string" ? claims.email : undefined,
+      isAnonymous: claims.is_anonymous === true,
     }
   }
 
@@ -32,7 +33,11 @@ export async function resolveAuthUser(): Promise<ResolvedAuthUser | null> {
   } = await supabase.auth.getUser()
 
   if (!userError && user) {
-    return { id: user.id, email: user.email ?? undefined }
+    return {
+      id: user.id,
+      email: user.email ?? undefined,
+      isAnonymous: user.is_anonymous ?? false,
+    }
   }
 
   return null

@@ -10,8 +10,10 @@ import {
   Compass,
   History,
   LayoutDashboard,
+  LogIn,
   Menu,
   User,
+  UserPlus,
   Users,
 } from "lucide-react"
 import { motion } from "motion/react"
@@ -22,6 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
 // Most-used destinations stay on the bar; the rest live in the "More" drawer.
@@ -35,18 +38,21 @@ const primaryItems = [
 const moreItems = [
   { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/history", label: "History", icon: History },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/profile", label: "Profile", icon: User },
+  // Account-only — hidden for anonymous (not-signed-in) visitors.
+  { href: "/team", label: "Team", icon: Users, accountOnly: true },
+  { href: "/profile", label: "Profile", icon: User, accountOnly: true },
 ]
 
 /** Mobile-first bottom navigation with a "More" drawer for overflow items. */
 export function BottomNav() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const isAnonymous = useSessionStore((s) => s.profile.isAnonymous)
+  const visibleMore = moreItems.filter((i) => !i.accountOnly || !isAnonymous)
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
-  const moreActive = moreItems.some((item) => isActive(item.href))
+  const moreActive = visibleMore.some((item) => isActive(item.href))
 
   return (
     <nav
@@ -97,7 +103,7 @@ export function BottomNav() {
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
               <ul className="flex flex-col gap-1 px-2">
-                {moreItems.map(({ href, label, icon: Icon }) => {
+                {visibleMore.map(({ href, label, icon: Icon }) => {
                   const active = isActive(href)
                   return (
                     <li key={href}>
@@ -118,6 +124,27 @@ export function BottomNav() {
                     </li>
                   )
                 })}
+
+                {isAnonymous && (
+                  <li className="mt-2 flex flex-col gap-1 border-t border-border pt-2">
+                    <Link
+                      href="/signup"
+                      onClick={() => setMoreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      <UserPlus className="size-5" />
+                      Sign up
+                    </Link>
+                    <Link
+                      href="/login"
+                      onClick={() => setMoreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+                    >
+                      <LogIn className="size-5" />
+                      Sign in
+                    </Link>
+                  </li>
+                )}
               </ul>
             </SheetContent>
           </Sheet>

@@ -23,6 +23,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { api } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
+import { AccountGate } from "@/components/auth/account-gate"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   }
 
   return (
+    <AccountGate feature="Your profile">
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <header className="flex items-center gap-4">
         <Avatar className="size-16">
@@ -167,5 +169,6 @@ export default function ProfilePage() {
         {signingOut ? "Signing out…" : "Sign out"}
       </Button>
     </div>
+    </AccountGate>
   )
 }

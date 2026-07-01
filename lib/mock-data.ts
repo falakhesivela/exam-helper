@@ -23,6 +23,7 @@ import { DEFAULT_FREE_DAILY_QUESTION_LIMIT } from "@/lib/config/freemium"
 export const mockProfile: UserProfile = {
   name: "Jordan Avery",
   email: "jordan@certforge.app",
+  isAnonymous: false,
   plan: "free",
   dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
   questionsUsedToday: 8,
@@ -35,6 +36,7 @@ export const mockProfile: UserProfile = {
 export const emptyProfile: UserProfile = {
   name: "",
   email: "",
+  isAnonymous: true,
   plan: "free",
   dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
   questionsUsedToday: 0,

@@ -17,14 +17,17 @@ const navItems = [
   { href: "/plan", label: "Plan", icon: CalendarCheck },
   { href: "/exam", label: "Exam", icon: AlarmClock },
   { href: "/history", label: "History", icon: History },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/profile", label: "Profile", icon: User },
+  // Account-only — hidden for anonymous (not-signed-in) visitors.
+  { href: "/team", label: "Team", icon: Users, accountOnly: true },
+  { href: "/profile", label: "Profile", icon: User, accountOnly: true },
 ]
 
 /** Sticky top bar. Shows desktop nav links and the user's streak. */
 export function TopBar() {
   const pathname = usePathname()
   const profile = useSessionStore((s) => s.profile)
+  const isAnonymous = profile.isAnonymous
+  const visibleNav = navItems.filter((i) => !i.accountOnly || !isAnonymous)
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-lg">
@@ -34,7 +37,7 @@ export function TopBar() {
         </Link>
 
         <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 lg:flex">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {visibleNav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`)
             return (
               <Link
@@ -64,7 +67,16 @@ export function TopBar() {
               </Link>
             </Button>
           ) : null}
-          {profile.name ? (
+          {isAnonymous ? (
+            <>
+              <Button size="sm" variant="ghost" asChild>
+                <Link href="/login">Sign in</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/signup">Sign up</Link>
+              </Button>
+            </>
+          ) : profile.name ? (
             <>
               <Badge variant="secondary" className="gap-1.5">
                 <Flame className="size-3.5 text-primary" />
