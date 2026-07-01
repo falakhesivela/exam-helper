@@ -57,7 +57,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath())}`,
+          // Bare path (no query) so it matches the Supabase redirect allowlist
+          // exactly; the callback defaults to /dashboard.
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
       if (error) throw error
