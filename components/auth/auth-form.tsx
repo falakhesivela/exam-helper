@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,9 @@ function authErrorMessage(err: unknown): string {
     }
     if (code === "user_already_registered") {
       return "An account with this email already exists. Try signing in."
+    }
+    if (code === "email_not_confirmed") {
+      return "Please confirm your email first — check your inbox for the verification link."
     }
   }
   return err instanceof Error ? err.message : "Authentication failed"
@@ -48,7 +51,39 @@ function GoogleIcon() {
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [loading, setLoading] = useState(false)
   const [passwordMismatch, setPasswordMismatch] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const isSignup = mode === "signup"
+
+  // Surface redirect errors from the auth callback routes (?error=...).
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("error")
+    if (error === "verify") {
+      toast.error("That verification link is invalid or has expired. Request a new one below.")
+    } else if (error === "oauth") {
+      toast.error("Sign-in with Google failed. Please try again.")
+    }
+  }, [])
+
+  async function handleResend() {
+    if (!pendingEmail) return
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        },
+      })
+      if (error) throw error
+      toast.success("Verification email sent again — check your inbox.")
+    } catch (err) {
+      toast.error(authErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleGoogle() {
     setLoading(true)
@@ -94,29 +129,32 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { name } },
+          options: {
+            data: { name },
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          },
         })
         if (error) throw error
 
+        // With email confirmation enabled, Supabase returns an obfuscated user
+        // (empty `identities`) instead of an error when the email is already
+        // registered — don't leak that a confirmation email was resent.
+        if (data.user && data.user.identities?.length === 0) {
+          toast.error(
+            "An account with this email already exists. Try signing in.",
+          )
+          return
+        }
+
         if (data.session) {
+          // Confirmation is disabled — signed in immediately.
           toast.success("Account created — welcome to Prepa!")
           goToApp()
           return
         }
 
-        // No session from sign-up (e.g. confirm email off but empty session) — sign in
-        const { data: signInData, error: signInError } =
-          await supabase.auth.signInWithPassword({ email, password })
-
-        if (!signInError && signInData.session) {
-          toast.success("Account created — welcome to Prepa!")
-          goToApp()
-          return
-        }
-
-        toast.success(
-          "Account created. Check your email to confirm, then sign in.",
-        )
+        // Confirmation required: no session yet. Show the verify-email screen.
+        setPendingEmail(email)
         return
       }
 
@@ -136,6 +174,49 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (pendingEmail) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center gap-3 text-center">
+            <Logo />
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold tracking-tight text-balance">
+                Confirm your email
+              </h1>
+              <p className="text-sm text-muted-foreground text-pretty">
+                We sent a verification link to{" "}
+                <span className="font-medium text-foreground">{pendingEmail}</span>.
+                Click it to activate your account.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleResend}
+            disabled={loading}
+          >
+            {loading && <Spinner data-icon="inline-start" />}
+            Resend verification email
+          </Button>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Already confirmed?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

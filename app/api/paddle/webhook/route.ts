@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { sendProWelcomeEmail } from "@/lib/email"
 
 export const runtime = "nodejs"
 
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
   const plan = ENTITLED.has(status) ? "pro" : "free"
 
   const admin = createAdminClient()
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from("profiles")
     .update({
       plan,
@@ -79,11 +80,38 @@ export async function POST(request: Request) {
         typeof data.customer_id === "string" ? data.customer_id : null,
     })
     .eq("id", userId)
+    .select("email, name, pro_welcome_sent_at")
+    .single()
 
   if (error) {
     console.error("[paddle webhook] update failed", error)
     // 200 so Paddle doesn't retry forever on a persistent DB issue; logged above.
     return new Response("ok", { status: 200 })
+  }
+
+  // Send the welcome email once, the first time Pro becomes active. The
+  // pro_welcome_sent_at stamp dedupes across repeated subscription.* events
+  // and webhook retries. Best-effort: never block the 200 or fail the webhook.
+  if (plan === "pro" && updated && !updated.pro_welcome_sent_at && updated.email) {
+    try {
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin
+      const sent = await sendProWelcomeEmail(
+        updated.email,
+        updated.name ?? null,
+        appUrl,
+      )
+      // Only mark as sent when the email actually went out, so an unconfigured
+      // or failed send doesn't permanently suppress the welcome email.
+      if (sent) {
+        await admin
+          .from("profiles")
+          .update({ pro_welcome_sent_at: new Date().toISOString() })
+          .eq("id", userId)
+      }
+    } catch (err) {
+      console.error("[paddle webhook] welcome email failed", err)
+    }
   }
 
   return new Response("ok", { status: 200 })

@@ -136,6 +136,43 @@ Timed mock exams support **11 certification presets** (AWS, Azure, GCP, CompTIA,
 - Pro plan: unlimited
 - Usage resets at user-local midnight (`X-Timezone` header)
 
+## Subscriptions & billing
+
+Pro is billed through **Paddle Billing** (Paddle is the Merchant of Record, so
+Paddle issues the tax-compliant invoice/receipt). Checkout runs client-side
+(`lib/paddle.ts`); the webhook keeps `profiles.plan` in sync; the billing screen
+(`/profile/billing`) reads live subscription state and cancels via the Paddle
+API (`lib/paddle-api.ts`).
+
+**Paddle dashboard setup:**
+
+1. **Catalog → Products/Prices** — create the Pro price; put its id in
+   `NEXT_PUBLIC_PADDLE_PRO_PRICE_ID`.
+2. **Developer tools → Authentication** — copy the client-side token into
+   `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, and an API key into `PADDLE_API_KEY`
+   (used for subscription lookups + cancellation).
+3. **Developer tools → Notifications** — add a destination pointing at
+   `https://<your-domain>/api/paddle/webhook`, subscribe to the
+   `subscription.*` events, and copy its signing secret into
+   `PADDLE_WEBHOOK_SECRET`.
+4. **Receipts are automatic** — Paddle emails customers a receipt + PDF invoice
+   on every completed transaction (checkout and renewals) by default; there's
+   no toggle to enable. Just set your business name, logo, and support email in
+   the dashboard so receipts are branded, and verify a sandbox purchase under
+   **Transactions → order → Order History**. This is the compliant
+   proof-of-payment, separate from the app's welcome email below.
+5. Set `NEXT_PUBLIC_PADDLE_ENV` to `sandbox` or `production`.
+
+> The shared Paddle account tags checkouts with `custom_data.app = "prepa"`;
+> the webhook ignores events without that tag.
+
+**Welcome email (Resend):** on first Pro activation the webhook sends a branded
+onboarding email via `lib/email.ts`. Set `RESEND_API_KEY`, `EMAIL_FROM` (a
+**verified sending domain** — the `resend.dev` fallback is test-only), and
+`NEXT_PUBLIC_APP_URL` for correct links. Sends are skipped (logged) when
+unset, so billing still works without email configured. Dedupe is handled by
+`profiles.pro_welcome_sent_at`.
+
 ## License
 
 Private — all rights reserved.

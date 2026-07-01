@@ -8,7 +8,6 @@ import {
   CreditCard,
   Flame,
   LogOut,
-  Moon,
   Sparkles,
   Target,
 } from "lucide-react"
@@ -131,27 +130,22 @@ export default function ProfilePage() {
         <CardContent className="flex flex-col gap-1 p-0">
           <div className="flex items-center justify-between gap-3 px-6 py-3.5">
             <span className="flex items-center gap-3 text-sm">
-              <Moon className="size-4 text-muted-foreground" />
-              Dark mode
-            </span>
-            <Switch defaultChecked aria-label="Dark mode" />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between gap-3 px-6 py-3.5">
-            <span className="flex items-center gap-3 text-sm">
               <Bell className="size-4 text-muted-foreground" />
               Study reminders
             </span>
             <Switch defaultChecked aria-label="Study reminders" />
           </div>
           <Separator />
-          <button className="flex items-center justify-between gap-3 px-6 py-3.5 text-left text-sm transition-colors hover:bg-secondary/50">
+          <Link
+            href={profile.plan === "pro" ? "/profile/billing" : "/upgrade"}
+            className="flex items-center justify-between gap-3 px-6 py-3.5 text-left text-sm transition-colors hover:bg-secondary/50"
+          >
             <span className="flex items-center gap-3">
               <CreditCard className="size-4 text-muted-foreground" />
               Billing & plan
             </span>
             <ChevronRight className="size-4 text-muted-foreground" />
-          </button>
+          </Link>
         </CardContent>
       </Card>
 

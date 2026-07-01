@@ -190,6 +190,11 @@ export interface UserProfile {
   /** True for anonymous sessions (no real account yet) — gates account-only UI. */
   isAnonymous: boolean
   plan: "free" | "pro"
+  /**
+   * Raw Paddle subscription status (e.g. "active", "trialing", "past_due",
+   * "canceled") when the user has a subscription; null for free users.
+   */
+  subscriptionStatus: string | null
   /** Daily free-tier question allowance. */
   dailyLimit: number
   questionsUsedToday: number
@@ -197,6 +202,19 @@ export interface UserProfile {
   longestStreak: number
   /** Self-set target questions/day for the streak. */
   dailyGoal: number
+}
+
+/** Live subscription detail fetched from Paddle for the billing screen. */
+export interface SubscriptionDetails {
+  /** Whether a manageable Paddle subscription exists for this user. */
+  hasSubscription: boolean
+  status: string | null
+  /** ISO timestamp of the next renewal, or null. */
+  nextBilledAt: string | null
+  /** ISO timestamp when a scheduled cancellation takes effect, or null. */
+  cancelEffectiveAt: string | null
+  /** Paddle-hosted page to update the payment method, if available. */
+  updatePaymentUrl: string | null
 }
 
 /** Streak + daily-goal snapshot with recent activity, for the streak card. */

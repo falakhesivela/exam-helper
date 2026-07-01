@@ -423,6 +423,26 @@ export const api = {
       method: "DELETE",
     })
   },
+
+  getSubscription: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve<import("@/types").SubscriptionDetails>({
+        hasSubscription: false,
+        status: null,
+        nextBilledAt: null,
+        cancelEffectiveAt: null,
+        updatePaymentUrl: null,
+      })
+    }
+    return request<import("@/types").SubscriptionDetails>(
+      "/api/paddle/subscription",
+    )
+  },
+
+  cancelSubscription: () =>
+    request<import("@/types").SubscriptionDetails>("/api/paddle/subscription", {
+      method: "POST",
+    }),
 }
 
 export const USE_MOCKS =

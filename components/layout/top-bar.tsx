@@ -31,12 +31,12 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-lg">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/dashboard" aria-label="Prepa home" className="shrink-0">
           <Logo />
         </Link>
 
-        <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 lg:flex">
+        <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 xl:flex">
           {visibleNav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`)
             return (
@@ -45,7 +45,7 @@ export function TopBar() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                  "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition-colors",
                   active
                     ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -81,9 +81,9 @@ export function TopBar() {
               <Badge variant="secondary" className="gap-1.5">
                 <Flame className="size-3.5 text-primary" />
                 {profile.streakDays}
-                {/* Hidden once the desktop nav appears (≥lg) to save room. */}
-                <span className="hidden sm:inline lg:hidden">day streak</span>
-                <span className="hidden lg:inline">d</span>
+                {/* Hidden once the desktop nav appears (≥xl) to save room. */}
+                <span className="hidden sm:inline xl:hidden">day streak</span>
+                <span className="hidden xl:inline">d</span>
               </Badge>
               <Link href="/profile" aria-label="Your profile">
                 <Avatar className="size-9">

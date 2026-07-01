@@ -22,6 +22,9 @@ export interface DbProfile {
   name: string
   email: string
   plan: "free" | "pro"
+  subscription_status: string | null
+  paddle_subscription_id: string | null
+  paddle_customer_id: string | null
   daily_limit: number
   streak_days: number
   longest_streak: number
@@ -253,6 +256,7 @@ export function toUserProfile(
     email: profile.email,
     isAnonymous: options?.isAnonymous ?? false,
     plan: profile.plan,
+    subscriptionStatus: profile.subscription_status ?? null,
     dailyLimit: options?.dailyLimit ?? profile.daily_limit,
     questionsUsedToday,
     streakDays: profile.streak_days,
