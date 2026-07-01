@@ -90,7 +90,7 @@ export default function LandingPage() {
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
             <Link href="/login" style={{ color: "#3D403A", fontWeight: 500, fontSize: "15px" }}>Sign in</Link>
-            <Link href="/dashboard" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "10px 18px", borderRadius: "10px", boxShadow: "0 1px 2px rgba(20,30,20,0.15)" }}>Start free</Link>
+            <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "10px 18px", borderRadius: "10px", boxShadow: "0 1px 2px rgba(20,30,20,0.15)" }}>Start free</Link>
           </div>
         </nav>
       </header>
@@ -108,7 +108,7 @@ export default function LandingPage() {
             Prepa generates fresh, exam-style questions with instant explanations, mock exams, and progress tracking. Start practising in seconds — no sign-up required.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "22px" }}>
-            <Link href="/dashboard" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", boxShadow: `0 8px 20px -8px color-mix(in oklab, ${ACCENT} 60%, transparent)` }}>Start practising free</Link>
+            <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", boxShadow: `0 8px 20px -8px color-mix(in oklab, ${ACCENT} 60%, transparent)` }}>Start practising free</Link>
             <a href="#pricing" style={{ background: "#fff", color: INK, fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", border: "1px solid #DCD5C7" }}>See pricing</a>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 18px", fontSize: "14px", color: "#6B6D64" }}>
@@ -190,7 +190,7 @@ export default function LandingPage() {
             <div>
               <div style={{ ...kicker, marginBottom: "14px" }}>How it works</div>
               <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(28px,3.2vw,38px)", lineHeight: 1.1, letterSpacing: "-0.02em", margin: "0 0 22px" }}>Start in seconds</h2>
-              <Link href="/dashboard" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "13px 22px", borderRadius: "11px", display: "inline-block" }}>Start practising free</Link>
+              <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "13px 22px", borderRadius: "11px", display: "inline-block" }}>Start practising free</Link>
             </div>
             <div style={{ display: "grid", gap: "6px" }}>
               {steps.map((s, i) => (
@@ -225,7 +225,7 @@ export default function LandingPage() {
                 <div key={f} style={{ display: "flex", gap: "10px", fontSize: "14.5px", color: "#3D403A" }}><span style={check}>✓</span>{f}</div>
               ))}
             </div>
-            <Link href="/dashboard" style={{ display: "block", textAlign: "center", background: "#F4F0E8", color: INK, fontWeight: 600, fontSize: "15px", padding: "13px", borderRadius: "11px", border: "1px solid #E1DACB" }}>Start free</Link>
+            <Link href="/signup" style={{ display: "block", textAlign: "center", background: "#F4F0E8", color: INK, fontWeight: 600, fontSize: "15px", padding: "13px", borderRadius: "11px", border: "1px solid #E1DACB" }}>Start free</Link>
           </div>
           {/* Pro */}
           <div style={{ background: "#fff", border: `1.5px solid ${ACCENT}`, borderRadius: "18px", padding: "32px", position: "relative", boxShadow: `0 30px 60px -34px color-mix(in oklab, ${ACCENT} 50%, transparent)` }}>
@@ -249,7 +249,7 @@ export default function LandingPage() {
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1), transparent 55%)", pointerEvents: "none" }} />
           <h2 style={{ position: "relative", fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,3.8vw,44px)", lineHeight: 1.06, letterSpacing: "-0.02em", color: "#fff", margin: "0 0 16px" }}>Ready to study smarter?</h2>
           <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,0.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>Jump straight in — no account needed. Sign up later to save your progress across devices.</p>
-          <Link href="/dashboard" style={{ position: "relative", display: "inline-block", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,0.35)" }}>Start practising free</Link>
+          <Link href="/signup" style={{ position: "relative", display: "inline-block", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,0.35)" }}>Start practising free</Link>
         </div>
       </section>
 

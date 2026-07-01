@@ -31,18 +31,10 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // Validates JWT signature and refreshes session if needed
-  const { data: claimsData } = await supabase.auth.getClaims()
-
-  // Freemium: visitors without a session get a silent anonymous account so the
-  // per-user freemium/usage logic works without forcing a login. The account is
-  // converted to a permanent one on sign-up (progress preserved). Only mint on
-  // page navigations — never for API calls or external webhooks, which would
-  // otherwise create throwaway anonymous users.
-  const isApi = request.nextUrl.pathname.startsWith("/api")
-  if (!isApi && !claimsData?.claims?.sub) {
-    await supabase.auth.signInAnonymously()
-  }
+  // Validates JWT signature and refreshes session if needed. Sign-up is
+  // required to use the app — the (app) layout redirects signed-out visitors
+  // to /login; the landing, auth, and legal pages are public.
+  await supabase.auth.getClaims()
 
   return supabaseResponse
 }

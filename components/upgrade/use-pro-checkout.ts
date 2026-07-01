@@ -9,15 +9,12 @@ import { getProPriceId } from "@/lib/config/pricing"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 /**
- * Shared "subscribe to Pro" action used by both the in-app paywall and the
- * landing. Pay-first flow:
- *   1. Open Paddle checkout immediately — even for anonymous visitors. Paddle
- *      collects the email; custom_data tags the user + app so the webhook can
- *      flip profiles.plan to "pro" on the current (possibly anonymous) session.
- *   2. On checkout.completed, poll the profile until the webhook applies Pro.
- *   3. If the buyer is still anonymous, send them to "secure your account"
- *      (set a password, email pre-filled) so the paid account is recoverable.
- *      Otherwise go straight to the dashboard.
+ * Shared "subscribe to Pro" action used by the in-app paywall and the landing.
+ *   1. Signed-out visitors are sent to sign-up first (then back to /upgrade).
+ *   2. Signed-in users open Paddle checkout (custom_data tags the user + app so
+ *      the webhook flips profiles.plan to "pro").
+ *   3. On checkout.completed, poll the profile until Pro lands, then go to the
+ *      dashboard.
  * Inert with a friendly message until Paddle is configured.
  */
 export function useProCheckout() {
@@ -25,34 +22,18 @@ export function useProCheckout() {
   const refreshProfile = useSessionStore((s) => s.refreshProfile)
   const [loading, setLoading] = useState(false)
 
-  async function confirmPro(paidEmail?: string) {
+  async function confirmPro() {
     toast.success("Payment received — activating Pro…")
-
-    let isPro = false
     for (let i = 0; i < 8; i++) {
       await refreshProfile()
       if (useSessionStore.getState().profile.plan === "pro") {
-        isPro = true
-        break
+        toast.success("You're on Pro 🎉")
+        router.push("/dashboard")
+        return
       }
       await new Promise((r) => setTimeout(r, 2000))
     }
-
-    // Is this still an anonymous (unrecoverable) account? If so, have them
-    // secure it before sending them on.
-    const supabase = createClient()
-    const { data } = await supabase.auth.getUser()
-    const anonymous = data.user?.is_anonymous ?? false
-
-    if (anonymous) {
-      const q = new URLSearchParams({ pro: "1", next: "/dashboard" })
-      if (paidEmail) q.set("email", paidEmail)
-      toast.success("You're Pro 🎉  Set a password to save your access.")
-      router.push(`/signup?${q.toString()}`)
-      return
-    }
-
-    toast.success(isPro ? "You're on Pro 🎉" : "Your Pro access is activating…")
+    toast.message("Your Pro access is activating — refresh in a moment.")
     router.push("/dashboard")
   }
 
@@ -62,8 +43,10 @@ export function useProCheckout() {
       const supabase = createClient()
       const { data } = await supabase.auth.getUser()
       const user = data.user
-      if (!user) {
-        toast.error("Please reload the page and try again.")
+
+      // Sign-up is required to use the app and to subscribe.
+      if (!user || !user.email) {
+        router.push("/signup?next=/upgrade")
         return
       }
 
@@ -80,16 +63,12 @@ export function useProCheckout() {
       }
 
       onPaddleEvent((event) => {
-        if (event.name === "checkout.completed") {
-          void confirmPro(event.data?.customer?.email)
-        }
+        if (event.name === "checkout.completed") void confirmPro()
       })
 
       paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
-        // Pre-fill the email only when we already know it; otherwise Paddle
-        // collects it during checkout (pay-first for anonymous visitors).
-        ...(user.email ? { customer: { email: user.email } } : {}),
+        customer: { email: user.email },
         customData: { user_id: user.id, app: "prepa" },
       })
     } catch {
