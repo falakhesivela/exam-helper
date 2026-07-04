@@ -142,7 +142,8 @@ Pro is billed through **Paddle Billing** (Paddle is the Merchant of Record, so
 Paddle issues the tax-compliant invoice/receipt). Checkout runs client-side
 (`lib/paddle.ts`); the webhook keeps `profiles.plan` in sync; the billing screen
 (`/profile/billing`) reads live subscription state and cancels via the Paddle
-API (`lib/paddle-api.ts`).
+API (`lib/paddle-api.ts`); the public `/checkout` page initialises Paddle.js so
+Paddle-generated payment links (`?_ptxn=…`) auto-open the overlay.
 
 **Paddle dashboard setup:**
 
@@ -155,13 +156,18 @@ API (`lib/paddle-api.ts`).
    `https://<your-domain>/api/paddle/webhook`, subscribe to the
    `subscription.*` events, and copy its signing secret into
    `PADDLE_WEBHOOK_SECRET`.
-4. **Receipts are automatic** — Paddle emails customers a receipt + PDF invoice
+4. **Checkout → Checkout settings → Default payment link** — set to
+   `https://<your-domain>/checkout` (use `http://localhost:3000/checkout` in
+   sandbox). Required: Paddle refuses to open any checkout without it
+   (`transaction_default_checkout_url_not_set`). The `/checkout` page loads
+   Paddle.js so failed-payment recovery / invoice links resume automatically.
+5. **Receipts are automatic** — Paddle emails customers a receipt + PDF invoice
    on every completed transaction (checkout and renewals) by default; there's
    no toggle to enable. Just set your business name, logo, and support email in
    the dashboard so receipts are branded, and verify a sandbox purchase under
    **Transactions → order → Order History**. This is the compliant
    proof-of-payment, separate from the app's welcome email below.
-5. Set `NEXT_PUBLIC_PADDLE_ENV` to `sandbox` or `production`.
+6. Set `NEXT_PUBLIC_PADDLE_ENV` to `sandbox` or `production`.
 
 > The shared Paddle account tags checkouts with `custom_data.app = "prepa"`;
 > the webhook ignores events without that tag.

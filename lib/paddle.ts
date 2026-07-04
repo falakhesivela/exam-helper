@@ -17,7 +17,11 @@ export interface PaddleApi {
   }) => void
   Checkout: {
     open: (opts: {
-      items: PaddleCheckoutItem[]
+      // Either start a new checkout from line items, or resume an existing
+      // transaction by id (used by the /checkout default-payment-link page,
+      // e.g. when Paddle sends a customer back to pay a `?_ptxn=…` link).
+      items?: PaddleCheckoutItem[]
+      transactionId?: string
       customer?: { email: string }
       customData?: Record<string, string>
     }) => void
