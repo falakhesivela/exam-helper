@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Bookmark, ExternalLink, Trash2 } from "lucide-react"
+import { Bookmark, ExternalLink, Play, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PracticeHeader } from "@/components/practice/practice-header"
+import { BookmarkQuiz } from "@/components/practice/bookmark-quiz"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
@@ -16,6 +18,7 @@ export default function BookmarksPage() {
   const [items, setItems] = useState<BookmarkType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quizMode, setQuizMode] = useState(false)
   const toggleBookmark = useSessionStore((s) => s.toggleBookmark)
 
   useEffect(() => {
@@ -51,21 +54,25 @@ export default function BookmarksPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard">
-            <ArrowLeft data-icon="inline-start" />
-            Dashboard
-          </Link>
-        </Button>
-        <p className="flex items-center gap-1.5 text-sm font-medium">
-          <Bookmark className="size-4 text-primary" />
-          Saved questions
-        </p>
-        <span className="w-20" />
-      </div>
+      <PracticeHeader
+        title="Saved questions"
+        action={
+          items.length > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setQuizMode((q) => !q)}
+            >
+              <Play data-icon="inline-start" />
+              {quizMode ? "List" : "Quiz me"}
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {items.length === 0 ? (
+      {quizMode && items.length > 0 ? (
+        <BookmarkQuiz items={items} onClose={() => setQuizMode(false)} />
+      ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Bookmark className="size-8 text-primary" />
           <h1 className="text-xl font-semibold">No saved questions</h1>
@@ -74,7 +81,7 @@ export default function BookmarksPage() {
             question&apos;s explanation to keep it here for later review.
           </p>
           <Button asChild>
-            <Link href="/intake">Start practicing</Link>
+            <Link href="/practice">Back to Practice</Link>
           </Button>
         </div>
       ) : (

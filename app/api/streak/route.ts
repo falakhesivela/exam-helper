@@ -9,7 +9,10 @@ import type { StreakSummary } from "@/types"
 
 export const runtime = "nodejs"
 
-/** GET — streak summary + last-7-days activity for the dashboard streak card. */
+/** Activity window returned to the dashboard (12 weeks for the heatmap). */
+const ACTIVITY_DAYS = 84
+
+/** GET — streak summary + trailing activity for the dashboard streak tile + heatmap. */
 export async function GET(request: Request) {
   try {
     const user = await requireUser()
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
       .single()
 
     const since = new Date(`${today}T00:00:00Z`)
-    since.setUTCDate(since.getUTCDate() - 6)
+    since.setUTCDate(since.getUTCDate() - (ACTIVITY_DAYS - 1))
     const { data: usageRows } = await admin
       .from("daily_usage")
       .select("usage_date, questions_used")
@@ -43,7 +46,7 @@ export async function GET(request: Request) {
       dailyGoal,
       questionsToday: usageByDate[today] ?? 0,
       atRisk: isStreakAtRisk(profile?.last_active_date ?? null, today),
-      activity: buildActivityRow(usageByDate, dailyGoal, today),
+      activity: buildActivityRow(usageByDate, dailyGoal, today, ACTIVITY_DAYS),
     }
     return NextResponse.json(summary)
   } catch (err) {

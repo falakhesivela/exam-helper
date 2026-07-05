@@ -1,8 +1,14 @@
+import type { Metadata } from "next"
 import type { ReactNode } from "react"
 import { requireAuthUser } from "@/lib/supabase/auth-server"
 import { TopBar } from "@/components/layout/top-bar"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { GenerationTracker } from "@/components/generation/generation-tracker"
+
+// Authenticated surfaces carry no public content — keep them out of search indexes.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 // Shared shell for authenticated app surfaces. Redirects to /login when signed out.
 export default async function AppLayout({ children }: { children: ReactNode }) {

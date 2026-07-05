@@ -24,8 +24,14 @@ const SUGGESTIONS = [
 ]
 
 /** AI tutor thread: an opening tip on a missed item, then free-form follow-ups. */
-export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps) {
+export function AiTutorPanel({
+  question,
+  selectedOptionIds,
+  dragAnswer,
+}: AiTutorPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  /** Partial assistant reply while tokens stream in. */
+  const [streamingReply, setStreamingReply] = useState("")
   const [input, setInput] = useState("")
   const [initialLoading, setInitialLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -36,28 +42,40 @@ export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps)
   useEffect(() => {
     let cancelled = false
     setMessages([])
+    setStreamingReply("")
     setInitialLoading(true)
     setError(null)
     void api
-      .practiceTutor(question.id, selectedOptionIds, [])
+      .practiceTutor(question.id, selectedOptionIds, [], dragAnswer, {
+        onDelta: (text) => {
+          if (cancelled) return
+          setInitialLoading(false)
+          setStreamingReply((prev) => prev + text)
+        },
+      })
       .then((res) => {
-        if (!cancelled) setMessages([{ role: "assistant", content: res.reply }])
+        if (cancelled) return
+        setStreamingReply("")
+        setMessages([{ role: "assistant", content: res.reply }])
       })
       .catch((err) => {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "Tutor unavailable")
       })
       .finally(() => {
-        if (!cancelled) setInitialLoading(false)
+        if (!cancelled) {
+          setInitialLoading(false)
+          setStreamingReply("")
+        }
       })
     return () => {
       cancelled = true
     }
-  }, [question.id, selectedOptionIds])
+  }, [question.id, selectedOptionIds, dragAnswer])
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight })
-  }, [messages, sending])
+  }, [messages, sending, streamingReply])
 
   async function send(text: string) {
     const trimmed = text.trim()
@@ -68,11 +86,18 @@ export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps)
     setSending(true)
     setError(null)
     try {
-      const res = await api.practiceTutor(question.id, selectedOptionIds, next)
+      const res = await api.practiceTutor(
+        question.id,
+        selectedOptionIds,
+        next,
+        dragAnswer,
+        { onDelta: (t) => setStreamingReply((prev) => prev + t) },
+      )
       setMessages([...next, { role: "assistant", content: res.reply }])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tutor unavailable")
     } finally {
+      setStreamingReply("")
       setSending(false)
     }
   }
@@ -110,7 +135,13 @@ export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps)
               </div>
             ))
           )}
-          {sending && (
+          {streamingReply && (
+            <div className="max-w-[85%] self-start rounded-xl bg-card px-3 py-2 text-sm leading-relaxed text-foreground/90">
+              {streamingReply}
+              <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
+            </div>
+          )}
+          {sending && !streamingReply && (
             <div className="flex items-center gap-2 self-start text-sm text-muted-foreground">
               <Spinner className="size-4" />
               Typing…
@@ -147,6 +178,7 @@ export function AiTutorPanel({ question, selectedOptionIds }: AiTutorPanelProps)
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask a follow-up…"
+                aria-label="Ask the AI tutor a follow-up question"
                 disabled={sending}
                 className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               />

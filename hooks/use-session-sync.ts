@@ -4,22 +4,14 @@ import { useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import type { PracticeSession } from "@/types"
 import { api } from "@/lib/api/client"
+import { mergeSessionUpdate } from "@/lib/session-utils"
 import { useSessionStore } from "@/lib/store/use-session-store"
-
-function mergeSession(existing: PracticeSession | undefined, incoming: PracticeSession) {
-  if (!existing) return incoming
-  return {
-    ...incoming,
-    currentIndex: Math.max(existing.currentIndex, incoming.currentIndex),
-    answers: { ...incoming.answers, ...existing.answers },
-  }
-}
 
 export function useSessionSync(sessionId: string, session: PracticeSession | undefined) {
   const mergeIntoStore = useCallback((incoming: PracticeSession) => {
     useSessionStore.setState((state) => {
       const existing = state.sessions.find((s) => s.id === sessionId)
-      const merged = mergeSession(existing, incoming)
+      const merged = mergeSessionUpdate(existing, incoming)
       const idx = state.sessions.findIndex((s) => s.id === sessionId)
       const sessions =
         idx === -1

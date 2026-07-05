@@ -5,13 +5,19 @@ import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { SerwistProvider } from '@/components/providers/serwist-provider'
 import { StoreHydrator } from '@/components/providers/store-hydrator'
 import { Toaster } from '@/components/ui/sonner'
+import {
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_TITLE,
+  getSiteUrl,
+} from '@/lib/config/site'
 import './globals.css'
 
-const APP_NAME = 'Prepa'
-const APP_DEFAULT_TITLE = 'Prepa — AI Exam Prep'
+const APP_NAME = SITE_NAME
+const APP_DEFAULT_TITLE = SITE_TITLE
 const APP_TITLE_TEMPLATE = '%s — Prepa'
-const APP_DESCRIPTION =
-  'Prepa generates fresh, tailored multiple-choice questions for high-stakes certification exams, with instant feedback and progress tracking.'
+const APP_DESCRIPTION = SITE_DESCRIPTION
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({
@@ -20,13 +26,29 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   applicationName: APP_NAME,
   title: {
     default: APP_DEFAULT_TITLE,
     template: APP_TITLE_TEMPLATE,
   },
   description: APP_DESCRIPTION,
-  generator: 'v0.app',
+  keywords: SITE_KEYWORDS,
+  category: 'education',
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -45,7 +67,9 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
+    url: '/',
     siteName: APP_NAME,
+    locale: 'en_US',
     title: {
       default: APP_DEFAULT_TITLE,
       template: APP_TITLE_TEMPLATE,
@@ -53,7 +77,7 @@ export const metadata: Metadata = {
     description: APP_DESCRIPTION,
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: {
       default: APP_DEFAULT_TITLE,
       template: APP_TITLE_TEMPLATE,
@@ -67,8 +91,6 @@ export const viewport: Viewport = {
   themeColor: '#0e1116',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 }
 
 export default function RootLayout({

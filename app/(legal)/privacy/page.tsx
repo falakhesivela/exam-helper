@@ -5,6 +5,7 @@ import { LegalHeading, LegalSection } from "../legal-prose"
 export const metadata: Metadata = {
   title: "Privacy Notice",
   description: `How ${LEGAL.appName} collects, uses, and protects your data.`,
+  alternates: { canonical: "/privacy" },
 }
 
 export default function PrivacyPage() {

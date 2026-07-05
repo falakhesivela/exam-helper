@@ -6,6 +6,7 @@ import { LegalHeading, LegalSection } from "../legal-prose"
 export const metadata: Metadata = {
   title: "Refund Policy",
   description: `Refund and cancellation policy for ${LEGAL.appName}.`,
+  alternates: { canonical: "/refund" },
 }
 
 export default function RefundPage() {

@@ -1,15 +1,16 @@
-import { z } from "zod"
-import { runGenerateSessionStream } from "@/lib/ai/generate-session-stream"
-import { createEventStream } from "@/lib/ai/sse"
-import { requireUser } from "@/lib/api/auth"
-import { apiError, getTimezone, handleRouteError } from "@/lib/api/route-utils"
-import { checkRateLimit } from "@/lib/db/rate-limit"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { enforceFreemium } from "@/lib/db/usage"
-import { getExamBlueprint } from "@/lib/exams"
-import { loadAdaptiveDifficulty } from "@/lib/progress/adaptive"
+import { z } from "zod";
+import { runGenerateSessionStream } from "@/lib/ai/generate-session-stream";
+import { createEventStream } from "@/lib/ai/sse";
+import { requireUser } from "@/lib/api/auth";
+import { apiError, getTimezone, handleRouteError } from "@/lib/api/route-utils";
+import { checkRateLimit } from "@/lib/db/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { enforceFreemium } from "@/lib/db/usage";
+import { getExamBlueprint } from "@/lib/exams";
+import { difficultyPreferenceGuidance } from "@/lib/ai/difficulty";
+import { loadAdaptiveDifficulty } from "@/lib/progress/adaptive";
 
-export const runtime = "nodejs"
+export const runtime = "nodejs";
 
 const bodySchema = z.object({
   description: z.string().min(15),
@@ -22,55 +23,54 @@ const bodySchema = z.object({
   focusDomainIds: z.array(z.string()).optional(),
   adaptive: z.boolean().optional(),
   durationSec: z.number().int().min(0).optional(),
-})
+  difficulty: z.enum(["easier", "balanced", "harder"]).optional(),
+});
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser()
+    const user = await requireUser();
     if (!(await checkRateLimit(`generate:${user.id}`, 10))) {
-      return apiError("Rate limit exceeded", 429)
+      return apiError("Rate limit exceeded", 429);
     }
 
-    const body = bodySchema.parse(await request.json())
-    const count = body.count ?? 5
-    const admin = createAdminClient()
+    const body = bodySchema.parse(await request.json());
+    const count = body.count ?? 5;
+    const admin = createAdminClient();
 
-    const check = await enforceFreemium(admin, user.id, count)
+    const check = await enforceFreemium(admin, user.id, count);
 
-    let groundingText: string | undefined
+    let groundingText: string | undefined;
     if (body.fileId) {
       const { data: upload } = await admin
         .from("uploads")
         .select("extracted_text")
         .eq("id", body.fileId)
         .eq("user_id", user.id)
-        .single()
-      groundingText = upload?.extracted_text
+        .single();
+      groundingText = upload?.extracted_text;
     }
 
     const { data: profile } = await admin
       .from("profiles")
       .select("timezone")
       .eq("id", user.id)
-      .single()
+      .single();
 
-    const blueprint = body.examCode ? getExamBlueprint(body.examCode) : null
-    const useBlueprint =
-      blueprint != null &&
-      ((body.adaptive && (body.focusDomainIds?.length ?? 0) > 0) ||
-        (body.focusDomainIds?.length ?? 0) > 0)
+    // Any recognized exam code gets blueprint-driven, domain-weighted
+    // generation; focusDomainIds (Smart session) narrows it to weak domains.
+    const blueprint = body.examCode ? getExamBlueprint(body.examCode) : null;
 
     const adaptiveDifficulty = await loadAdaptiveDifficulty(
       admin,
       user.id,
       body.examCode ?? blueprint?.examCode,
-    )
+    );
 
-    const timezone = profile?.timezone ?? getTimezone(request)
+    const timezone = profile?.timezone ?? getTimezone(request);
     const remainingFreeQuestions =
       check.remaining === Infinity
         ? Infinity
-        : Math.max(0, check.remaining - count)
+        : Math.max(0, check.remaining - count);
 
     return createEventStream(async (send) => {
       await runGenerateSessionStream(
@@ -86,15 +86,18 @@ export async function POST(request: Request) {
           exam: body.exam ?? blueprint?.exam,
           examCode: body.examCode ?? blueprint?.examCode,
           durationSec: body.durationSec,
-          blueprint: useBlueprint ? blueprint ?? undefined : undefined,
+          blueprint: blueprint ?? undefined,
           focusDomainIds: body.focusDomainIds,
           adaptiveDifficulty: adaptiveDifficulty ?? undefined,
+          difficultyHint: body.difficulty
+            ? difficultyPreferenceGuidance(body.difficulty)
+            : undefined,
         },
         send,
         { timezone, remainingFreeQuestions },
-      )
-    })
+      );
+    });
   } catch (err) {
-    return handleRouteError(err)
+    return handleRouteError(err);
   }
 }

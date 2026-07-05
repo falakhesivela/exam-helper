@@ -1,22 +1,22 @@
-import { NextResponse } from "next/server"
-import { z } from "zod"
-import { requireUser } from "@/lib/api/auth"
-import { getTimezone, handleRouteError } from "@/lib/api/route-utils"
-import { getFreeDailyQuestionLimit } from "@/lib/config/freemium"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requireUser } from "@/lib/api/auth";
+import { getTimezone, handleRouteError } from "@/lib/api/route-utils";
+import { getFreeDailyQuestionLimit } from "@/lib/config/freemium";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   gradeAnswer,
   gradeDragAnswer,
   loadSession,
   updateTopicMastery,
-} from "@/lib/db/sessions"
-import { scheduleQuestionReview } from "@/lib/db/missed-questions"
-import { buildMasteryTopicKey } from "@/lib/exams/mastery-keys"
-import { enforceFreemium, incrementUsage } from "@/lib/db/usage"
-import { toQuestion, type DbQuestion } from "@/lib/db/mappers"
-import { isQuestionAnswered } from "@/lib/session-utils"
+} from "@/lib/db/sessions";
+import { scheduleQuestionReview } from "@/lib/db/missed-questions";
+import { buildMasteryTopicKey } from "@/lib/exams/mastery-keys";
+import { enforceFreemium, incrementUsage } from "@/lib/db/usage";
+import { toQuestion, type DbQuestion } from "@/lib/db/mappers";
+import { isQuestionAnswered } from "@/lib/session-utils";
 
-export const runtime = "nodejs"
+export const runtime = "nodejs";
 
 const dragAnswerSchema = z.discriminatedUnion("type", [
   z.object({
@@ -35,7 +35,7 @@ const dragAnswerSchema = z.discriminatedUnion("type", [
     type: z.literal("select_grid"),
     selections: z.record(z.string(), z.string()),
   }),
-])
+]);
 
 const bodySchema = z.object({
   questionId: z.string().uuid(),
@@ -43,48 +43,49 @@ const bodySchema = z.object({
   dragAnswer: dragAnswerSchema.optional(),
   timeSpentSec: z.number().int().min(0).default(0),
   confidence: z.enum(["sure", "unsure"]).optional(),
-})
+});
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireUser()
-    const { id: sessionId } = await params
-    const body = bodySchema.parse(await request.json())
-    const admin = createAdminClient()
+    const user = await requireUser();
+    const { id: sessionId } = await params;
+    const body = bodySchema.parse(await request.json());
+    const admin = createAdminClient();
 
     const { data: session } = await admin
       .from("sessions")
       .select("*")
       .eq("id", sessionId)
       .eq("user_id", user.id)
-      .single()
+      .single();
 
     if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 })
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
     if (session.mode !== "practice") {
       return NextResponse.json(
         { error: "Answer reveal only available in practice mode" },
         { status: 400 },
-      )
+      );
     }
 
     // Re-revealing an already-answered question must not charge the freemium
     // limit again — only the first answer for this question counts.
     const { data: existingAnswer } = await admin
       .from("answers")
-      .select("question_id")
+      .select("question_id, marked_for_review")
       .eq("session_id", sessionId)
       .eq("question_id", body.questionId)
-      .maybeSingle()
-    const firstAnswer = !existingAnswer
+      .maybeSingle();
+    const firstAnswer = !existingAnswer;
+    const preserveMarked = existingAnswer?.marked_for_review ?? false;
 
     if (firstAnswer) {
-      await enforceFreemium(admin, user.id, 1)
+      await enforceFreemium(admin, user.id, 1);
     }
 
     const { data: question } = await admin
@@ -92,26 +93,29 @@ export async function PATCH(
       .select("*")
       .eq("id", body.questionId)
       .eq("session_id", sessionId)
-      .single()
+      .single();
 
     if (!question) {
-      return NextResponse.json({ error: "Question not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Question not found" },
+        { status: 404 },
+      );
     }
 
-    const q = question as DbQuestion
-    const mapped = toQuestion(q)
-    const questionType = q.question_type ?? "mcq"
+    const q = question as DbQuestion;
+    const mapped = toQuestion(q);
+    const questionType = q.question_type ?? "mcq";
     const answered = isQuestionAnswered(
       mapped,
       body.selectedOptionIds,
       body.dragAnswer,
-    )
+    );
 
     const isCorrect = answered
       ? questionType === "mcq"
         ? gradeAnswer(q.correct_option_ids, body.selectedOptionIds)
         : gradeDragAnswer(q.drag_data ?? undefined, body.dragAnswer)
-      : false
+      : false;
 
     await admin.from("answers").upsert(
       {
@@ -120,20 +124,20 @@ export async function PATCH(
         selected_option_ids: body.selectedOptionIds,
         drag_answer: body.dragAnswer ?? null,
         is_correct: isCorrect,
-        marked_for_review: false,
+        marked_for_review: preserveMarked,
         skipped: !answered,
         time_spent_sec: body.timeSpentSec,
         answered_at: new Date().toISOString(),
         confidence: body.confidence ?? null,
       },
       { onConflict: "session_id,question_id" },
-    )
+    );
 
     const { data: profile } = await admin
       .from("profiles")
       .select("timezone, plan")
       .eq("id", user.id)
-      .single()
+      .single();
 
     if (firstAnswer) {
       await incrementUsage(
@@ -141,7 +145,7 @@ export async function PATCH(
         user.id,
         profile?.timezone ?? getTimezone(request),
         1,
-      )
+      );
     }
 
     if (answered) {
@@ -150,11 +154,11 @@ export async function PATCH(
         user.id,
         buildMasteryTopicKey(session.exam_code, q.topic, q.domain_id),
         isCorrect,
-      )
+      );
       if (!isCorrect) {
-        await scheduleQuestionReview(admin, user.id, body.questionId, false)
+        await scheduleQuestionReview(admin, user.id, body.questionId, false);
       } else {
-        await scheduleQuestionReview(admin, user.id, body.questionId, true)
+        await scheduleQuestionReview(admin, user.id, body.questionId, true);
       }
     }
 
@@ -162,15 +166,15 @@ export async function PATCH(
       ? await import("@/lib/db/usage").then((m) =>
           m.getTodayUsage(admin, user.id, profile.timezone ?? "UTC"),
         )
-      : 0
+      : 0;
 
     const remaining =
       profile?.plan === "pro"
         ? Infinity
-        : Math.max(0, getFreeDailyQuestionLimit() - used)
+        : Math.max(0, getFreeDailyQuestionLimit() - used);
 
-    const revealedQuestion = toQuestion(q)
-    const updatedSession = await loadSession(admin, sessionId, user.id)
+    const revealedQuestion = toQuestion(q);
+    const updatedSession = await loadSession(admin, sessionId, user.id);
 
     return NextResponse.json({
       answer: {
@@ -178,7 +182,7 @@ export async function PATCH(
         selectedOptionIds: body.selectedOptionIds,
         dragAnswer: body.dragAnswer,
         isCorrect,
-        markedForReview: false,
+        markedForReview: preserveMarked,
         skipped: !answered,
         timeSpentSec: body.timeSpentSec,
         confidence: body.confidence,
@@ -186,8 +190,8 @@ export async function PATCH(
       question: revealedQuestion,
       session: updatedSession,
       remainingFreeQuestions: remaining,
-    })
+    });
   } catch (err) {
-    return handleRouteError(err)
+    return handleRouteError(err);
   }
 }

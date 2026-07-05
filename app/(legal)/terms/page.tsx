@@ -6,6 +6,7 @@ import { LegalHeading, LegalSection } from "../legal-prose"
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: `Terms of Service for ${LEGAL.appName}.`,
+  alternates: { canonical: "/terms" },
 }
 
 export default function TermsPage() {

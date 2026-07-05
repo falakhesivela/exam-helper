@@ -1,17 +1,20 @@
-import type { SupabaseClient } from "@supabase/supabase-js"
-import { streamGenerateDragQuestions, streamGenerateQuestions } from "@/lib/ai/stream"
-import type { SseSend } from "@/lib/ai/sse"
-import type { GeneratedQuestion } from "@/lib/ai/schemas"
-import { verifyReferences } from "@/lib/ai/verify-references"
-import { difficultyGuidance } from "@/lib/ai/difficulty"
-import type { AdaptiveDifficulty } from "@/lib/progress/adaptive"
-import type { Question } from "@/types"
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  streamGenerateDragQuestions,
+  streamGenerateQuestions,
+} from "@/lib/ai/stream";
+import type { SseSend } from "@/lib/ai/sse";
+import type { GeneratedQuestion } from "@/lib/ai/schemas";
+import { verifyReferences } from "@/lib/ai/verify-references";
+import { difficultyGuidance } from "@/lib/ai/difficulty";
+import type { AdaptiveDifficulty } from "@/lib/progress/adaptive";
+import type { Question } from "@/types";
 import {
   examDomainBatchPrompt,
   examDragBatchPrompt,
   examDragSystemPrompt,
   examSimulationSystemPrompt,
-} from "@/lib/ai/prompts"
+} from "@/lib/ai/prompts";
 import {
   allocateDragByDomain,
   allocateQuestionTypes,
@@ -19,39 +22,45 @@ import {
   domainGroundingText,
   type ExamBlueprint,
   type ExamBlueprintDomain,
-} from "@/lib/exams"
+} from "@/lib/exams";
 import {
   appendQuestion,
   createSessionShell,
   finalizeSessionGeneration,
   loadSession,
-} from "@/lib/db/sessions"
-import { toQuestion, generatedQuestionToDb, type DbQuestion } from "@/lib/db/mappers"
-import { incrementUsage } from "@/lib/db/usage"
-import type { PracticeSession } from "@/types"
+} from "@/lib/db/sessions";
+import {
+  toQuestion,
+  generatedQuestionToDb,
+  type DbQuestion,
+} from "@/lib/db/mappers";
+import { incrementUsage } from "@/lib/db/usage";
+import type { PracticeSession } from "@/types";
 
 export interface GenerateSessionStreamParams {
-  description: string
-  clarifications?: Record<string, string>
-  count: number
-  groundingText?: string
-  mode: "practice" | "exam"
-  exam?: string
-  examCode?: string
-  focusTopics?: string[]
-  durationSec?: number
-  passMark?: number
+  description: string;
+  clarifications?: Record<string, string>;
+  count: number;
+  groundingText?: string;
+  mode: "practice" | "exam";
+  exam?: string;
+  examCode?: string;
+  focusTopics?: string[];
+  durationSec?: number;
+  passMark?: number;
   /** When set for exam mode, questions are generated per domain by weight. */
-  blueprint?: ExamBlueprint
+  blueprint?: ExamBlueprint;
   /** When set, generation is limited to these blueprint domain ids (weak-area exams). */
-  focusDomainIds?: string[]
+  focusDomainIds?: string[];
   /** Per-domain/overall mastery to bias question difficulty (adaptive). */
-  adaptiveDifficulty?: AdaptiveDifficulty
+  adaptiveDifficulty?: AdaptiveDifficulty;
+  /** Explicit learner-chosen difficulty prompt line; overrides adaptive hints. */
+  difficultyHint?: string;
 }
 
 function safeSend(send: SseSend, event: string, data: unknown) {
   try {
-    send(event, data)
+    send(event, data);
   } catch {
     // Client disconnected — keep persisting to DB.
   }
@@ -68,35 +77,36 @@ async function upsertQuestionAtPosition(
     .select("id")
     .eq("session_id", sessionId)
     .eq("position", position)
-    .maybeSingle()
+    .maybeSingle();
 
   if (existing) {
-    const row = generatedQuestionToDb(question)
+    const row = generatedQuestionToDb(question);
     const { data: updated, error } = await admin
       .from("questions")
       .update(row)
       .eq("id", existing.id)
       .select()
-      .single()
+      .single();
 
-    if (error || !updated) throw error ?? new Error("Failed to update question")
-    return toQuestion(updated as DbQuestion)
+    if (error || !updated)
+      throw error ?? new Error("Failed to update question");
+    return toQuestion(updated as DbQuestion);
   }
 
-  return appendQuestion(admin, sessionId, question, position)
+  return appendQuestion(admin, sessionId, question, position);
 }
 
 interface GenerationCallbacks {
   onMetadata?: (meta: {
-    exam?: string
-    examCode?: string
-    focusTopics?: string[]
-  }) => void
+    exam?: string;
+    examCode?: string;
+    focusTopics?: string[];
+  }) => void;
   onQuestionPreview?: (
     index: number,
     preview: { topic?: string; difficulty?: string },
-  ) => void
-  onQuestion?: (index: number, question: GeneratedQuestion) => void
+  ) => void;
+  onQuestion?: (index: number, question: GeneratedQuestion) => void;
 }
 
 async function generateAllQuestions(
@@ -104,23 +114,24 @@ async function generateAllQuestions(
   total: number,
   callbacks: GenerationCallbacks,
 ): Promise<{
-  exam: string
-  examCode: string
-  focusTopics: string[]
-  questions: GeneratedQuestion[]
+  exam: string;
+  examCode: string;
+  focusTopics: string[];
+  questions: GeneratedQuestion[];
 }> {
-  if (
-    params.blueprint &&
-    (params.mode === "exam" || (params.focusDomainIds?.length ?? 0) > 0)
-  ) {
+  if (params.blueprint) {
     return generateBlueprintExamQuestions(
       params.blueprint,
       total,
       callbacks,
       params.focusDomainIds,
       params.groundingText,
-      { includeDrag: true, adaptiveDifficulty: params.adaptiveDifficulty },
-    )
+      {
+        includeDrag: true,
+        adaptiveDifficulty: params.adaptiveDifficulty,
+        difficultyHint: params.difficultyHint,
+      },
+    );
   }
 
   return streamGenerateQuestions(
@@ -129,28 +140,30 @@ async function generateAllQuestions(
       clarifications: params.clarifications,
       count: total,
       groundingText: params.groundingText,
-      difficultyHint: params.adaptiveDifficulty
-        ? difficultyGuidance(params.adaptiveDifficulty.overall)
-        : undefined,
+      difficultyHint:
+        params.difficultyHint ??
+        (params.adaptiveDifficulty
+          ? difficultyGuidance(params.adaptiveDifficulty.overall)
+          : undefined),
     },
     callbacks,
-  )
+  );
 }
 
 function tagForDomain(
   question: GeneratedQuestion,
   domain: ExamBlueprintDomain,
 ): GeneratedQuestion {
-  return { ...question, topic: domain.name, domainId: domain.id }
+  return { ...question, topic: domain.name, domainId: domain.id };
 }
 
 function syllabusGroundingBlock(groundingText?: string): string[] {
-  if (!groundingText?.trim()) return []
+  if (!groundingText?.trim()) return [];
   return [
     "",
     "Syllabus excerpt (use for topic grounding):",
     groundingText.trim().slice(0, 8000),
-  ]
+  ];
 }
 
 async function generateBlueprintExamQuestions(
@@ -159,54 +172,59 @@ async function generateBlueprintExamQuestions(
   callbacks: GenerationCallbacks,
   focusDomainIds?: string[],
   groundingText?: string,
-  options?: { includeDrag?: boolean; adaptiveDifficulty?: AdaptiveDifficulty },
+  options?: {
+    includeDrag?: boolean;
+    adaptiveDifficulty?: AdaptiveDifficulty;
+    /** Explicit learner-chosen difficulty line; wins over adaptive mastery. */
+    difficultyHint?: string;
+  },
 ): Promise<{
-  exam: string
-  examCode: string
-  focusTopics: string[]
-  questions: GeneratedQuestion[]
+  exam: string;
+  examCode: string;
+  focusTopics: string[];
+  questions: GeneratedQuestion[];
 }> {
-  const adaptive = options?.adaptiveDifficulty
+  const adaptive = options?.adaptiveDifficulty;
   const difficultyFor = (domainId: string): string[] => {
-    if (!adaptive) return []
-    const mastery = adaptive.byDomain[domainId] ?? adaptive.overall
-    return [difficultyGuidance(mastery)]
-  }
+    if (options?.difficultyHint) return [options.difficultyHint];
+    if (!adaptive) return [];
+    const mastery = adaptive.byDomain[domainId] ?? adaptive.overall;
+    return [difficultyGuidance(mastery)];
+  };
   const domainFilter =
     focusDomainIds && focusDomainIds.length > 0
       ? blueprint.domains.filter((d) => focusDomainIds.includes(d.id))
-      : blueprint.domains
-  const domains =
-    domainFilter.length > 0 ? domainFilter : blueprint.domains
+      : blueprint.domains;
+  const domains = domainFilter.length > 0 ? domainFilter : blueprint.domains;
 
   const typeAlloc = allocateQuestionTypes(
     total,
     options?.includeDrag === false ? undefined : blueprint.questionTypeMix,
-  )
-  const mcqTotal = typeAlloc.find((t) => t.type === "mcq")?.count ?? total
-  const dragAlloc = typeAlloc.filter((t) => t.type !== "mcq")
+  );
+  const mcqTotal = typeAlloc.find((t) => t.type === "mcq")?.count ?? total;
+  const dragAlloc = typeAlloc.filter((t) => t.type !== "mcq");
 
-  const allocations = allocateQuestionsByDomain(mcqTotal, domains)
-  const systemPrompt = examSimulationSystemPrompt(blueprint)
-  const dragSystemPrompt = examDragSystemPrompt(blueprint)
-  const mcqQuestions: GeneratedQuestion[] = []
-  let globalIndex = 0
+  const allocations = allocateQuestionsByDomain(mcqTotal, domains);
+  const systemPrompt = examSimulationSystemPrompt(blueprint);
+  const dragSystemPrompt = examDragSystemPrompt(blueprint);
+  const mcqQuestions: GeneratedQuestion[] = [];
+  let globalIndex = 0;
 
   callbacks.onMetadata?.({
     exam: blueprint.exam,
     examCode: blueprint.examCode,
     focusTopics: domains.map((d) => d.name),
-  })
+  });
 
   for (const { domain, count } of allocations) {
-    if (count <= 0) continue
+    if (count <= 0) continue;
     const userPrompt = [
       examDomainBatchPrompt(blueprint, domain, count),
       ...difficultyFor(domain.id),
       "",
       domainGroundingText(domain),
       ...syllabusGroundingBlock(groundingText),
-    ].join("\n")
+    ].join("\n");
 
     const batch = await streamGenerateQuestions(
       {
@@ -227,37 +245,40 @@ async function generateBlueprintExamQuestions(
           callbacks.onQuestion?.(
             globalIndex + localIndex,
             tagForDomain(question, domain),
-          )
+          );
         },
       },
-    )
+    );
 
     for (const question of batch.questions) {
-      mcqQuestions.push(tagForDomain(question, domain))
+      mcqQuestions.push(tagForDomain(question, domain));
     }
-    globalIndex += batch.questions.length
+    globalIndex += batch.questions.length;
   }
 
-  const dragQuestions: GeneratedQuestion[] = []
-  const dragTotal = dragAlloc.reduce((sum, row) => sum + row.count, 0)
+  const dragQuestions: GeneratedQuestion[] = [];
+  const dragTotal = dragAlloc.reduce((sum, row) => sum + row.count, 0);
   if (dragTotal > 0) {
     const dragByDomain = allocateDragByDomain(
       dragTotal,
       domains.map((d) => ({ domainId: d.id, weight: d.weightPercent })),
-    )
+    );
 
     for (const { type, count } of dragAlloc) {
-      if (count <= 0 || type === "mcq") continue
-      const dragType = type
-      let remaining = count
+      if (count <= 0 || type === "mcq") continue;
+      const dragType = type;
+      let remaining = count;
       for (const domain of domains) {
-        const domainShare = dragByDomain.get(domain.id) ?? 0
+        const domainShare = dragByDomain.get(domain.id) ?? 0;
         const typeShare =
           dragTotal > 0
             ? Math.max(0, Math.round((count * domainShare) / dragTotal))
-            : 0
-        const batchCount = Math.min(remaining, typeShare || (remaining > 0 ? 1 : 0))
-        if (batchCount <= 0) continue
+            : 0;
+        const batchCount = Math.min(
+          remaining,
+          typeShare || (remaining > 0 ? 1 : 0),
+        );
+        if (batchCount <= 0) continue;
 
         const userPrompt = [
           examDragBatchPrompt(blueprint, domain, batchCount, dragType),
@@ -265,7 +286,7 @@ async function generateBlueprintExamQuestions(
           "",
           domainGroundingText(domain),
           ...syllabusGroundingBlock(groundingText),
-        ].join("\n")
+        ].join("\n");
 
         const batch = await streamGenerateDragQuestions(
           {
@@ -285,29 +306,29 @@ async function generateBlueprintExamQuestions(
               callbacks.onQuestion?.(
                 mcqQuestions.length + dragQuestions.length + localIndex,
                 tagForDomain(question, domain),
-              )
+              );
             },
           },
-        )
+        );
 
         for (const question of batch) {
-          dragQuestions.push(tagForDomain(question, domain))
-          remaining -= 1
-          if (remaining <= 0) break
+          dragQuestions.push(tagForDomain(question, domain));
+          remaining -= 1;
+          if (remaining <= 0) break;
         }
-        if (remaining <= 0) break
+        if (remaining <= 0) break;
       }
     }
   }
 
-  const merged = interleaveExamQuestions(mcqQuestions, dragQuestions, total)
+  const merged = interleaveExamQuestions(mcqQuestions, dragQuestions, total);
 
   return {
     exam: blueprint.exam,
     examCode: blueprint.examCode,
     focusTopics: domains.map((d) => d.name),
     questions: merged,
-  }
+  };
 }
 
 function interleaveExamQuestions(
@@ -315,37 +336,37 @@ function interleaveExamQuestions(
   drag: GeneratedQuestion[],
   total: number,
 ): GeneratedQuestion[] {
-  if (drag.length === 0) return mcq.slice(0, total)
+  if (drag.length === 0) return mcq.slice(0, total);
 
-  const result: GeneratedQuestion[] = []
-  const dragSlots = evenlySpacedIndices(drag.length, total)
-  let mcqIdx = 0
-  let dragIdx = 0
+  const result: GeneratedQuestion[] = [];
+  const dragSlots = evenlySpacedIndices(drag.length, total);
+  let mcqIdx = 0;
+  let dragIdx = 0;
 
   for (let i = 0; i < total; i++) {
     if (dragSlots.has(i) && dragIdx < drag.length) {
-      result.push(drag[dragIdx++])
+      result.push(drag[dragIdx++]);
     } else if (mcqIdx < mcq.length) {
-      result.push(mcq[mcqIdx++])
+      result.push(mcq[mcqIdx++]);
     } else if (dragIdx < drag.length) {
-      result.push(drag[dragIdx++])
+      result.push(drag[dragIdx++]);
     }
   }
 
-  return result
+  return result;
 }
 
 function evenlySpacedIndices(count: number, total: number): Set<number> {
-  const slots = new Set<number>()
-  if (count <= 0 || total <= 0) return slots
+  const slots = new Set<number>();
+  if (count <= 0 || total <= 0) return slots;
   for (let i = 0; i < count; i++) {
     const index = Math.min(
       total - 1,
       Math.round(((i + 1) * total) / (count + 1)) - 1,
-    )
-    slots.add(Math.max(0, index))
+    );
+    slots.add(Math.max(0, index));
   }
-  return slots
+  return slots;
 }
 
 export async function runGenerateSessionStream(
@@ -354,29 +375,27 @@ export async function runGenerateSessionStream(
   params: GenerateSessionStreamParams,
   send: SseSend,
   options: {
-    timezone: string
-    remainingFreeQuestions?: number
+    timezone: string;
+    remainingFreeQuestions?: number;
   },
 ): Promise<PracticeSession & { remainingFreeQuestions?: number }> {
-  let sessionId: string | null = null
-  let readySent = false
+  let sessionId: string | null = null;
+  let readySent = false;
   let shellMeta = {
     exam: params.exam ?? params.blueprint?.exam ?? "Certification Exam",
     examCode: params.examCode ?? params.blueprint?.examCode ?? "CUSTOM",
-    focusTopics:
-      params.focusTopics ??
+    focusTopics: params.focusTopics ??
       (params.focusDomainIds?.length
         ? params.blueprint?.domains
             .filter((d) => params.focusDomainIds!.includes(d.id))
             .map((d) => d.name)
-        : params.blueprint?.domains.map((d) => d.name)) ??
-      ["Mixed topics"],
-  }
+        : params.blueprint?.domains.map((d) => d.name)) ?? ["Mixed topics"],
+  };
 
-  const saveQueue: Promise<void>[] = []
+  const saveQueue: Promise<void>[] = [];
 
   async function ensureShell() {
-    if (sessionId) return sessionId
+    if (sessionId) return sessionId;
     const shell = await createSessionShell(admin, userId, {
       exam: shellMeta.exam,
       examCode: shellMeta.examCode,
@@ -385,39 +404,39 @@ export async function runGenerateSessionStream(
       expectedQuestionCount: params.count,
       durationSec: params.durationSec,
       passMark: params.passMark,
-    })
-    sessionId = shell.id
-    return sessionId
+    });
+    sessionId = shell.id;
+    return sessionId;
   }
 
   async function saveQuestion(index: number, question: GeneratedQuestion) {
-    await ensureShell()
-    if (!sessionId) throw new Error("Session shell missing after create")
+    await ensureShell();
+    if (!sessionId) throw new Error("Session shell missing after create");
 
     const { count: existing } = await admin
       .from("questions")
       .select("*", { count: "exact", head: true })
       .eq("session_id", sessionId)
-      .eq("position", index)
+      .eq("position", index);
 
-    let saved: Question
+    let saved: Question;
     if ((existing ?? 0) === 0) {
       // Keep only official-domain, non-dead citations before persisting.
       const references = await verifyReferences(
         question.references,
         params.blueprint?.provider ?? "custom",
-      )
+      );
       saved = await appendQuestion(
         admin,
         sessionId,
         { ...question, references },
         index,
-      )
+      );
     } else {
-      const session = await loadSession(admin, sessionId, userId)
-      const existingQuestion = session?.questions[index]
-      if (!existingQuestion) return
-      saved = existingQuestion
+      const session = await loadSession(admin, sessionId, userId);
+      const existingQuestion = session?.questions[index];
+      if (!existingQuestion) return;
+      saved = existingQuestion;
     }
 
     safeSend(send, "question", {
@@ -425,13 +444,13 @@ export async function runGenerateSessionStream(
       index,
       question: saved,
       total: params.count,
-    })
+    });
 
     if (!readySent) {
-      const session = await loadSession(admin, sessionId, userId)
+      const session = await loadSession(admin, sessionId, userId);
       if (session && session.questions.length > 0) {
-        readySent = true
-        safeSend(send, "ready", { sessionId, session })
+        readySent = true;
+        safeSend(send, "ready", { sessionId, session });
       }
     }
   }
@@ -440,15 +459,15 @@ export async function runGenerateSessionStream(
     const statusMessage =
       params.blueprint != null
         ? `Generating ${params.blueprint.examCode} mock exam…`
-        : "Generating exam-style questions…"
-    safeSend(send, "status", { message: statusMessage })
+        : "Generating exam-style questions…";
+    safeSend(send, "status", { message: statusMessage });
 
     const generated = await generateAllQuestions(params, params.count, {
       onMetadata: (meta) => {
-        if (meta.exam) shellMeta.exam = meta.exam
-        if (meta.examCode) shellMeta.examCode = meta.examCode
-        if (meta.focusTopics?.length) shellMeta.focusTopics = meta.focusTopics
-        safeSend(send, "metadata", meta)
+        if (meta.exam) shellMeta.exam = meta.exam;
+        if (meta.examCode) shellMeta.examCode = meta.examCode;
+        if (meta.focusTopics?.length) shellMeta.focusTopics = meta.focusTopics;
+        safeSend(send, "metadata", meta);
       },
       onQuestionPreview: (index, preview) =>
         safeSend(send, "question_preview", {
@@ -457,20 +476,20 @@ export async function runGenerateSessionStream(
           total: params.count,
         }),
       onQuestion: (index, question) => {
-        saveQueue.push(saveQuestion(index, question))
+        saveQueue.push(saveQuestion(index, question));
       },
-    })
+    });
 
-    await Promise.all(saveQueue)
+    await Promise.all(saveQueue);
 
     shellMeta = {
       exam: generated.exam,
       examCode: generated.examCode,
       focusTopics: generated.focusTopics,
-    }
+    };
 
-    await ensureShell()
-    if (!sessionId) throw new Error("Failed to create session")
+    await ensureShell();
+    if (!sessionId) throw new Error("Failed to create session");
 
     for (let i = 0; i < generated.questions.length; i++) {
       await upsertQuestionAtPosition(
@@ -478,30 +497,32 @@ export async function runGenerateSessionStream(
         sessionId,
         generated.questions[i],
         i,
-      )
+      );
     }
 
-    await finalizeSessionGeneration(admin, sessionId, "complete")
-    await incrementUsage(admin, userId, options.timezone, params.count)
+    await finalizeSessionGeneration(admin, sessionId, "complete");
+    await incrementUsage(admin, userId, options.timezone, params.count);
 
-    const session = await loadSession(admin, sessionId, userId)
-    if (!session) throw new Error("Failed to load session after generation")
+    const session = await loadSession(admin, sessionId, userId);
+    if (!session) throw new Error("Failed to load session after generation");
 
     if (!readySent) {
-      safeSend(send, "ready", { sessionId, session })
+      safeSend(send, "ready", { sessionId, session });
     }
 
     const result = {
       ...session,
       remainingFreeQuestions: options.remainingFreeQuestions,
-    }
+    };
 
-    safeSend(send, "done", result)
-    return result
+    safeSend(send, "done", result);
+    return result;
   } catch (err) {
     if (sessionId) {
-      await finalizeSessionGeneration(admin, sessionId, "failed").catch(() => {})
+      await finalizeSessionGeneration(admin, sessionId, "failed").catch(
+        () => {},
+      );
     }
-    throw err
+    throw err;
   }
 }

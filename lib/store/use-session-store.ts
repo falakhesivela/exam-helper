@@ -1,8 +1,20 @@
-"use client"
+"use client";
 
-import { create } from "zustand"
-import type { AnswerRecord, DragAnswer, LearnTopic, PlanCoaching, PracticeSession, StreakSummary, StudyPlan, StudyTaskStatus, TopicMastery, TopicLesson, UserProfile } from "@/types"
-import { api, USE_MOCKS } from "@/lib/api/client"
+import { create } from "zustand";
+import type {
+  AnswerRecord,
+  DragAnswer,
+  LearnTopic,
+  PlanCoaching,
+  PracticeSession,
+  StreakSummary,
+  StudyPlan,
+  StudyTaskStatus,
+  TopicMastery,
+  TopicLesson,
+  UserProfile,
+} from "@/types";
+import { api, USE_MOCKS } from "@/lib/api/client";
 import {
   buildMockLearnTopics,
   buildMockTopicLesson,
@@ -15,64 +27,66 @@ import {
   buildMockStudyPlan,
   mockPlanCoaching,
   mockHistory,
-  mockMasteryTrend,
   mockProfile,
   mockReadinessTrend,
   mockTopicMastery,
   type ExamConfig,
-} from "@/lib/mock-data"
-import { isAnswerCorrect, isQuestionAnswered } from "@/lib/session-utils"
+} from "@/lib/mock-data";
+import {
+  isAnswerCorrect,
+  isQuestionAnswered,
+  mergeSessionUpdate,
+} from "@/lib/session-utils";
 
 interface SessionState {
-  profile: UserProfile
-  sessions: PracticeSession[]
-  topicMastery: TopicMastery[]
-  masteryTrend: { label: string; mastery: number }[]
-  examAccuracy: Record<string, { accuracy: number; questions: number }>
-  readinessTrend: { label: string; score: number }[]
-  plan: StudyPlan | null
-  coaching: PlanCoaching | null
-  streak: StreakSummary | null
-  bookmarkedIds: string[]
-  learnTopics: LearnTopic[]
-  hydrated: boolean
+  profile: UserProfile;
+  sessions: PracticeSession[];
+  topicMastery: TopicMastery[];
+  examAccuracy: Record<string, { accuracy: number; questions: number }>;
+  readinessTrend: { label: string; score: number; date?: string }[];
+  plan: StudyPlan | null;
+  coaching: PlanCoaching | null;
+  streak: StreakSummary | null;
+  bookmarkedIds: string[];
+  learnTopics: LearnTopic[];
+  hydrated: boolean;
 
-  getSession: (id: string) => PracticeSession | undefined
-  remainingFreeQuestions: () => number
+  getSession: (id: string) => PracticeSession | undefined;
+  remainingFreeQuestions: () => number;
 
-  hydrate: () => Promise<void>
-  refreshProfile: () => Promise<void>
-  refreshTopicMastery: () => Promise<void>
-  refreshExamAccuracy: () => Promise<void>
-  refreshPlan: () => Promise<void>
-  createPlan: (targetDate: string) => Promise<StudyPlan>
-  updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>
-  requestCoaching: () => Promise<void>
-  refreshStreak: () => Promise<void>
-  setDailyGoal: (dailyGoal: number) => Promise<void>
-  toggleBookmark: (questionId: string) => Promise<void>
-  refreshLearnTopics: () => Promise<void>
-  fetchLesson: (topicSlug: string) => Promise<TopicLesson>
-  generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>
-  ensureLesson: (topicSlug: string) => Promise<TopicLesson>
+  hydrate: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  refreshTopicMastery: () => Promise<void>;
+  refreshExamAccuracy: () => Promise<void>;
+  refreshPlan: () => Promise<void>;
+  createPlan: (targetDate: string) => Promise<StudyPlan>;
+  updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>;
+  requestCoaching: () => Promise<void>;
+  refreshStreak: () => Promise<void>;
+  setDailyGoal: (dailyGoal: number) => Promise<void>;
+  toggleBookmark: (questionId: string) => Promise<void>;
+  refreshLearnTopics: () => Promise<void>;
+  fetchLesson: (topicSlug: string) => Promise<TopicLesson>;
+  generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>;
+  ensureLesson: (topicSlug: string) => Promise<TopicLesson>;
   updateLessonProgress: (
     lessonId: string,
     updates: { status?: "started" | "completed"; bookmarked?: boolean },
-  ) => Promise<void>
+  ) => Promise<void>;
 
   startSession: (
     exam: string,
     examCode: string,
     focusTopics: string[],
-  ) => Promise<string>
-  startExam: (config: ExamConfig) => Promise<string>
+  ) => Promise<string>;
+  startExam: (config: ExamConfig) => Promise<string>;
   submitExam: (
     sessionId: string,
     answers: Record<string, string[]>,
     flagged: string[],
     timeUsedSec: number,
     dragAnswers?: Record<string, DragAnswer>,
-  ) => Promise<void>
+  ) => Promise<void>;
   answerQuestion: (
     sessionId: string,
     questionId: string,
@@ -80,29 +94,41 @@ interface SessionState {
     timeSpentSec: number,
     dragAnswer?: import("@/types").DragAnswer,
     confidence?: import("@/types").Confidence,
-  ) => Promise<{ isCorrect: boolean }>
-  toggleMarkForReview: (sessionId: string, questionId: string) => Promise<void>
-  skipQuestion: (sessionId: string, questionId: string) => Promise<void>
-  goToIndex: (sessionId: string, index: number) => Promise<void>
-  completeSession: (sessionId: string) => Promise<void>
+  ) => Promise<{ isCorrect: boolean }>;
+  toggleMarkForReview: (sessionId: string, questionId: string) => Promise<void>;
+  skipQuestion: (sessionId: string, questionId: string) => Promise<void>;
+  goToIndex: (sessionId: string, index: number) => Promise<void>;
+  completeSession: (sessionId: string) => Promise<void>;
 }
 
 function upsertSession(
   sessions: PracticeSession[],
   session: PracticeSession,
 ): PracticeSession[] {
-  const idx = sessions.findIndex((s) => s.id === session.id)
-  if (idx === -1) return [session, ...sessions]
-  const next = [...sessions]
-  next[idx] = session
-  return next
+  const idx = sessions.findIndex((s) => s.id === session.id);
+  if (idx === -1) return [session, ...sessions];
+  const next = [...sessions];
+  next[idx] = session;
+  return next;
+}
+
+/**
+ * Upsert a server session response without letting it downgrade local state —
+ * server snapshots strip answer keys from unanswered questions, and a response
+ * that raced another request could otherwise wipe a revealed question.
+ */
+function mergeUpsertSession(
+  sessions: PracticeSession[],
+  incoming: PracticeSession,
+): PracticeSession[] {
+  const existing = sessions.find((s) => s.id === incoming.id);
+  return upsertSession(sessions, mergeSessionUpdate(existing, incoming));
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   profile: USE_MOCKS ? mockProfile : emptyProfile,
   sessions: USE_MOCKS ? mockHistory : [],
   topicMastery: USE_MOCKS ? mockTopicMastery : [],
-  masteryTrend: USE_MOCKS ? mockMasteryTrend : [],
   examAccuracy: {},
   readinessTrend: USE_MOCKS ? mockReadinessTrend : [],
   plan: USE_MOCKS ? buildMockStudyPlan() : null,
@@ -115,76 +141,101 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   getSession: (id) => get().sessions.find((s) => s.id === id),
 
   remainingFreeQuestions: () => {
-    const { profile } = get()
-    if (profile.plan === "pro") return Infinity
-    return Math.max(0, profile.dailyLimit - profile.questionsUsedToday)
+    const { profile } = get();
+    if (profile.plan === "pro") return Infinity;
+    return Math.max(0, profile.dailyLimit - profile.questionsUsedToday);
   },
 
   hydrate: async () => {
-    if (USE_MOCKS || get().hydrated) return
+    if (USE_MOCKS || get().hydrated) return;
     try {
-      const [profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan] =
-        await Promise.all([
-          api.me(),
-          api.listSessions(),
-          api.topicMastery(),
-          api.masteryTrend(),
-          api.learnTopics(),
-          // Non-fatal: missing readiness/plan data must not blank the dashboard.
-          api.examAccuracy().catch(() => ({})),
-          api.readinessTrend().catch(() => []),
-          api.getPlan().catch(() => null),
-        ])
-      set({ profile, sessions, topicMastery, masteryTrend, learnTopics, examAccuracy, readinessTrend, plan, hydrated: true })
+      const [
+        profile,
+        sessions,
+        topicMastery,
+        learnTopics,
+        examAccuracy,
+        readinessTrend,
+        plan,
+      ] = await Promise.all([
+        api.me(),
+        api.listSessions(),
+        api.topicMastery(),
+        api.learnTopics(),
+        // Non-fatal: missing readiness/plan data must not blank the dashboard.
+        api.examAccuracy().catch(() => ({})),
+        api.readinessTrend().catch(() => []),
+        api.getPlan().catch(() => null),
+      ]);
+      set({
+        profile,
+        sessions,
+        topicMastery,
+        learnTopics,
+        examAccuracy,
+        readinessTrend,
+        plan,
+        hydrated: true,
+      });
       // Non-critical extras; fetch separately so they never block the shell.
-      void get().refreshStreak()
+      void get().refreshStreak();
       void api
         .bookmarkIds()
         .then(({ ids }) => set({ bookmarkedIds: ids }))
-        .catch(() => {})
+        .catch(() => {});
     } catch {
-      set({ profile: emptyProfile, sessions: [], topicMastery: [], masteryTrend: [], examAccuracy: {}, readinessTrend: [], plan: null, streak: null, learnTopics: [], hydrated: true })
+      set({
+        profile: emptyProfile,
+        sessions: [],
+        topicMastery: [],
+        examAccuracy: {},
+        readinessTrend: [],
+        plan: null,
+        streak: null,
+        learnTopics: [],
+        hydrated: true,
+      });
     }
   },
 
   refreshProfile: async () => {
-    if (USE_MOCKS) return
+    if (USE_MOCKS) return;
     try {
-      const profile = await api.me()
-      set({ profile })
+      const profile = await api.me();
+      set({ profile });
     } catch {
       // ignore
     }
   },
 
   refreshTopicMastery: async () => {
-    if (USE_MOCKS) return
+    if (USE_MOCKS) return;
     try {
-      const topicMastery = await api.topicMastery()
-      set({ topicMastery })
+      const topicMastery = await api.topicMastery();
+      set({ topicMastery });
     } catch {
       // ignore
     }
   },
 
   refreshExamAccuracy: async () => {
-    if (USE_MOCKS) return
+    if (USE_MOCKS) return;
     try {
       const [examAccuracy, readinessTrend] = await Promise.all([
         api.examAccuracy(),
         api.readinessTrend().catch(() => get().readinessTrend),
-      ])
-      set({ examAccuracy, readinessTrend })
+      ]);
+      set({ examAccuracy, readinessTrend });
     } catch {
       // ignore
     }
   },
 
   refreshPlan: async () => {
-    if (USE_MOCKS) return
+    if (USE_MOCKS) return;
     try {
-      const plan = await api.getPlan()
-      set({ plan })
+      const plan = await api.getPlan();
+      set({ plan });
     } catch {
       // ignore
     }
@@ -192,13 +243,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createPlan: async (targetDate) => {
     if (USE_MOCKS) {
-      const plan = get().plan ?? buildMockStudyPlan()
-      set({ plan })
-      return plan
+      const plan = get().plan ?? buildMockStudyPlan();
+      set({ plan });
+      return plan;
     }
-    const plan = await api.createPlan(targetDate)
-    set({ plan })
-    return plan
+    const plan = await api.createPlan(targetDate);
+    set({ plan });
+    return plan;
   },
 
   updatePlanTask: async (taskId, status) => {
@@ -214,29 +265,29 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             },
           }
         : state,
-    )
-    if (USE_MOCKS) return
+    );
+    if (USE_MOCKS) return;
     try {
-      await api.updatePlanTask(taskId, status)
+      await api.updatePlanTask(taskId, status);
     } catch {
-      await get().refreshPlan()
+      await get().refreshPlan();
     }
   },
 
   requestCoaching: async () => {
     if (USE_MOCKS) {
-      set({ coaching: mockPlanCoaching })
-      return
+      set({ coaching: mockPlanCoaching });
+      return;
     }
-    const coaching = await api.coachPlan()
-    set({ coaching })
+    const coaching = await api.coachPlan();
+    set({ coaching });
   },
 
   refreshStreak: async () => {
-    if (USE_MOCKS) return
+    if (USE_MOCKS) return;
     try {
-      const streak = await api.streak()
-      set({ streak })
+      const streak = await api.streak();
+      set({ streak });
     } catch {
       // ignore — streak is non-critical
     }
@@ -246,59 +297,59 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       profile: { ...state.profile, dailyGoal },
       streak: state.streak ? { ...state.streak, dailyGoal } : state.streak,
-    }))
-    if (USE_MOCKS) return
+    }));
+    if (USE_MOCKS) return;
     try {
-      await api.updateDailyGoal(dailyGoal)
-      await get().refreshStreak()
+      await api.updateDailyGoal(dailyGoal);
+      await get().refreshStreak();
     } catch {
       // ignore
     }
   },
 
   toggleBookmark: async (questionId) => {
-    const wasBookmarked = get().bookmarkedIds.includes(questionId)
+    const wasBookmarked = get().bookmarkedIds.includes(questionId);
     // Optimistic update.
     set((state) => ({
       bookmarkedIds: wasBookmarked
         ? state.bookmarkedIds.filter((id) => id !== questionId)
         : [...state.bookmarkedIds, questionId],
-    }))
-    if (USE_MOCKS) return
+    }));
+    if (USE_MOCKS) return;
     try {
-      if (wasBookmarked) await api.removeBookmark(questionId)
-      else await api.addBookmark(questionId)
+      if (wasBookmarked) await api.removeBookmark(questionId);
+      else await api.addBookmark(questionId);
     } catch {
       // Revert on failure.
       set((state) => ({
         bookmarkedIds: wasBookmarked
           ? [...state.bookmarkedIds, questionId]
           : state.bookmarkedIds.filter((id) => id !== questionId),
-      }))
+      }));
     }
   },
 
   refreshLearnTopics: async () => {
     if (USE_MOCKS) {
-      set({ learnTopics: buildMockLearnTopics() })
-      return
+      set({ learnTopics: buildMockLearnTopics() });
+      return;
     }
     try {
-      const learnTopics = await api.learnTopics()
-      set({ learnTopics })
+      const learnTopics = await api.learnTopics();
+      set({ learnTopics });
     } catch {
       // ignore
     }
   },
 
   fetchLesson: async (topicSlug) => {
-    if (USE_MOCKS) return buildMockTopicLesson(topicSlug)
-    return api.getLesson(topicSlug)
+    if (USE_MOCKS) return buildMockTopicLesson(topicSlug);
+    return api.getLesson(topicSlug);
   },
 
   generateLesson: async (topicSlug, force = false) => {
     if (USE_MOCKS) {
-      const lesson = generateMockTopicLesson(topicSlug)
+      const lesson = generateMockTopicLesson(topicSlug);
       set((state) => ({
         learnTopics: state.learnTopics.map((t) =>
           t.slug === topicSlug
@@ -310,23 +361,27 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               }
             : t,
         ),
-      }))
-      return lesson
+      }));
+      return lesson;
     }
 
-    const lesson = await api.generateLesson(topicSlug, force)
-    await get().refreshLearnTopics()
-    return lesson
+    const lesson = await api.generateLesson(topicSlug, force);
+    await get().refreshLearnTopics();
+    return lesson;
   },
 
   ensureLesson: async (topicSlug) => {
     if (USE_MOCKS) {
-      const lesson = buildMockTopicLesson(topicSlug)
-      return { ...lesson, id: lesson.id ?? `lesson-${topicSlug}`, status: "started" }
+      const lesson = buildMockTopicLesson(topicSlug);
+      return {
+        ...lesson,
+        id: lesson.id ?? `lesson-${topicSlug}`,
+        status: "started",
+      };
     }
-    const lesson = await api.startLesson(topicSlug)
-    await get().refreshLearnTopics()
-    return lesson
+    const lesson = await api.startLesson(topicSlug);
+    await get().refreshLearnTopics();
+    return lesson;
   },
 
   updateLessonProgress: async (lessonId, updates) => {
@@ -344,55 +399,61 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               }
             : t,
         ),
-      }))
-      return
+      }));
+      return;
     }
 
-    await api.updateLessonProgress(lessonId, updates)
-    await get().refreshLearnTopics()
+    await api.updateLessonProgress(lessonId, updates);
+    await get().refreshLearnTopics();
   },
 
   startSession: async (exam, examCode, focusTopics) => {
     if (USE_MOCKS) {
-      const session = createSessionFromIntake(exam, examCode, focusTopics)
-      set((state) => ({ sessions: [session, ...state.sessions] }))
-      return session.id
+      const session = createSessionFromIntake(exam, examCode, focusTopics);
+      set((state) => ({ sessions: [session, ...state.sessions] }));
+      return session.id;
     }
-    throw new Error("Use api.generateSession from intake flow")
+    throw new Error("Use api.generateSession from intake flow");
   },
 
   startExam: async (config) => {
     if (USE_MOCKS) {
-      const session = createExamSession(config)
-      set((state) => ({ sessions: [session, ...state.sessions] }))
-      return session.id
+      const session = createExamSession(config);
+      set((state) => ({ sessions: [session, ...state.sessions] }));
+      return session.id;
     }
     const session = await api.startExam({
       questionCount: config.questionCount,
       durationSec: config.durationSec,
       exam: config.exam,
       examCode: config.examCode,
-    })
+    });
     set((state) => ({
       sessions: [session, ...state.sessions],
-    }))
-    await get().refreshProfile()
-    return session.id
+    }));
+    await get().refreshProfile();
+    return session.id;
   },
 
-  submitExam: async (sessionId, answers, flagged, timeUsedSec, dragAnswers = {}) => {
-    const flaggedSet = new Set(flagged)
+  submitExam: async (
+    sessionId,
+    answers,
+    flagged,
+    timeUsedSec,
+    dragAnswers = {},
+  ) => {
+    const flaggedSet = new Set(flagged);
     if (USE_MOCKS) {
       set((state) => {
-        let answeredCount = 0
+        let answeredCount = 0;
         const sessions = state.sessions.map((s) => {
-          if (s.id !== sessionId) return s
-          const records: PracticeSession["answers"] = {}
+          if (s.id !== sessionId) return s;
+          const records: PracticeSession["answers"] = {};
           for (const q of s.questions) {
-            const selected = answers[q.id] ?? []
-            const dragAnswer = dragAnswers[q.id]
-            const answered = isQuestionAnswered(q, selected, dragAnswer)
-            if (answered) answeredCount += 1
+            const selected = answers[q.id] ?? [];
+            const dragAnswer = dragAnswers[q.id];
+            const answered = isQuestionAnswered(q, selected, dragAnswer);
+            if (answered) answeredCount += 1;
             records[q.id] = {
               questionId: q.id,
               selectedOptionIds: selected,
@@ -403,7 +464,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               markedForReview: flaggedSet.has(q.id),
               skipped: !answered,
               timeSpentSec: 0,
-            }
+            };
           }
           return {
             ...s,
@@ -411,17 +472,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             status: "completed" as const,
             completedAt: new Date().toISOString(),
             timeUsedSec,
-          }
-        })
+          };
+        });
         return {
           sessions,
           profile: {
             ...state.profile,
-            questionsUsedToday: state.profile.questionsUsedToday + answeredCount,
+            questionsUsedToday:
+              state.profile.questionsUsedToday + answeredCount,
           },
-        }
-      })
-      return
+        };
+      });
+      return;
     }
 
     const session = await api.submitExam(
@@ -430,15 +492,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       flagged,
       timeUsedSec,
       dragAnswers,
-    )
+    );
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
-    }))
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
     void Promise.all([
       get().refreshProfile(),
       get().refreshTopicMastery(),
       get().refreshExamAccuracy(),
-    ])
+    ]);
   },
 
   answerQuestion: async (
@@ -450,18 +512,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     confidence?,
   ) => {
     if (USE_MOCKS) {
-      const session = get().sessions.find((s) => s.id === sessionId)
-      const question = session?.questions.find((q) => q.id === questionId)
+      const session = get().sessions.find((s) => s.id === sessionId);
+      const question = session?.questions.find((q) => q.id === questionId);
       const isCorrect = question
         ? isAnswerCorrect(question, selectedOptionIds, dragAnswer)
-        : false
+        : false;
       set((state) => ({
         profile: {
           ...state.profile,
           questionsUsedToday: state.profile.questionsUsedToday + 1,
         },
         sessions: state.sessions.map((s) => {
-          if (s.id !== sessionId) return s
+          if (s.id !== sessionId) return s;
           const record: AnswerRecord = {
             questionId,
             selectedOptionIds,
@@ -470,11 +532,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             skipped: false,
             timeSpentSec,
             confidence,
-          }
-          return { ...s, answers: { ...s.answers, [questionId]: record } }
+          };
+          return { ...s, answers: { ...s.answers, [questionId]: record } };
         }),
-      }))
-      return { isCorrect }
+      }));
+      return { isCorrect };
     }
 
     const result = await api.answerQuestion(sessionId, {
@@ -483,10 +545,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       dragAnswer,
       timeSpentSec,
       confidence,
-    })
+    });
 
     set((state) => ({
-      sessions: upsertSession(state.sessions, {
+      sessions: mergeUpsertSession(state.sessions, {
         ...result.session,
         questions: result.session.questions.map((q) =>
           q.id === questionId ? result.question : q,
@@ -496,22 +558,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           [questionId]: result.answer,
         },
       }),
-    }))
+    }));
 
     await Promise.all([
       get().refreshProfile(),
       get().refreshTopicMastery(),
       get().refreshStreak(),
-    ])
-    return { isCorrect: result.answer.isCorrect }
+    ]);
+    return { isCorrect: result.answer.isCorrect };
   },
 
   toggleMarkForReview: async (sessionId, questionId) => {
     if (USE_MOCKS) {
       set((state) => ({
         sessions: state.sessions.map((s) => {
-          if (s.id !== sessionId) return s
-          const existing = s.answers[questionId]
+          if (s.id !== sessionId) return s;
+          const existing = s.answers[questionId];
           const record: AnswerRecord = existing
             ? { ...existing, markedForReview: !existing.markedForReview }
             : {
@@ -521,27 +583,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                 markedForReview: true,
                 skipped: false,
                 timeSpentSec: 0,
-              }
-          return { ...s, answers: { ...s.answers, [questionId]: record } }
+              };
+          return { ...s, answers: { ...s.answers, [questionId]: record } };
         }),
-      }))
-      return
+      }));
+      return;
     }
 
-    const session = await api.markQuestion(sessionId, questionId)
+    const session = await api.markQuestion(sessionId, questionId);
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
-    }))
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
   },
 
   skipQuestion: async (sessionId, questionId) => {
     if (USE_MOCKS) {
       set((state) => ({
         sessions: state.sessions.map((s) => {
-          if (s.id !== sessionId) return s
-          const existing = s.answers[questionId]
-          if (existing?.isCorrect !== undefined && existing.selectedOptionIds.length)
-            return s
+          if (s.id !== sessionId) return s;
+          const existing = s.answers[questionId];
+          if (
+            existing?.isCorrect !== undefined &&
+            existing.selectedOptionIds.length
+          )
+            return s;
           const record: AnswerRecord = {
             questionId,
             selectedOptionIds: [],
@@ -549,17 +614,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             markedForReview: existing?.markedForReview ?? false,
             skipped: true,
             timeSpentSec: existing?.timeSpentSec ?? 0,
-          }
-          return { ...s, answers: { ...s.answers, [questionId]: record } }
+          };
+          return { ...s, answers: { ...s.answers, [questionId]: record } };
         }),
-      }))
-      return
+      }));
+      return;
     }
 
-    const session = await api.skipQuestion(sessionId, questionId)
+    const session = await api.skipQuestion(sessionId, questionId);
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
-    }))
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
   },
 
   goToIndex: async (sessionId, index) => {
@@ -568,14 +633,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         sessions: state.sessions.map((s) =>
           s.id === sessionId ? { ...s, currentIndex: index } : s,
         ),
-      }))
-      return
+      }));
+      return;
     }
 
-    const session = await api.setCursor(sessionId, index)
+    const session = await api.setCursor(sessionId, index);
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
-    }))
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
   },
 
   completeSession: async (sessionId) => {
@@ -583,17 +648,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set((state) => ({
         sessions: state.sessions.map((s) =>
           s.id === sessionId
-            ? { ...s, status: "completed", completedAt: new Date().toISOString() }
+            ? {
+                ...s,
+                status: "completed",
+                completedAt: new Date().toISOString(),
+              }
             : s,
         ),
-      }))
-      return
+      }));
+      return;
     }
 
-    const session = await api.completeSession(sessionId)
+    const session = await api.completeSession(sessionId);
     set((state) => ({
-      sessions: upsertSession(state.sessions, session),
-    }))
-    await get().refreshProfile()
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
+    await get().refreshProfile();
   },
-}))
+}));

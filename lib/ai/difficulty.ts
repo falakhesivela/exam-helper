@@ -25,3 +25,8 @@ const GUIDANCE: Record<DifficultyBand, string> = {
 export function difficultyGuidance(masteryPercent: number): string {
   return GUIDANCE[difficultyBand(masteryPercent)]
 }
+
+/** A prompt line for a difficulty the learner explicitly chose at intake. */
+export function difficultyPreferenceGuidance(band: DifficultyBand): string {
+  return GUIDANCE[band]
+}

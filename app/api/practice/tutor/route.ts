@@ -3,15 +3,37 @@ import { z } from "zod"
 import { requireUser } from "@/lib/api/auth"
 import { apiError, handleRouteError } from "@/lib/api/route-utils"
 import { checkRateLimit } from "@/lib/db/rate-limit"
-import { tutorReply } from "@/lib/ai/tutor"
+import { tutorReply, tutorReplyStream } from "@/lib/ai/tutor"
+import { createEventStream } from "@/lib/ai/sse"
+import { dragTutorFields } from "@/lib/ai/drag-answer-text"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { toQuestion, type DbQuestion } from "@/lib/db/mappers"
 
 export const runtime = "nodejs"
 
+const dragAnswerSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("drag_match"),
+    mapping: z.record(z.string(), z.string()),
+  }),
+  z.object({
+    type: z.literal("drag_order"),
+    order: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal("drag_categorize"),
+    buckets: z.record(z.string(), z.array(z.string())),
+  }),
+  z.object({
+    type: z.literal("select_grid"),
+    selections: z.record(z.string(), z.string()),
+  }),
+])
+
 const bodySchema = z.object({
   questionId: z.string().uuid(),
   selectedOptionIds: z.array(z.string()).default([]),
+  dragAnswer: dragAnswerSchema.optional(),
   messages: z
     .array(
       z.object({
@@ -58,19 +80,31 @@ export async function POST(request: Request) {
     }
 
     const mapped = toQuestion(q)
+    const dragFields = dragTutorFields(mapped, body.dragAnswer)
 
-    const reply = await tutorReply(
-      {
-        prompt: mapped.prompt,
-        scenario: mapped.scenario,
-        options: mapped.options ?? [],
-        correctOptionIds: mapped.correctOptionIds ?? [],
-        userSelectedIds: body.selectedOptionIds,
-        explanation: mapped.explanation,
-      },
-      body.messages,
-    )
+    const context = {
+      prompt: mapped.prompt,
+      scenario: mapped.scenario,
+      options: mapped.options ?? [],
+      correctOptionIds: mapped.correctOptionIds ?? [],
+      userSelectedIds: body.selectedOptionIds,
+      explanation: mapped.explanation,
+      questionType: dragFields?.questionType,
+      dragCorrectSummary: dragFields?.correctSummary,
+      dragUserSummary: dragFields?.userSummary,
+    }
 
+    // Stream tokens over SSE when the client asks for it; plain JSON otherwise.
+    if (request.headers.get("accept")?.includes("text/event-stream")) {
+      return createEventStream(async (send) => {
+        const reply = await tutorReplyStream(context, body.messages, (text) =>
+          send("delta", { text }),
+        )
+        send("done", { reply })
+      })
+    }
+
+    const reply = await tutorReply(context, body.messages)
     return NextResponse.json({ reply })
   } catch (err) {
     return handleRouteError(err)

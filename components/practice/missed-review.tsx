@@ -81,9 +81,9 @@ export function MissedReview() {
       })
       setIsCorrect(result.isCorrect)
       setRevealed(true)
-      if (result.isCorrect) {
-        setItems((prev) => prev.filter((i) => i.questionId !== current.questionId))
-      }
+      // The server clears a correct retry from the queue; keep the local list
+      // stable for this run — removing the current item would shift the array
+      // and make "Next" skip the following question.
     } finally {
       setSubmitting(false)
     }
@@ -120,7 +120,7 @@ export function MissedReview() {
             </Button>
           )}
           <Button asChild>
-            <Link href="/intake">Start practicing</Link>
+            <Link href="/practice">Back to Practice</Link>
           </Button>
         </div>
       </div>
@@ -140,7 +140,7 @@ export function MissedReview() {
           variant="ghost"
           size="icon"
           aria-label="Back"
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/practice")}
         >
           <ArrowLeft />
         </Button>

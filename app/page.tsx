@@ -1,7 +1,10 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Newsreader, Public_Sans, Spline_Sans_Mono } from "next/font/google"
 import { Logo } from "@/components/layout/logo"
 import { LandingProButton } from "@/components/upgrade/landing-pro-button"
+import { resolveAuthUser } from "@/lib/supabase/resolve-user"
+import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -24,43 +27,231 @@ const mono = Spline_Sans_Mono({
 const ACCENT = "#1E5C44"
 const PAPER = "#F3EFE7"
 const INK = "#1A1C18"
-const SERIF = "var(--lp-serif), 'Newsreader', serif"
-const MONO = "var(--lp-mono), 'Spline Sans Mono', monospace"
 
-const kicker: React.CSSProperties = {
-  fontFamily: MONO,
-  fontSize: "12px",
-  letterSpacing: "0.14em",
-  textTransform: "uppercase",
-  color: ACCENT,
-  fontWeight: 500,
-}
-const check: React.CSSProperties = { color: ACCENT, fontWeight: 700 }
-const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #EAE3D6",
-  borderRadius: "16px",
-}
+const coverage = [
+  "AWS Solutions Architect",
+  "CompTIA Security+",
+  "Azure Fundamentals",
+  "PMP",
+  "CISSP",
+  "CFA Level I",
+  "ITIL 4",
+  "Kubernetes CKA",
+  "Cisco CCNA",
+  "Google Cloud",
+  "Salesforce Admin",
+  "Scrum PSM I",
+]
 
 const features = [
-  { k: "Fresh", h: "AI questions, every session", p: "New, exam-style multiple-choice questions tuned to your weak areas — never the same drill twice." },
-  { k: "Instant", h: "Explanations the moment you answer", p: "Learn from every mistake instead of just seeing a score — clear reasoning on every question." },
-  { k: "Progress", h: "Mastery & streaks you can see", p: "Track mastery by topic, build a daily streak, and watch your readiness climb toward exam day." },
-  { k: "Mock", h: "Full mock exams, timed", p: "Practise under realistic timed conditions that mirror the real certification format." },
+  {
+    icon: "sparkles",
+    k: "Adaptive",
+    h: "Fresh AI questions, every session",
+    p: "New exam-style questions generated for you each time, tuned to the topics you keep missing. Never the same recycled drill twice.",
+  },
+  {
+    icon: "chat",
+    k: "AI Tutor",
+    h: "Ask why — not just what",
+    p: "Every answer comes with an instant explanation, and a built-in AI tutor you can ask follow-up questions until it actually clicks.",
+  },
+  {
+    icon: "timer",
+    k: "Mock Exams",
+    h: "Timed mocks with real exam formats",
+    p: "Multiple choice, drag-to-order, matching, categorising — practise the exact question styles you'll face, under the real clock.",
+  },
+  {
+    icon: "gauge",
+    k: "Readiness",
+    h: "Know when you're ready",
+    p: "A readiness score that climbs as you improve, plus mastery tracking per topic — so exam day is a confirmation, not a gamble.",
+  },
+  {
+    icon: "calendar",
+    k: "Study Plan",
+    h: "A plan for today, every day",
+    p: "Prepa builds your daily study plan and keeps your streak alive — open the app and know exactly what to do next.",
+  },
+  {
+    icon: "layers",
+    k: "Review",
+    h: "Flashcards & missed-question review",
+    p: "Your mistakes automatically become flashcards and review sessions, so weak spots get drilled until they're strengths.",
+  },
 ]
-
-const coverage = ["AWS Certified", "CompTIA Security+", "Azure", "PMP", "CFA", "CISSP", "ITIL 4"]
 
 const steps = [
-  { n: "01", h: "Pick your exam", p: "Tell Prepa what you're studying for. No setup, no question banks to import." },
-  { n: "02", h: "Practise & learn", p: "Answer adaptive questions, read instant explanations, and build a streak." },
-  { n: "03", h: "Sit a mock", p: "When you're close, run a full timed mock that mirrors exam day." },
+  {
+    n: "01",
+    h: "Name your exam — or upload your notes",
+    p: "Tell Prepa what you're studying for, or drop in your own PDF study material. No question banks to buy or import.",
+  },
+  {
+    n: "02",
+    h: "Practise with questions built for you",
+    p: "Answer adaptive, exam-style questions with instant explanations. Ask the AI tutor anything you don't get.",
+  },
+  {
+    n: "03",
+    h: "Watch your readiness climb, then sit a mock",
+    p: "Follow your daily plan, track mastery by topic, and run full timed mocks when your score says you're close.",
+  },
 ]
 
-const freeFeatures = ["20 practice questions per day", "AI questions & explanations", "Progress tracking & streaks", "Save progress across devices"]
-const proFeatures = ["Unlimited practice questions", "Full mock exams, any length", "Priority AI generation", "Everything in Free"]
+const versus = [
+  { old: "The same recycled questions, over and over", nu: "Fresh AI-generated questions every single session" },
+  { old: "An answer key and nothing else", nu: "Instant explanations plus an AI tutor for follow-ups" },
+  { old: "One-size-fits-all question dumps", nu: "Difficulty and topics tuned to your weak areas" },
+  { old: "No idea if you're actually ready", nu: "A readiness score and per-topic mastery tracking" },
+  { old: "Clunky PDFs chained to your desktop", nu: "Installs on your phone and works offline" },
+]
 
-export default function LandingPage() {
+const faqs = [
+  {
+    q: "Which certification exams does Prepa cover?",
+    a: `Prepa works with any certification exam — including ${coverage.slice(0, 7).join(", ")} and hundreds more. Just tell it what you're studying for and it generates fresh, exam-style questions. You can even upload your own PDF study notes and Prepa will build questions from them.`,
+  },
+  {
+    q: "Is Prepa free to use?",
+    a: "Yes. The free plan includes 20 AI-generated practice questions per day with instant explanations, progress tracking, and streaks. Pro ($6/month) unlocks unlimited questions and full timed mock exams. Cancel anytime.",
+  },
+  {
+    q: "How is Prepa different from static question banks?",
+    a: "Question banks recycle the same fixed set of questions. Prepa generates new, exam-style questions tuned to your weak areas every session, explains every answer, lets you ask an AI tutor follow-up questions, and tracks your readiness by topic so you know exactly when you're prepared.",
+  },
+  {
+    q: "Can I use my own study material?",
+    a: "Yes — upload your PDF notes or course material and Prepa generates practice questions directly from it, alongside its own exam-style questions.",
+  },
+  {
+    q: "Does it work on my phone?",
+    a: "Prepa is built mobile-first. Install it to your home screen like a native app and keep practising even when your connection drops.",
+  },
+]
+
+const freeFeatures = [
+  "20 practice questions per day",
+  "AI questions & instant explanations",
+  "Readiness score, streaks & flashcards",
+  "Upload your own study notes (PDF)",
+]
+const proFeatures = [
+  "Unlimited practice questions",
+  "Full timed mock exams, any length",
+  "Priority AI generation",
+  "Everything in Free",
+]
+
+function buildStructuredData() {
+  const siteUrl = getSiteUrl()
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: siteUrl,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: SITE_NAME,
+      url: siteUrl,
+      description: SITE_DESCRIPTION,
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      offers: [
+        {
+          "@type": "Offer",
+          name: "Free",
+          price: "0",
+          priceCurrency: "USD",
+          description: "20 practice questions per day, AI explanations, progress tracking.",
+        },
+        {
+          "@type": "Offer",
+          name: "Pro",
+          price: "6",
+          priceCurrency: "USD",
+          description: "Unlimited practice questions and full timed mock exams.",
+        },
+      ],
+      featureList: features.map((f) => f.h).join(", "),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ]
+}
+
+/** Signed-in members go straight to their dashboard — the landing is for visitors. */
+async function getSignedInUser() {
+  if (
+    process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
+    !process.env.NEXT_PUBLIC_SUPABASE_URL
+  ) {
+    return null
+  }
+  try {
+    const user = await resolveAuthUser()
+    return user && !user.isAnonymous ? user : null
+  } catch {
+    return null
+  }
+}
+
+function FeatureIcon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    sparkles: (
+      <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" />
+    ),
+    chat: (
+      <path d="M21 12a8 8 0 01-8 8H4l2.3-2.9A8 8 0 1121 12zM8.5 10.5h7M8.5 13.5h4.5" />
+    ),
+    timer: (
+      <path d="M12 21a8 8 0 100-16 8 8 0 000 16zm0-13v5l3.2 1.9M9.5 2.5h5" />
+    ),
+    gauge: (
+      <path d="M4.5 19a9 9 0 1115 0M12 15l4-5.5M12 15a1.8 1.8 0 100 .01" />
+    ),
+    calendar: (
+      <path d="M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1zm3-3v4m8-4v4M4 11h16M9 15.5l2 2 4-4" />
+    ),
+    layers: (
+      <path d="M12 3l9 5-9 5-9-5 9-5zm-9 9.5l9 5 9-5M3 17l9 5 9-5" />
+    ),
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="lp-feature-icon-svg"
+    >
+      {paths[name]}
+    </svg>
+  )
+}
+
+export default async function LandingPage() {
+  const user = await getSignedInUser()
+  if (user) redirect("/dashboard")
+
+  const structuredData = buildStructuredData()
+  const marquee = [...coverage, ...coverage]
+
   return (
     <div
       className={`lp ${serif.variable} ${sans.variable} ${mono.variable}`}
@@ -71,134 +262,348 @@ export default function LandingPage() {
         fontFamily: "var(--lp-sans), system-ui, sans-serif",
         minHeight: "100vh",
         WebkitFontSmoothing: "antialiased",
+        overflowX: "clip",
       }}
     >
+      <script
+        type="application/ld+json"
+        // JSON-LD structured data for rich results (app, pricing, FAQ).
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <style>{`
-        .lp ::selection { background:${ACCENT}; color:#fff; }
-        .lp a { text-decoration:none; }
+        .lp { --accent:${ACCENT}; --paper:${PAPER}; --ink:${INK};
+          --muted:#56584F; --faint:#84867B; --line:#E3DCCE; --card-line:#EAE3D6;
+          --serif:var(--lp-serif),'Newsreader',serif; --mono:var(--lp-mono),'Spline Sans Mono',monospace; }
+        .lp ::selection { background:var(--accent); color:#fff; }
+        .lp a { text-decoration:none; color:inherit; }
+        .lp .wrap { max-width:1180px; margin:0 auto; padding-left:24px; padding-right:24px; }
+
+        .lp .kicker { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--accent); font-weight:500;
+          display:inline-flex; align-items:center; gap:8px; }
+        .lp .kicker::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+        .lp .h2 { font-family:var(--serif); font-weight:500; font-size:clamp(30px,3.6vw,42px);
+          line-height:1.08; letter-spacing:-.02em; margin:0; }
+        .lp .card { background:#fff; border:1px solid var(--card-line); border-radius:16px; }
+        .lp .check { color:var(--accent); font-weight:700; }
+
+        .lp .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
+          font-weight:600; border-radius:11px; transition:transform .15s ease, box-shadow .15s ease, background .15s ease; }
+        .lp .btn:hover { transform:translateY(-1px); }
+        .lp .btn:active { transform:translateY(0); }
+        .lp .btn-accent { background:var(--accent); color:#fff;
+          box-shadow:0 8px 20px -8px color-mix(in oklab, var(--accent) 60%, transparent); }
+        .lp .btn-accent:hover { background:#17503A;
+          box-shadow:0 12px 26px -8px color-mix(in oklab, var(--accent) 65%, transparent); }
+        .lp .btn-ghost { background:#fff; color:var(--ink); border:1px solid #DCD5C7; }
+        .lp .btn-ghost:hover { border-color:#C9C1B0; }
+
+        /* Nav */
+        .lp-nav { position:sticky; top:0; z-index:50;
+          background:color-mix(in oklab, var(--paper) 86%, transparent);
+          backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+        .lp-nav-inner { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; }
+        .lp-nav-links { display:flex; align-items:center; gap:26px; font-size:14.5px; font-weight:500; color:#3D403A; }
+        .lp-nav-links a:hover { color:var(--accent); }
+        @media (max-width:860px){ .lp-nav-links .lp-nav-anchor { display:none; } }
+
+        /* Hero */
+        .lp-hero { display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center;
+          padding-top:76px; padding-bottom:48px; }
+        @keyframes lp-rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+        .lp .rise { animation:lp-rise .7s cubic-bezier(.2,.7,.3,1) both; }
+        .lp .rise-1 { animation-delay:.05s } .lp .rise-2 { animation-delay:.15s }
+        .lp .rise-3 { animation-delay:.25s } .lp .rise-4 { animation-delay:.35s }
+        .lp-hero h1 { font-family:var(--serif); font-weight:500; font-size:clamp(42px,5.2vw,64px);
+          line-height:1.03; letter-spacing:-.02em; margin:22px 0; }
+        .lp-hero h1 em { font-style:italic; color:var(--accent); }
+        .lp-hero .sub { font-size:18px; line-height:1.62; color:var(--muted); max-width:47ch; margin:0 0 30px; }
+        .lp-hero-trust { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; font-size:14px; color:#6B6D64; margin-top:22px; }
+        .lp-hero-trust span { display:flex; align-items:center; gap:7px; }
+
+        /* Product mock */
+        .lp-mock { position:relative; }
+        .lp-mock-card { position:relative; z-index:1; background:#fff; border:1px solid var(--card-line);
+          border-radius:20px; padding:22px;
+          box-shadow:0 40px 70px -34px rgba(28,30,22,.32), 0 2px 8px rgba(0,0,0,.04); }
+        @keyframes lp-float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
+        .lp-chip { position:absolute; z-index:2; background:#fff; border:1px solid var(--card-line);
+          border-radius:14px; padding:12px 15px; box-shadow:0 18px 40px -18px rgba(28,30,22,.35);
+          animation:lp-float 5s ease-in-out infinite; }
+        .lp-chip-readiness { top:-26px; left:-30px; }
+        .lp-chip-tutor { bottom:-30px; right:-18px; max-width:250px; animation-delay:2.5s; }
+        @media (max-width:1240px){ .lp-chip-readiness { left:-8px } .lp-chip-tutor { right:-6px } }
+        .lp-mock-label { font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+          color:var(--accent); font-weight:600; background:color-mix(in oklab, var(--accent) 10%, #fff);
+          padding:5px 10px; border-radius:7px; }
+        .lp-mock-meta { font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:#7A7C72;
+          display:flex; align-items:center; gap:6px; }
+        .lp-opt { display:flex; align-items:center; gap:11px; padding:12px 13px;
+          border:1px solid #E8E2D6; border-radius:11px; }
+        .lp-opt-key { width:25px; height:25px; flex:none; border-radius:7px; border:1px solid #DCD5C7;
+          display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; color:#7A7C72; }
+
+        /* Coverage marquee */
+        .lp-marquee { overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+          padding:22px 0; position:relative;
+          mask-image:linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+        @keyframes lp-scroll { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+        .lp-marquee-track { display:flex; gap:12px; width:max-content; animation:lp-scroll 42s linear infinite; }
+        .lp-marquee:hover .lp-marquee-track { animation-play-state:paused; }
+        .lp-pill { flex:none; font-size:13.5px; font-weight:500; color:#3D403A; background:#fff;
+          border:1px solid #E5DECF; padding:8px 16px; border-radius:99px; white-space:nowrap; }
+
+        /* Features */
+        .lp-features { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+        .lp-feature { padding:26px 26px 28px; transition:transform .2s ease, box-shadow .2s ease; }
+        .lp-feature:hover { transform:translateY(-3px); box-shadow:0 24px 44px -28px rgba(28,30,22,.3); }
+        .lp-feature-icon { width:42px; height:42px; border-radius:12px; color:var(--accent);
+          background:color-mix(in oklab, var(--accent) 9%, #fff);
+          border:1px solid color-mix(in oklab, var(--accent) 18%, #fff);
+          display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+        .lp-feature-icon-svg { width:22px; height:22px; }
+        .lp-feature .tag { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+          color:var(--accent); font-weight:600; margin-bottom:10px; }
+        .lp-feature h3 { font-size:18.5px; font-weight:600; margin:0 0 9px; letter-spacing:-.01em; }
+        .lp-feature p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); }
+
+        /* How it works */
+        .lp-how { display:grid; grid-template-columns:.8fr 1.2fr; gap:40px; align-items:start; }
+        .lp-step { display:flex; gap:18px; padding:18px 0; }
+        .lp-step + .lp-step { border-top:1px solid #EFE9DD; }
+        .lp-step .n { font-family:var(--serif); font-size:24px; color:var(--accent); font-weight:500; min-width:38px; }
+        .lp-step h3 { font-size:17px; font-weight:600; margin:0 0 5px; }
+        .lp-step p { margin:0; font-size:14.5px; line-height:1.55; color:var(--muted); }
+
+        /* Versus */
+        .lp-vs { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+        .lp-vs-col { border-radius:18px; padding:30px; }
+        .lp-vs-col.old { background:color-mix(in oklab, var(--paper) 55%, #fff); border:1px dashed #D5CDBC; }
+        .lp-vs-col.nu { background:#fff; border:1.5px solid var(--accent);
+          box-shadow:0 30px 60px -38px color-mix(in oklab, var(--accent) 55%, transparent); }
+        .lp-vs-col .head { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+          font-weight:600; margin-bottom:18px; }
+        .lp-vs-row { display:flex; gap:11px; font-size:14.5px; line-height:1.5; padding:10px 0; }
+        .lp-vs-col.old .lp-vs-row { color:#6B6D64; border-bottom:1px solid #EBE4D6; }
+        .lp-vs-col.nu .lp-vs-row { color:#2C2E28; border-bottom:1px solid #F0EBE0; font-weight:500; }
+        .lp-vs-col .lp-vs-row:last-child { border-bottom:none; }
+
+        /* Pricing */
+        .lp-pricing { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:820px; margin:0 auto; }
+        .lp-price { font-family:var(--serif); font-size:46px; font-weight:500; }
+        .lp-plan-row { display:flex; gap:10px; font-size:14.5px; color:#3D403A; }
+
+        /* FAQ */
+        .lp-faq { max-width:760px; margin:0 auto; }
+        .lp-faq details { background:#fff; border:1px solid var(--card-line); border-radius:14px;
+          padding:0 22px; margin-bottom:10px; }
+        .lp-faq summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between;
+          gap:16px; padding:18px 0; font-size:16px; font-weight:600; letter-spacing:-.01em; }
+        .lp-faq summary::-webkit-details-marker { display:none; }
+        .lp-faq summary::after { content:"+"; font-family:var(--mono); font-size:18px; color:var(--accent);
+          flex:none; transition:transform .2s ease; }
+        .lp-faq details[open] summary::after { transform:rotate(45deg); }
+        .lp-faq details p { margin:0; padding:0 0 20px; font-size:14.5px; line-height:1.65; color:var(--muted); }
+
+        /* Final CTA */
+        .lp-cta { background:var(--accent); border-radius:24px; padding:72px 40px; text-align:center;
+          position:relative; overflow:hidden; }
+        .lp-cta::before { content:""; position:absolute; inset:0; pointer-events:none;
+          background:radial-gradient(circle at 80% 15%, rgba(255,255,255,.12), transparent 55%),
+                     radial-gradient(circle at 10% 90%, rgba(255,255,255,.07), transparent 50%); }
+
+        @media (max-width:960px){
+          .lp-features { grid-template-columns:repeat(2,1fr); }
+        }
         @media (max-width:860px){
-          .lp-hero, .lp-features, .lp-how, .lp-pricing { grid-template-columns:1fr !important; }
-          .lp-hero { gap:40px !important; }
+          .lp-hero, .lp-how, .lp-vs, .lp-pricing { grid-template-columns:1fr; }
+          .lp-hero { gap:44px; padding-top:52px; }
+          .lp-chip-readiness { top:-18px; }
+        }
+        @media (max-width:640px){
+          .lp-features { grid-template-columns:1fr; }
+          .lp-cta { padding:56px 24px; }
+        }
+        @media (prefers-reduced-motion:reduce){
+          .lp .rise, .lp-chip, .lp-marquee-track { animation:none; }
         }
       `}</style>
 
       {/* NAV */}
-      <header style={{ position: "sticky", top: 0, zIndex: 50, background: `color-mix(in oklab, ${PAPER} 86%, transparent)`, backdropFilter: "blur(12px)", borderBottom: "1px solid #E3DCCE" }}>
-        <nav style={{ maxWidth: "1180px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header className="lp-nav">
+        <nav className="wrap lp-nav-inner">
           <Link href="/" aria-label="Prepa home">
             <Logo />
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-            <Link href="/login" style={{ color: "#3D403A", fontWeight: 500, fontSize: "15px" }}>Sign in</Link>
-            <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "10px 18px", borderRadius: "10px", boxShadow: "0 1px 2px rgba(20,30,20,0.15)" }}>Start free</Link>
+          <div className="lp-nav-links">
+            <a className="lp-nav-anchor" href="#features">Features</a>
+            <a className="lp-nav-anchor" href="#how">How it works</a>
+            <a className="lp-nav-anchor" href="#pricing">Pricing</a>
+            <a className="lp-nav-anchor" href="#faq">FAQ</a>
+            <Link href="/login">Sign in</Link>
+            <Link href="/signup" className="btn btn-accent" style={{ fontSize: "15px", padding: "10px 18px" }}>
+              Start free
+            </Link>
           </div>
         </nav>
       </header>
 
       {/* HERO */}
-      <section className="lp-hero" style={{ maxWidth: "1180px", margin: "0 auto", padding: "72px 24px 40px", display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: "56px", alignItems: "center" }}>
+      <section className="wrap lp-hero">
         <div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontFamily: MONO, fontSize: "12px", letterSpacing: "0.16em", textTransform: "uppercase", color: ACCENT, fontWeight: 500, marginBottom: "22px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: ACCENT }} />AI-powered exam prep
-          </div>
-          <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(40px,5vw,60px)", lineHeight: 1.04, letterSpacing: "-0.02em", margin: "0 0 22px" }}>
-            Pass your certification exam with practice that <em style={{ fontStyle: "italic", color: ACCENT }}>adapts to you</em>
+          <div className="kicker rise rise-1">AI-powered exam prep</div>
+          <h1 className="rise rise-2">
+            The last study app you&apos;ll need before you <em>pass</em>
           </h1>
-          <p style={{ fontSize: "18px", lineHeight: 1.62, color: "#54564E", maxWidth: "46ch", margin: "0 0 30px" }}>
-            Prepa generates fresh, exam-style questions with instant explanations, mock exams, and progress tracking. Start practising in seconds — no sign-up required.
+          <p className="sub rise rise-3">
+            Prepa generates fresh, exam-style questions tuned to your weak spots, explains
+            every answer, and tracks your readiness — for any certification exam. Even from
+            your own notes.
           </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "22px" }}>
-            <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", boxShadow: `0 8px 20px -8px color-mix(in oklab, ${ACCENT} 60%, transparent)` }}>Start practising free</Link>
-            <a href="#pricing" style={{ background: "#fff", color: INK, fontWeight: 600, fontSize: "16px", padding: "15px 26px", borderRadius: "11px", border: "1px solid #DCD5C7" }}>See pricing</a>
+          <div className="rise rise-4" style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
+            <Link href="/signup" className="btn btn-accent" style={{ fontSize: "16px", padding: "15px 26px" }}>
+              Start practising free
+            </Link>
+            <a href="#features" className="btn btn-ghost" style={{ fontSize: "16px", padding: "15px 26px" }}>
+              See what&apos;s inside
+            </a>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 18px", fontSize: "14px", color: "#6B6D64" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "7px" }}><span style={check}>✓</span>20 free questions daily</span>
+          <div className="lp-hero-trust rise rise-4">
+            <span><span className="check">✓</span>20 free questions daily</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "7px" }}><span style={check}>✓</span>No account needed</span>
+            <span><span className="check">✓</span>Any exam, any topic</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "7px" }}><span style={check}>✓</span>Cancel anytime</span>
+            <span><span className="check">✓</span>Cancel anytime</span>
           </div>
         </div>
 
         {/* PRODUCT MOCK */}
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", inset: "-10px -10px auto auto", width: "140px", height: "140px", background: `radial-gradient(circle at 70% 30%, color-mix(in oklab, ${ACCENT} 22%, transparent), transparent 70%)`, filter: "blur(8px)", zIndex: 0 }} />
-          <div style={{ position: "relative", zIndex: 1, background: "#fff", border: "1px solid #EAE3D6", borderRadius: "20px", boxShadow: "0 40px 70px -34px rgba(28,30,22,0.32), 0 2px 8px rgba(0,0,0,0.04)", padding: "22px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <span style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, background: `color-mix(in oklab, ${ACCENT} 10%, #fff)`, padding: "5px 10px", borderRadius: "7px" }}>AWS · Databases</span>
-              <span style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.04em", color: "#7A7C72", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "6px", height: "6px", borderRadius: "50%", background: ACCENT }} />12-DAY STREAK</span>
+        <div className="lp-mock rise rise-3">
+          {/* Floating readiness chip */}
+          <div className="lp-chip lp-chip-readiness">
+            <div style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: "#84867B", fontWeight: 600, marginBottom: "6px" }}>
+              Exam readiness
             </div>
-            <div style={{ height: "6px", borderRadius: "99px", background: "#EEE8DC", marginBottom: "18px", overflow: "hidden" }}><div style={{ width: "68%", height: "100%", background: ACCENT, borderRadius: "99px" }} /></div>
-            <div style={{ fontFamily: MONO, fontSize: "11px", color: "#9A9C90", letterSpacing: "0.04em", marginBottom: "8px" }}>QUESTION 14 OF 20</div>
-            <p style={{ fontSize: "16.5px", fontWeight: 600, lineHeight: 1.42, margin: "0 0 16px" }}>Which AWS service provides a fully managed NoSQL database with single-digit millisecond latency at any scale?</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontFamily: "var(--serif)", fontSize: "26px", fontWeight: 500, color: ACCENT }}>82%</span>
+              <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: ACCENT, fontWeight: 600 }}>▲ 6 this week</span>
+            </div>
+            <div style={{ width: "128px", height: "5px", borderRadius: "99px", background: "#EEE8DC", marginTop: "8px", overflow: "hidden" }}>
+              <div style={{ width: "82%", height: "100%", background: ACCENT, borderRadius: "99px" }} />
+            </div>
+          </div>
+
+          {/* Floating AI-tutor chip */}
+          <div className="lp-chip lp-chip-tutor">
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "7px" }}>
+              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: ACCENT }} />
+              <span style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600 }}>AI Tutor</span>
+            </div>
+            <p style={{ margin: 0, fontSize: "12.5px", lineHeight: 1.5, color: "#42453E" }}>
+              &ldquo;Why not RDS?&rdquo; — RDS is relational. The question asks for a <strong>NoSQL</strong> store with millisecond latency, which is DynamoDB&apos;s specialty.
+            </p>
+          </div>
+
+          <div className="lp-mock-card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <span className="lp-mock-label">AWS · Databases</span>
+              <span className="lp-mock-meta">
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: ACCENT }} />12-DAY STREAK
+              </span>
+            </div>
+            <div style={{ height: "6px", borderRadius: "99px", background: "#EEE8DC", marginBottom: "18px", overflow: "hidden" }}>
+              <div style={{ width: "68%", height: "100%", background: ACCENT, borderRadius: "99px" }} />
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "#9A9C90", letterSpacing: ".04em", marginBottom: "8px" }}>
+              QUESTION 14 OF 20
+            </div>
+            <p style={{ fontSize: "16.5px", fontWeight: 600, lineHeight: 1.42, margin: "0 0 16px" }}>
+              Which AWS service provides a fully managed NoSQL database with single-digit millisecond latency at any scale?
+            </p>
             <div style={{ display: "grid", gap: "9px", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "11px", padding: "12px 13px", border: "1px solid #E8E2D6", borderRadius: "11px" }}>
-                <span style={{ width: "25px", height: "25px", flex: "none", borderRadius: "7px", border: "1px solid #DCD5C7", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: "12px", color: "#7A7C72" }}>A</span>
+              <div className="lp-opt">
+                <span className="lp-opt-key">A</span>
                 <span style={{ fontSize: "14.5px", color: "#3D403A" }}>Amazon RDS</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "11px", padding: "12px 13px", border: `1.5px solid ${ACCENT}`, borderRadius: "11px", background: `color-mix(in oklab, ${ACCENT} 8%, #fff)` }}>
-                <span style={{ width: "25px", height: "25px", flex: "none", borderRadius: "7px", background: ACCENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: "12px", fontWeight: 600 }}>B</span>
-                <span style={{ fontSize: "14.5px", color: INK, fontWeight: 600 }}>Amazon DynamoDB</span>
+              <div className="lp-opt" style={{ border: `1.5px solid ${ACCENT}`, background: `color-mix(in oklab, ${ACCENT} 8%, #fff)` }}>
+                <span className="lp-opt-key" style={{ background: ACCENT, border: "none", color: "#fff", fontWeight: 600 }}>B</span>
+                <span style={{ fontSize: "14.5px", fontWeight: 600 }}>Amazon DynamoDB</span>
                 <span style={{ marginLeft: "auto", color: ACCENT, fontWeight: 700, fontSize: "15px" }}>✓</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "11px", padding: "12px 13px", border: "1px solid #E8E2D6", borderRadius: "11px" }}>
-                <span style={{ width: "25px", height: "25px", flex: "none", borderRadius: "7px", border: "1px solid #DCD5C7", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: "12px", color: "#7A7C72" }}>C</span>
+              <div className="lp-opt">
+                <span className="lp-opt-key">C</span>
                 <span style={{ fontSize: "14.5px", color: "#3D403A" }}>Amazon Redshift</span>
               </div>
             </div>
             <div style={{ background: `color-mix(in oklab, ${ACCENT} 7%, #fff)`, borderLeft: `3px solid ${ACCENT}`, borderRadius: "9px", padding: "12px 14px" }}>
-              <div style={{ fontFamily: MONO, fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, marginBottom: "5px" }}>Why</div>
-              <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.5, color: "#42453E" }}>DynamoDB is AWS&apos;s fully managed NoSQL store, built for consistent single-digit-ms latency at scale. RDS and Aurora are relational; Redshift is for analytics.</p>
+              <div style={{ fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".08em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, marginBottom: "5px" }}>Why</div>
+              <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.5, color: "#42453E" }}>
+                DynamoDB is AWS&apos;s fully managed NoSQL store, built for consistent single-digit-ms latency at scale. RDS and Aurora are relational; Redshift is for analytics.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* EXAM COVERAGE */}
-      <section style={{ maxWidth: "1180px", margin: "0 auto", padding: "34px 24px 20px" }}>
-        <div style={{ borderTop: "1px solid #E3DCCE", paddingTop: "30px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "18px 26px" }}>
-          <span style={{ fontFamily: MONO, fontSize: "12px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#84867B", fontWeight: 500 }}>Bring any exam —</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "9px" }}>
-            {coverage.map((c) => (
-              <span key={c} style={{ fontSize: "13.5px", fontWeight: 500, color: "#3D403A", background: "#fff", border: "1px solid #E5DECF", padding: "7px 14px", borderRadius: "99px" }}>{c}</span>
+      {/* EXAM COVERAGE MARQUEE */}
+      <section aria-label="Exams covered">
+        <div className="wrap" style={{ paddingBottom: "14px" }}>
+          <span style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".12em", textTransform: "uppercase", color: "#84867B", fontWeight: 500 }}>
+            Bring any exam
+          </span>
+        </div>
+        <div className="lp-marquee">
+          <div className="lp-marquee-track">
+            {marquee.map((c, i) => (
+              <span key={`${c}-${i}`} className="lp-pill" aria-hidden={i >= coverage.length}>
+                {c}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
       {/* FEATURES */}
-      <section style={{ maxWidth: "1180px", margin: "0 auto", padding: "64px 24px 30px" }}>
+      <section id="features" className="wrap" style={{ padding: "72px 24px 30px", scrollMarginTop: "80px" }}>
         <div style={{ maxWidth: "640px", marginBottom: "42px" }}>
-          <div style={{ ...kicker, marginBottom: "14px" }}>What you get</div>
-          <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,3.6vw,42px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: 0 }}>Everything you need between now and exam day</h2>
+          <div className="kicker" style={{ marginBottom: "14px" }}>What you get</div>
+          <h2 className="h2">Everything you need between now and exam day</h2>
         </div>
-        <div className="lp-features" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "18px" }}>
+        <div className="lp-features">
           {features.map((f) => (
-            <div key={f.k} style={{ ...cardStyle, padding: "26px 26px 28px" }}>
-              <div style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, marginBottom: "14px" }}>{f.k}</div>
-              <h3 style={{ fontSize: "19px", fontWeight: 600, margin: "0 0 9px", letterSpacing: "-0.01em" }}>{f.h}</h3>
-              <p style={{ margin: 0, fontSize: "15px", lineHeight: 1.6, color: "#56584F" }}>{f.p}</p>
+            <div key={f.k} className="card lp-feature">
+              <div className="lp-feature-icon"><FeatureIcon name={f.icon} /></div>
+              <div className="tag">{f.k}</div>
+              <h3>{f.h}</h3>
+              <p>{f.p}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section style={{ maxWidth: "1180px", margin: "0 auto", padding: "54px 24px" }}>
-        <div style={{ ...cardStyle, borderRadius: "22px", padding: "48px 44px" }}>
-          <div className="lp-how" style={{ display: "grid", gridTemplateColumns: "0.8fr 1.2fr", gap: "40px", alignItems: "start" }}>
+      <section id="how" className="wrap" style={{ padding: "54px 24px", scrollMarginTop: "80px" }}>
+        <div className="card" style={{ borderRadius: "22px", padding: "48px 44px" }}>
+          <div className="lp-how">
             <div>
-              <div style={{ ...kicker, marginBottom: "14px" }}>How it works</div>
-              <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(28px,3.2vw,38px)", lineHeight: 1.1, letterSpacing: "-0.02em", margin: "0 0 22px" }}>Start in seconds</h2>
-              <Link href="/signup" style={{ background: ACCENT, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "13px 22px", borderRadius: "11px", display: "inline-block" }}>Start practising free</Link>
+              <div className="kicker" style={{ marginBottom: "14px" }}>How it works</div>
+              <h2 className="h2" style={{ fontSize: "clamp(28px,3.2vw,38px)", marginBottom: "14px" }}>
+                From zero to exam-ready
+              </h2>
+              <p style={{ fontSize: "15px", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 24px", maxWidth: "36ch" }}>
+                No question banks to buy, no content to hunt down. Prepa builds everything around you.
+              </p>
+              <Link href="/signup" className="btn btn-accent" style={{ fontSize: "15px", padding: "13px 22px" }}>
+                Start practising free
+              </Link>
             </div>
-            <div style={{ display: "grid", gap: "6px" }}>
-              {steps.map((s, i) => (
-                <div key={s.n} style={{ display: "flex", gap: "18px", padding: "18px 0", borderBottom: i < steps.length - 1 ? "1px solid #EFE9DD" : undefined }}>
-                  <span style={{ fontFamily: SERIF, fontSize: "24px", color: ACCENT, fontWeight: 500, minWidth: "38px" }}>{s.n}</span>
+            <div>
+              {steps.map((s) => (
+                <div key={s.n} className="lp-step">
+                  <span className="n">{s.n}</span>
                   <div>
-                    <h3 style={{ fontSize: "17px", fontWeight: 600, margin: "0 0 5px" }}>{s.h}</h3>
-                    <p style={{ margin: 0, fontSize: "14.5px", lineHeight: 1.55, color: "#56584F" }}>{s.p}</p>
+                    <h3>{s.h}</h3>
+                    <p>{s.p}</p>
                   </div>
                 </div>
               ))}
@@ -207,35 +612,77 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="pricing" style={{ maxWidth: "1180px", margin: "0 auto", padding: "40px 24px 60px", scrollMarginTop: "80px" }}>
-        <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 40px" }}>
-          <div style={{ ...kicker, marginBottom: "14px" }}>Pricing</div>
-          <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,3.6vw,42px)", lineHeight: 1.08, letterSpacing: "-0.02em", margin: "0 0 12px" }}>Start free. Go unlimited when you&apos;re serious.</h2>
-          <p style={{ fontSize: "16px", color: "#56584F", margin: 0 }}>Cancel anytime. No surprises.</p>
+      {/* VERSUS */}
+      <section className="wrap" style={{ padding: "40px 24px 30px" }}>
+        <div style={{ textAlign: "center", maxWidth: "620px", margin: "0 auto 40px" }}>
+          <div className="kicker" style={{ marginBottom: "14px" }}>Why switch</div>
+          <h2 className="h2">Question banks quiz you. Prepa gets you ready.</h2>
         </div>
-        <div className="lp-pricing" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", maxWidth: "820px", margin: "0 auto" }}>
+        <div className="lp-vs">
+          <div className="lp-vs-col old">
+            <div className="head" style={{ color: "#84867B" }}>Static question banks</div>
+            {versus.map((v) => (
+              <div key={v.old} className="lp-vs-row">
+                <span style={{ color: "#B0A890", flex: "none" }}>✕</span>
+                {v.old}
+              </div>
+            ))}
+          </div>
+          <div className="lp-vs-col nu">
+            <div className="head" style={{ color: ACCENT }}>Prepa</div>
+            {versus.map((v) => (
+              <div key={v.nu} className="lp-vs-row">
+                <span className="check" style={{ flex: "none" }}>✓</span>
+                {v.nu}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" className="wrap" style={{ padding: "50px 24px 30px", scrollMarginTop: "80px" }}>
+        <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 40px" }}>
+          <div className="kicker" style={{ marginBottom: "14px" }}>Pricing</div>
+          <h2 className="h2" style={{ marginBottom: "12px" }}>Start free. Go unlimited when you&apos;re serious.</h2>
+          <p style={{ fontSize: "16px", color: "var(--muted)", margin: 0 }}>Less than a coffee a month. Cancel anytime.</p>
+        </div>
+        <div className="lp-pricing">
           {/* Free */}
-          <div style={{ ...cardStyle, borderRadius: "18px", padding: "32px" }}>
+          <div className="card" style={{ borderRadius: "18px", padding: "32px" }}>
             <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>Free</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>$0</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/forever</span></div>
-            <p style={{ fontSize: "14.5px", color: "#56584F", margin: "0 0 22px" }}>Start practising right away — no account needed.</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
+              <span className="lp-price">$0</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/forever</span>
+            </div>
+            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
+              Everything you need to start studying today.
+            </p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
               {freeFeatures.map((f) => (
-                <div key={f} style={{ display: "flex", gap: "10px", fontSize: "14.5px", color: "#3D403A" }}><span style={check}>✓</span>{f}</div>
+                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
               ))}
             </div>
-            <Link href="/signup" style={{ display: "block", textAlign: "center", background: "#F4F0E8", color: INK, fontWeight: 600, fontSize: "15px", padding: "13px", borderRadius: "11px", border: "1px solid #E1DACB" }}>Start free</Link>
+            <Link href="/signup" className="btn" style={{ display: "flex", width: "100%", background: "#F4F0E8", border: "1px solid #E1DACB", fontSize: "15px", padding: "13px" }}>
+              Start free
+            </Link>
           </div>
           {/* Pro */}
           <div style={{ background: "#fff", border: `1.5px solid ${ACCENT}`, borderRadius: "18px", padding: "32px", position: "relative", boxShadow: `0 30px 60px -34px color-mix(in oklab, ${ACCENT} 50%, transparent)` }}>
-            <span style={{ position: "absolute", top: "-12px", left: "32px", fontFamily: MONO, fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, color: "#fff", background: ACCENT, padding: "5px 12px", borderRadius: "99px" }}>Most popular</span>
+            <span style={{ position: "absolute", top: "-12px", left: "32px", fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 600, color: "#fff", background: ACCENT, padding: "5px 12px", borderRadius: "99px" }}>
+              Most popular
+            </span>
             <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>Pro</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}><span style={{ fontFamily: SERIF, fontSize: "46px", fontWeight: 500 }}>$6</span><span style={{ fontSize: "15px", color: "#7A7C72" }}>/month</span></div>
-            <p style={{ fontSize: "14.5px", color: "#56584F", margin: "0 0 22px" }}>Unlimited practice for serious exam prep.</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
+              <span className="lp-price">$6</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/month</span>
+            </div>
+            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
+              Unlimited practice for serious exam prep.
+            </p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
               {proFeatures.map((f) => (
-                <div key={f} style={{ display: "flex", gap: "10px", fontSize: "14.5px", color: "#3D403A" }}><span style={check}>✓</span>{f}</div>
+                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
               ))}
             </div>
             <LandingProButton />
@@ -243,19 +690,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="wrap" style={{ padding: "50px 24px 40px", scrollMarginTop: "80px" }}>
+        <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 36px" }}>
+          <div className="kicker" style={{ marginBottom: "14px" }}>FAQ</div>
+          <h2 className="h2">Questions, answered</h2>
+        </div>
+        <div className="lp-faq">
+          {faqs.map((f) => (
+            <details key={f.q}>
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* FINAL CTA */}
-      <section style={{ padding: "0 24px 64px" }}>
-        <div style={{ maxWidth: "1180px", margin: "0 auto", background: ACCENT, borderRadius: "24px", padding: "64px 40px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1), transparent 55%)", pointerEvents: "none" }} />
-          <h2 style={{ position: "relative", fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,3.8vw,44px)", lineHeight: 1.06, letterSpacing: "-0.02em", color: "#fff", margin: "0 0 16px" }}>Ready to study smarter?</h2>
-          <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,0.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>Jump straight in — no account needed. Sign up later to save your progress across devices.</p>
-          <Link href="/signup" style={{ position: "relative", display: "inline-block", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,0.35)" }}>Start practising free</Link>
+      <section style={{ padding: "20px 24px 64px" }}>
+        <div className="lp-cta" style={{ maxWidth: "1180px", margin: "0 auto" }}>
+          <h2 style={{ position: "relative", fontFamily: "var(--serif)", fontWeight: 500, fontSize: "clamp(30px,3.8vw,44px)", lineHeight: 1.06, letterSpacing: "-.02em", color: "#fff", margin: "0 0 16px" }}>
+            Your exam won&apos;t study for itself
+          </h2>
+          <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>
+            Get 20 free AI-generated questions every day, with explanations that actually teach. Set up in under a minute.
+          </p>
+          <Link href="/signup" className="btn" style={{ position: "relative", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,.35)" }}>
+            Start practising free
+          </Link>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid #E3DCCE" }}>
-        <div style={{ maxWidth: "1180px", margin: "0 auto", padding: "30px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <footer style={{ borderTop: "1px solid var(--line)" }}>
+        <div className="wrap" style={{ padding: "30px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <Logo showWordmark={false} />
             <span style={{ fontSize: "14px", color: "#6B6D64" }}>© {new Date().getFullYear()} Prepa</span>

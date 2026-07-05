@@ -12,13 +12,30 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ProgressRing } from "@/components/ui/progress-ring"
 import { getExamBlueprint } from "@/lib/exams"
 import { inferExamFromSessions } from "@/lib/learning/topic-resolver"
 import {
   computeExamReadiness,
   type ReadinessVerdict,
 } from "@/lib/progress/readiness"
+import { projectReadiness } from "@/lib/progress/projection"
 import { useSessionStore } from "@/lib/store/use-session-store"
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+/** "2026-07-24" → "Jul 24", locale-free so server and client agree. */
+function formatDay(isoDate: string): string {
+  const [, m, d] = isoDate.split("-")
+  return `${MONTHS[Number(m) - 1] ?? ""} ${Number(d)}`.trim()
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  return Math.round(
+    (new Date(`${toIso}T00:00:00Z`).getTime() -
+      new Date(`${fromIso}T00:00:00Z`).getTime()) / 86_400_000,
+  )
+}
 
 const VERDICT: Record<
   ReadinessVerdict,
@@ -29,7 +46,7 @@ const VERDICT: Record<
     color: "var(--destructive)",
     tint: "text-destructive",
   },
-  almost: { label: "Almost there", color: "#f59e0b", tint: "text-[#f59e0b]" },
+  almost: { label: "Almost there", color: "var(--warning)", tint: "text-warning" },
   ready: {
     label: "On track to pass",
     color: "var(--primary)",
@@ -49,6 +66,7 @@ export function ReadinessCard() {
   const sessions = useSessionStore((s) => s.sessions)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
   const readinessTrend = useSessionStore((s) => s.readinessTrend)
+  const plan = useSessionStore((s) => s.plan)
 
   const { examCode } = useMemo(
     () => inferExamFromSessions(sessions),
@@ -94,9 +112,19 @@ export function ReadinessCard() {
   }
 
   const v = VERDICT[readiness.verdict]
-  const radius = 52
-  const circumference = 2 * Math.PI * radius
-  const dash = (readiness.score / 100) * circumference
+  const gap = readiness.passMark - readiness.score
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const projection = projectReadiness(
+    readinessTrend,
+    readiness.score,
+    readiness.passMark,
+    todayIso,
+  )
+  // Compare the projected ready date to the exam date when a plan exists.
+  const examDelta =
+    projection && plan && plan.examCode === readiness.examCode
+      ? daysBetween(projection.readyDate, plan.targetDate)
+      : null
 
   return (
     <Card className="overflow-hidden">
@@ -110,40 +138,56 @@ export function ReadinessCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="relative flex size-36 shrink-0 items-center justify-center">
-          <svg
-            className="size-36 -rotate-90"
-            viewBox="0 0 120 120"
-            aria-hidden="true"
-          >
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              fill="none"
-              stroke="var(--muted)"
-              strokeWidth="10"
-            />
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              fill="none"
-              stroke={v.color}
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={`${dash} ${circumference}`}
-            />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="text-3xl font-semibold tracking-tight">
-              {readiness.score}%
-            </span>
-            <span className={`text-xs font-medium ${v.tint}`}>{v.label}</span>
-          </div>
-        </div>
+        <ProgressRing
+          value={readiness.score}
+          size={144}
+          color={v.color}
+          tickAt={readiness.passMark}
+        >
+          <span className="text-3xl font-semibold tracking-tight">
+            {readiness.score}%
+          </span>
+          <span className={`text-xs font-medium ${v.tint}`}>{v.label}</span>
+        </ProgressRing>
 
         <div className="flex w-full flex-1 flex-col gap-3">
+          <p className="text-sm">
+            {gap > 0 ? (
+              <>
+                You&apos;re <strong>{gap} point{gap === 1 ? "" : "s"}</strong> from
+                the pass mark.
+              </>
+            ) : (
+              <>
+                You&apos;re <strong>{-gap} point{gap === -1 ? "" : "s"}</strong>{" "}
+                above the pass mark — keep it there.
+              </>
+            )}
+            {projection && (
+              <>
+                {" "}
+                At this pace you&apos;ll reach it around{" "}
+                <strong>{formatDay(projection.readyDate)}</strong>
+                {examDelta == null && "."}
+                {examDelta != null &&
+                  (examDelta >= 0 ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      — {examDelta === 0
+                        ? "right on exam day"
+                        : `${examDelta} day${examDelta === 1 ? "" : "s"} before your exam`}
+                      .
+                    </span>
+                  ) : (
+                    <span className="font-medium text-warning">
+                      {" "}
+                      — {-examDelta} day{examDelta === -1 ? "" : "s"} after your
+                      exam date. Pick up the pace.
+                    </span>
+                  ))}
+              </>
+            )}
+          </p>
           <p className="text-xs text-muted-foreground">
             Based on {readiness.totalAnswered} questions across{" "}
             {readiness.domainsCovered}/{readiness.totalDomains} domains
@@ -197,23 +241,6 @@ export function ReadinessCard() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          )}
-
-          {readiness.weakestDomains.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium">Weakest domains</p>
-              {readiness.weakestDomains.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
-                  <span className="truncate text-muted-foreground">
-                    {d.name}
-                  </span>
-                  <span className="shrink-0 font-medium">{d.mastery}%</span>
-                </div>
-              ))}
             </div>
           )}
 

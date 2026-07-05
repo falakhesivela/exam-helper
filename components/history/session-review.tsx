@@ -119,8 +119,10 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
         {questions.map((q, qi) => {
           const record = session.answers[q.id]
           const userCorrect = record?.isCorrect
+          // Anchor target for deep links from the session summary recap.
+          const anchorIndex = session.questions.indexOf(q)
           return (
-            <Card key={q.id}>
+            <Card key={q.id} id={`q-${anchorIndex}`} className="scroll-mt-20">
               <CardContent className="flex flex-col gap-3 p-5">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="secondary">

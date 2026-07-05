@@ -69,23 +69,35 @@ export const mockMasteryTrend = [
   { label: "Sun", mastery: 68 },
 ]
 
-/** Readiness score trend, for the readiness card sparkline. */
-export const mockReadinessTrend = [
-  { label: "Jun 12", score: 54 },
-  { label: "Jun 15", score: 58 },
-  { label: "Jun 18", score: 61 },
-  { label: "Jun 21", score: 64 },
-  { label: "Jun 24", score: 67 },
-  { label: "Jun 26", score: 70 },
-]
+/** Readiness score trend (recent days), for the sparkline + pace projection. */
+export const mockReadinessTrend = (() => {
+  const scores = [54, 56, 58, 61, 60, 63, 65, 64, 67, 68, 70]
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  return scores.map((score, i) => {
+    const d = new Date(today)
+    d.setUTCDate(d.getUTCDate() - (scores.length - 1 - i) * 2)
+    const date = d.toISOString().slice(0, 10)
+    return { label: `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`, score, date }
+  })
+})()
 
 /** A streak summary for mock mode, with a realistic 7-day activity row. */
 export function buildMockStreak(): StreakSummary {
   const today = new Date().toISOString().slice(0, 10)
-  const counts = [12, 10, 0, 14, 11, 10, 6] // oldest→newest
+  const DAYS = 84 // 12 weeks for the consistency heatmap
+  const recent = [12, 10, 0, 14, 11, 10, 6] // last 7 days oldest→newest
+  // Deterministic (no Math.random — the store hydrates on server and client)
+  // wave of activity that intensifies toward the present.
+  const counts = Array.from({ length: DAYS }, (_, i) => {
+    if (i >= DAYS - recent.length) return recent[i - (DAYS - recent.length)]
+    const wave = (i * 13) % 23
+    if (wave < 7) return 0
+    return Math.round(Math.min(20, wave * (0.35 + i / DAYS)))
+  })
   const activity = counts.map((count, i) => {
     const d = new Date(`${today}T00:00:00Z`)
-    d.setUTCDate(d.getUTCDate() - (6 - i))
+    d.setUTCDate(d.getUTCDate() - (DAYS - 1 - i))
     return {
       date: d.toISOString().slice(0, 10),
       count,

@@ -17,6 +17,8 @@ interface ExamQuestionPaneProps {
   isFlagged: boolean
   onToggleOption: (optionId: string) => void
   onDragAnswerChange: (answer: DragAnswer) => void
+  /** Practice-mode reveal: locks interaction and shows answer feedback. */
+  revealed?: boolean
 }
 
 function multiSelectHint(question: Question): string | null {
@@ -34,6 +36,7 @@ export function ExamQuestionPane({
   isFlagged,
   onToggleOption,
   onDragAnswerChange,
+  revealed = false,
 }: ExamQuestionPaneProps) {
   const hint = multiSelectHint(question)
   const type = questionTypeOf(question)
@@ -66,24 +69,28 @@ export function ExamQuestionPane({
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}
+          revealed={revealed}
         />
       ) : type === "drag_order" ? (
         <DragOrderPane
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}
+          revealed={revealed}
         />
       ) : type === "select_grid" ? (
         <SelectGridPane
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}
+          revealed={revealed}
         />
       ) : (
         <DragCategorizePane
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}
+          revealed={revealed}
         />
       )}
     </div>

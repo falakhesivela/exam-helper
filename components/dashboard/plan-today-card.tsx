@@ -24,7 +24,7 @@ import { computePlanPace, type PlanPaceStatus } from "@/lib/plan/pace"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 const PACE_LABEL: Record<PlanPaceStatus, { text: string; className: string }> = {
-  behind: { text: "Behind", className: "text-[#f59e0b]" },
+  behind: { text: "Behind", className: "text-warning" },
   "on-track": { text: "On track", className: "text-primary" },
   ahead: { text: "Ahead", className: "text-primary" },
   complete: { text: "Complete", className: "text-primary" },

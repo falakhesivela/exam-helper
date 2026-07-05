@@ -3,7 +3,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 export const metadata = {
-  title: "Offline — Prepa",
+  title: "Offline",
+  robots: { index: false, follow: false },
 }
 
 /** Shown when navigation fails while the app is offline. */

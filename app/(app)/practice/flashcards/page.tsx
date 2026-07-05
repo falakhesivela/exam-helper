@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
-import { ArrowLeft, RotateCcw, Shuffle, Sparkles } from "lucide-react"
+import { RotateCcw, Shuffle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PracticeHeader } from "@/components/practice/practice-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Progress } from "@/components/ui/progress"
@@ -55,6 +56,7 @@ export default function FlashcardsPage() {
   function rate(known: boolean) {
     if (!current) return
     if (!known) setAgain((a) => [...a, current])
+    void api.rateFlashcard(current.id, known)
     setFlipped(false)
     setPos((p) => p + 1)
   }
@@ -86,7 +88,7 @@ export default function FlashcardsPage() {
           session or mock exam, and your misses will show up here to review.
         </p>
         <Button asChild>
-          <Link href="/intake">Start practicing</Link>
+          <Link href="/practice">Back to Practice</Link>
         </Button>
       </div>
     )
@@ -94,19 +96,15 @@ export default function FlashcardsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard">
-            <ArrowLeft data-icon="inline-start" />
-            Done
-          </Link>
-        </Button>
-        <p className="text-sm font-medium">Flashcards · misses</p>
-        <Button variant="ghost" size="sm" onClick={() => startRound(cards)}>
-          <Shuffle data-icon="inline-start" />
-          Shuffle
-        </Button>
-      </div>
+      <PracticeHeader
+        title="Flashcards"
+        action={
+          <Button variant="ghost" size="sm" onClick={() => startRound(cards)}>
+            <Shuffle data-icon="inline-start" />
+            Shuffle
+          </Button>
+        }
+      />
 
       {done ? (
         <Card>

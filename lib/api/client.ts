@@ -5,39 +5,40 @@ import type {
   TopicLesson,
   TopicMastery,
   UserProfile,
-} from "@/types"
-import { consumeSse } from "./stream"
-import { buildMockBookmarks, buildMockMissedQuestions, buildMockTeam } from "@/lib/mock-data"
+} from "@/types";
+import { consumeSse } from "./stream";
+import {
+  buildMockBookmarks,
+  buildMockMissedQuestions,
+  buildMockTeam,
+} from "@/lib/mock-data";
 
 export class ApiClientError extends Error {
-  status: number
-  code?: string
-  remaining?: number
+  status: number;
+  code?: string;
+  remaining?: number;
 
   constructor(
     message: string,
     status: number,
     extra?: { code?: string; remaining?: number },
   ) {
-    super(message)
-    this.status = status
-    this.code = extra?.code
-    this.remaining = extra?.remaining
+    super(message);
+    this.status = status;
+    this.code = extra?.code;
+    this.remaining = extra?.remaining;
   }
 }
 
 function getTimezone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch {
-    return "UTC"
+    return "UTC";
   }
 }
 
-async function request<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: {
@@ -46,86 +47,90 @@ async function request<T>(
       ...init?.headers,
     },
     credentials: "include",
-  })
+  });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new ApiClientError(
-      body.error ?? res.statusText,
-      res.status,
-      { code: body.code, remaining: body.remaining },
-    )
+    const body = await res.json().catch(() => ({}));
+    throw new ApiClientError(body.error ?? res.statusText, res.status, {
+      code: body.code,
+      remaining: body.remaining,
+    });
   }
 
-  return res.json() as Promise<T>
+  return res.json() as Promise<T>;
 }
 
 export const api = {
   me: () => request<UserProfile>("/api/me"),
 
-  clarify: async (description: string, handlers?: {
-    onStatus?: (message: string) => void
-    onQuestion?: (index: number, question: ClarifyingQuestion) => void
-  }) => {
-    const questions: ClarifyingQuestion[] = []
+  clarify: async (
+    description: string,
+    handlers?: {
+      onStatus?: (message: string) => void;
+      onQuestion?: (index: number, question: ClarifyingQuestion) => void;
+      signal?: AbortSignal;
+    },
+  ) => {
+    const questions: ClarifyingQuestion[] = [];
     const result = await consumeSse<{
-      needsClarification: boolean
-      questions: ClarifyingQuestion[]
+      needsClarification: boolean;
+      questions: ClarifyingQuestion[];
     }>(
       "/api/intake/clarify",
       { description },
       {
         onStatus: handlers?.onStatus,
+        signal: handlers?.signal,
         onEvent: (event, data) => {
           if (event === "question") {
             const { index, question } = data as {
-              index: number
-              question: ClarifyingQuestion
-            }
-            questions[index] = question
-            handlers?.onQuestion?.(index, question)
+              index: number;
+              question: ClarifyingQuestion;
+            };
+            questions[index] = question;
+            handlers?.onQuestion?.(index, question);
           }
         },
       },
-    )
+    );
     return {
       needsClarification: result.needsClarification,
       questions: result.questions.length > 0 ? result.questions : questions,
-    }
+    };
   },
 
   uploadPdf: async (file: File) => {
-    const form = new FormData()
-    form.append("file", file)
+    const form = new FormData();
+    form.append("file", file);
     const res = await fetch("/api/uploads", {
       method: "POST",
       body: form,
       credentials: "include",
       headers: { "X-Timezone": getTimezone() },
-    })
+    });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new ApiClientError(body.error ?? res.statusText, res.status)
+      const body = await res.json().catch(() => ({}));
+      throw new ApiClientError(body.error ?? res.statusText, res.status);
     }
-    return res.json() as Promise<{ fileId: string }>
+    return res.json() as Promise<{ fileId: string }>;
   },
 
   generateSession: async (
     params: {
-      description: string
-      clarifications?: Record<string, string>
-      fileId?: string
-      count?: number
+      description: string;
+      clarifications?: Record<string, string>;
+      fileId?: string;
+      count?: number;
     },
     handlers?: {
-      onStatus?: (message: string) => void
+      onStatus?: (message: string) => void;
       onMetadata?: (meta: {
-        exam?: string
-        examCode?: string
-        focusTopics?: string[]
-      }) => void
-      onQuestionPreview?: (index: number, preview: { topic?: string }) => void
-      onQuestion?: (index: number) => void
+        exam?: string;
+        examCode?: string;
+        focusTopics?: string[];
+      }) => void;
+      onQuestionPreview?: (index: number, preview: { topic?: string }) => void;
+      onQuestion?: (index: number) => void;
     },
   ) =>
     consumeSse<PracticeSession & { remainingFreeQuestions?: number }>(
@@ -137,32 +142,32 @@ export const api = {
           if (event === "metadata") {
             handlers?.onMetadata?.(
               data as {
-                exam?: string
-                examCode?: string
-                focusTopics?: string[]
+                exam?: string;
+                examCode?: string;
+                focusTopics?: string[];
               },
-            )
+            );
           } else if (event === "question_preview") {
-            const { index, topic } = data as { index: number; topic?: string }
-            handlers?.onQuestionPreview?.(index, { topic })
+            const { index, topic } = data as { index: number; topic?: string };
+            handlers?.onQuestionPreview?.(index, { topic });
           } else if (event === "question") {
-            const { index } = data as { index: number }
-            handlers?.onQuestion?.(index)
+            const { index } = data as { index: number };
+            handlers?.onQuestion?.(index);
           }
         },
       },
     ),
 
   startExam: (params: {
-    questionCount: number
-    durationSec: number
-    exam?: string
-    examCode?: string
-    description?: string
-    focusTopicsText?: string
-    focusTopics?: string[]
-    fileId?: string
-    focusDomainIds?: string[]
+    questionCount: number;
+    durationSec: number;
+    exam?: string;
+    examCode?: string;
+    description?: string;
+    focusTopicsText?: string;
+    focusTopics?: string[];
+    fileId?: string;
+    focusDomainIds?: string[];
   }) =>
     consumeSse<PracticeSession & { remainingFreeQuestions?: number }>(
       "/api/exams",
@@ -176,18 +181,18 @@ export const api = {
   answerQuestion: (
     sessionId: string,
     body: {
-      questionId: string
-      selectedOptionIds: string[]
-      dragAnswer?: import("@/types").DragAnswer
-      timeSpentSec: number
-      confidence?: import("@/types").Confidence
+      questionId: string;
+      selectedOptionIds: string[];
+      dragAnswer?: import("@/types").DragAnswer;
+      timeSpentSec: number;
+      confidence?: import("@/types").Confidence;
     },
   ) =>
     request<{
-      answer: PracticeSession["answers"][string]
-      question: PracticeSession["questions"][number]
-      session: PracticeSession
-      remainingFreeQuestions: number
+      answer: PracticeSession["answers"][string];
+      question: PracticeSession["questions"][number];
+      session: PracticeSession;
+      remainingFreeQuestions: number;
     }>(`/api/sessions/${sessionId}/answer`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -232,34 +237,34 @@ export const api = {
 
   missedQuestions: (dueOnly = false) => {
     if (USE_MOCKS) {
-      const items = buildMockMissedQuestions()
-      return Promise.resolve({ items, count: items.length })
+      const items = buildMockMissedQuestions();
+      return Promise.resolve({ items, count: items.length });
     }
     return request<{
       items: Array<{
-        questionId: string
-        sessionId: string
-        exam: string
-        examCode: string
-        answeredAt: string
-        question: PracticeSession["questions"][number]
-      }>
-      count: number
-    }>(`/api/progress/missed?due=${dueOnly}`)
+        questionId: string;
+        sessionId: string;
+        exam: string;
+        examCode: string;
+        answeredAt: string;
+        question: PracticeSession["questions"][number];
+      }>;
+      count: number;
+    }>(`/api/progress/missed?due=${dueOnly}`);
   },
 
   retryMissedQuestion: (
     questionId: string,
     body: {
-      selectedOptionIds: string[]
-      dragAnswer?: import("@/types").DragAnswer
-      timeSpentSec?: number
+      selectedOptionIds: string[];
+      dragAnswer?: import("@/types").DragAnswer;
+      timeSpentSec?: number;
     },
   ) =>
     request<{
-      isCorrect: boolean
-      question: PracticeSession["questions"][number]
-      remainingCount: number
+      isCorrect: boolean;
+      question: PracticeSession["questions"][number];
+      remainingCount: number;
     }>(`/api/progress/missed/${questionId}/retry`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -269,15 +274,37 @@ export const api = {
     questionId: string,
     selectedOptionIds: string[],
     messages: { role: "user" | "assistant"; content: string }[] = [],
+    dragAnswer?: import("@/types").DragAnswer,
+    opts?: { onDelta?: (text: string) => void; signal?: AbortSignal },
   ) => {
     if (USE_MOCKS) {
-      const last = messages.filter((m) => m.role === "user").at(-1)?.content ?? ""
-      return Promise.resolve({ reply: mockTutorReply(last) })
+      const last =
+        messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+      const reply = mockTutorReply(last);
+      opts?.onDelta?.(reply);
+      return Promise.resolve({ reply });
     }
-    return request<{ reply: string }>("/api/practice/tutor", {
+    return consumeSse<{ reply: string }>(
+      "/api/practice/tutor",
+      { questionId, selectedOptionIds, messages, dragAnswer },
+      {
+        signal: opts?.signal,
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            const text = (data as { text?: string }).text;
+            if (text) opts?.onDelta?.(text);
+          }
+        },
+      },
+    );
+  },
+
+  rateFlashcard: (questionId: string, known: boolean) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>("/api/flashcards/rate", {
       method: "POST",
-      body: JSON.stringify({ questionId, selectedOptionIds, messages }),
-    })
+      body: JSON.stringify({ questionId, known }),
+    });
   },
 
   masteryTrend: () =>
@@ -289,7 +316,7 @@ export const api = {
     ),
 
   readinessTrend: () =>
-    request<{ label: string; score: number }[]>(
+    request<{ label: string; score: number; date?: string }[]>(
       "/api/progress/readiness/trend",
     ),
 
@@ -301,10 +328,7 @@ export const api = {
       body: JSON.stringify({ targetDate }),
     }),
 
-  updatePlanTask: (
-    taskId: string,
-    status: import("@/types").StudyTaskStatus,
-  ) =>
+  updatePlanTask: (taskId: string, status: import("@/types").StudyTaskStatus) =>
     request<import("@/types").StudyPlanTask>(`/api/plan/tasks/${taskId}`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
@@ -325,9 +349,9 @@ export const api = {
 
   progressSummary: () =>
     request<{
-      overallMastery: number
-      lifetimeAnswered: number
-      streakDays: number
+      overallMastery: number;
+      lifetimeAnswered: number;
+      streakDays: number;
     }>("/api/progress/summary"),
 
   learnTopics: () => request<LearnTopic[]>("/api/learn/topics"),
@@ -360,68 +384,82 @@ export const api = {
 
   bookmarks: () => {
     if (USE_MOCKS) {
-      const items = buildMockBookmarks()
-      return Promise.resolve({ items, count: items.length })
+      const items = buildMockBookmarks();
+      return Promise.resolve({ items, count: items.length });
     }
     return request<{ items: import("@/types").Bookmark[]; count: number }>(
       "/api/bookmarks",
-    )
+    );
   },
 
   bookmarkIds: () => {
     if (USE_MOCKS) {
-      return Promise.resolve({ ids: buildMockBookmarks().map((b) => b.questionId) })
+      return Promise.resolve({
+        ids: buildMockBookmarks().map((b) => b.questionId),
+      });
     }
-    return request<{ ids: string[] }>("/api/bookmarks/ids")
+    return request<{ ids: string[] }>("/api/bookmarks/ids");
   },
 
   addBookmark: (questionId: string) => {
-    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId })
+    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId });
     return request<{ ok: boolean }>("/api/bookmarks", {
       method: "POST",
       body: JSON.stringify({ questionId }),
-    })
+    });
   },
 
   removeBookmark: (questionId: string) => {
-    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId })
+    if (USE_MOCKS) return Promise.resolve({ ok: true, questionId });
     return request<{ ok: boolean }>("/api/bookmarks", {
       method: "DELETE",
       body: JSON.stringify({ questionId }),
-    })
+    });
+  },
+
+  reportQuestion: (
+    questionId: string,
+    reason: "wrong_answer" | "unclear" | "typo" | "other",
+    detail?: string,
+  ) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>("/api/questions/report", {
+      method: "POST",
+      body: JSON.stringify({ questionId, reason, detail }),
+    });
   },
 
   team: () => {
-    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
-    return request<import("@/types").Team | null>("/api/team")
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam());
+    return request<import("@/types").Team | null>("/api/team");
   },
 
   createTeam: (name: string) => {
-    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam());
     return request<import("@/types").Team>("/api/team", {
       method: "POST",
       body: JSON.stringify({ name }),
-    })
+    });
   },
 
   inviteToTeam: () => {
-    if (USE_MOCKS) return Promise.resolve({ token: "mock-invite-token" })
-    return request<{ token: string }>("/api/team/invite", { method: "POST" })
+    if (USE_MOCKS) return Promise.resolve({ token: "mock-invite-token" });
+    return request<{ token: string }>("/api/team/invite", { method: "POST" });
   },
 
   joinTeam: (token: string) => {
-    if (USE_MOCKS) return Promise.resolve(buildMockTeam())
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam());
     return request<import("@/types").Team>("/api/team/join", {
       method: "POST",
       body: JSON.stringify({ token }),
-    })
+    });
   },
 
   removeTeamMember: (userId: string) => {
-    if (USE_MOCKS) return Promise.resolve({ ok: true })
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
     return request<{ ok: boolean }>(`/api/team/members/${userId}`, {
       method: "DELETE",
-    })
+    });
   },
 
   getSubscription: () => {
@@ -432,34 +470,39 @@ export const api = {
         nextBilledAt: null,
         cancelEffectiveAt: null,
         updatePaymentUrl: null,
-      })
+      });
     }
     return request<import("@/types").SubscriptionDetails>(
       "/api/paddle/subscription",
-    )
+    );
   },
 
   cancelSubscription: () =>
     request<import("@/types").SubscriptionDetails>("/api/paddle/subscription", {
       method: "POST",
     }),
-}
+};
 
 export const USE_MOCKS =
   process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
-  (!process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NODE_ENV === "development")
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NODE_ENV === "development");
 
 /** Canned tutor replies for mock mode (no AI call). */
 function mockTutorReply(lastUserMessage: string): string {
-  const msg = lastUserMessage.toLowerCase()
+  const msg = lastUserMessage.toLowerCase();
   if (msg.includes("mnemonic")) {
-    return "Try \"RICE\": Read-replicas Improve Concurrent rEads. When a question stresses read scaling without touching writes, RICE points you to read replicas."
+    return 'Try "RICE": Read-replicas Improve Concurrent rEads. When a question stresses read scaling without touching writes, RICE points you to read replicas.';
   }
   if (msg.includes("correct") || msg.includes("right")) {
-    return "The correct option directly addresses read scalability: read replicas serve read traffic off the primary, so latency drops during peak reads. The others fix availability or backups, not read throughput."
+    return "The correct option directly addresses read scalability: read replicas serve read traffic off the primary, so latency drops during peak reads. The others fix availability or backups, not read throughput.";
   }
-  if (msg.includes("beginner") || msg.includes("new") || msg.includes("simply")) {
-    return "Think of one busy cashier (the primary database). Read replicas are extra cashiers who can only ring up 'read' customers, so the line moves faster — without changing how new stock is added (writes)."
+  if (
+    msg.includes("beginner") ||
+    msg.includes("new") ||
+    msg.includes("simply")
+  ) {
+    return "Think of one busy cashier (the primary database). Read replicas are extra cashiers who can only ring up 'read' customers, so the line moves faster — without changing how new stock is added (writes).";
   }
-  return "Good question. Focus on what the scenario optimizes for: here it's read latency under load. Map each option to the bottleneck it solves, and pick the one that targets reads specifically."
+  return "Good question. Focus on what the scenario optimizes for: here it's read latency under load. Map each option to the bottleneck it solves, and pick the one that targets reads specifically.";
 }

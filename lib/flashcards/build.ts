@@ -1,4 +1,6 @@
 import type { Question } from "@/types"
+import { dragAnswerFlashcardBack } from "@/lib/ai/drag-answer-text"
+import { isMcqQuestion } from "@/lib/session-utils"
 
 export interface Flashcard {
   id: string
@@ -26,7 +28,9 @@ export function toFlashcard(item: MissedItemLike): Flashcard {
     .map((o) => o.text)
   const answerLine =
     correctTexts.length > 0 ? `✓ ${correctTexts.join("\n✓ ")}` : ""
-  const back = [answerLine, q.explanation?.trim()].filter(Boolean).join("\n\n")
+  const back = isMcqQuestion(q)
+    ? [answerLine, q.explanation?.trim()].filter(Boolean).join("\n\n")
+    : dragAnswerFlashcardBack(q)
 
   return {
     id: q.id,

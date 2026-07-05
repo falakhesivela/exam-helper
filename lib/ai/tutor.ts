@@ -1,5 +1,7 @@
 import OpenAI from "openai"
 
+import type { DragAnswer } from "@/types"
+
 const TIMEOUT_MS = 30_000
 
 type Provider = "xai" | "openai"
@@ -32,6 +34,9 @@ export interface TutorContext {
   correctOptionIds: string[]
   userSelectedIds: string[]
   explanation: string
+  questionType?: string
+  dragCorrectSummary?: string
+  dragUserSummary?: string
 }
 
 export interface TutorMessage {
@@ -58,13 +63,34 @@ function buildSystemPrompt(context: TutorContext): string {
     "Question context:",
     context.scenario ? `Scenario: ${context.scenario}` : "",
     `Question: ${context.prompt}`,
-    `Options: ${context.options.map((o) => `${o.id}) ${o.text}`).join(" | ")}`,
-    `Correct answer(s): ${correctTexts.join("; ") || "(unknown)"}`,
-    `The learner chose: ${userTexts.join("; ") || "(nothing)"}`,
+    context.questionType && context.questionType !== "mcq"
+      ? `Question type: ${context.questionType}`
+      : "",
+    context.options.length > 0
+      ? `Options: ${context.options.map((o) => `${o.id}) ${o.text}`).join(" | ")}`
+      : "",
+    context.dragCorrectSummary
+      ? `Correct answer: ${context.dragCorrectSummary}`
+      : `Correct answer(s): ${correctTexts.join("; ") || "(unknown)"}`,
+    context.dragUserSummary
+      ? `The learner answered: ${context.dragUserSummary}`
+      : `The learner chose: ${userTexts.join("; ") || "(nothing)"}`,
     `Reference explanation: ${context.explanation}`,
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+function buildMessages(context: TutorContext, history: TutorMessage[]) {
+  const turns: TutorMessage[] =
+    history.length > 0
+      ? history
+      : [{ role: "user", content: TUTOR_OPENING_PROMPT }]
+
+  return [
+    { role: "system" as const, content: buildSystemPrompt(context) },
+    ...turns.map((m) => ({ role: m.role, content: m.content })),
+  ]
 }
 
 /**
@@ -75,15 +101,7 @@ export async function tutorReply(
   context: TutorContext,
   history: TutorMessage[],
 ): Promise<string> {
-  const turns: TutorMessage[] =
-    history.length > 0
-      ? history
-      : [{ role: "user", content: TUTOR_OPENING_PROMPT }]
-
-  const messages = [
-    { role: "system" as const, content: buildSystemPrompt(context) },
-    ...turns.map((m) => ({ role: m.role, content: m.content })),
-  ]
+  const messages = buildMessages(context, history)
 
   let lastError: unknown
   for (const provider of ["xai", "openai"] as Provider[]) {
@@ -99,6 +117,48 @@ export async function tutorReply(
       if (text) return text
     } catch (err) {
       lastError = err
+    }
+  }
+
+  throw lastError ?? new Error("AI tutor unavailable")
+}
+
+/**
+ * Streaming variant of `tutorReply`: emits text deltas as they arrive and
+ * resolves with the full reply. Falls back to the next provider only if
+ * nothing has been emitted yet — a partial reply can't be restarted cleanly.
+ */
+export async function tutorReplyStream(
+  context: TutorContext,
+  history: TutorMessage[],
+  onDelta: (text: string) => void,
+): Promise<string> {
+  const messages = buildMessages(context, history)
+
+  let lastError: unknown
+  for (const provider of ["xai", "openai"] as Provider[]) {
+    const client = getClient(provider)
+    if (!client) continue
+    let emitted = ""
+    try {
+      const stream = await client.chat.completions.create({
+        model: getModel(provider),
+        messages,
+        max_tokens: 400,
+        stream: true,
+      })
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content ?? ""
+        if (delta) {
+          emitted += delta
+          onDelta(delta)
+        }
+      }
+      const text = emitted.trim()
+      if (text) return text
+    } catch (err) {
+      lastError = err
+      if (emitted) throw err
     }
   }
 

@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, Sparkles, User, Users } from "lucide-react"
+import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, User, Users } from "lucide-react"
 import { Logo } from "@/components/layout/logo"
+import { UsageMeter } from "@/components/layout/usage-meter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/practice", label: "Practice", icon: Compass },
   { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/plan", label: "Plan", icon: CalendarCheck },
   { href: "/exam", label: "Exam", icon: AlarmClock },
@@ -59,14 +60,7 @@ export function TopBar() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
-          {profile.plan !== "pro" ? (
-            <Button size="sm" variant="outline" className="gap-1.5" asChild>
-              <Link href="/upgrade">
-                <Sparkles className="size-3.5 text-primary" />
-                <span className="hidden sm:inline">Upgrade</span>
-              </Link>
-            </Button>
-          ) : null}
+          <UsageMeter />
           {isAnonymous ? (
             <>
               <Button size="sm" variant="ghost" asChild>

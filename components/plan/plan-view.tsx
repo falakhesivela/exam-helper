@@ -273,7 +273,7 @@ const PACE_COPY: Record<
 > = {
   behind: {
     label: "Behind schedule",
-    tone: "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#f59e0b]",
+    tone: "border-warning/40 bg-warning/10 text-warning",
     detail: (p) =>
       `You're ${p.behindBy} task${p.behindBy === 1 ? "" : "s"} behind. Aim for ~${p.requiredPerDay}/day to finish on time.`,
   },

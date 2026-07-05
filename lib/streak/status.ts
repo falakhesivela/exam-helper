@@ -57,17 +57,19 @@ export interface ActivityDay {
 }
 
 /**
- * Build a last-7-days activity row (oldest→newest) from per-day question
- * counts, marking days that met the goal.
+ * Build a trailing activity row (oldest→newest) from per-day question
+ * counts, marking days that met the goal. Defaults to the last 7 days;
+ * the dashboard heatmap asks for 84 (12 weeks).
  */
 export function buildActivityRow(
   usageByDate: Record<string, number>,
   dailyGoal: number,
   todayIso: string,
+  totalDays = 7,
 ): ActivityDay[] {
   const goal = Math.max(1, dailyGoal)
   const days: ActivityDay[] = []
-  for (let i = 6; i >= 0; i--) {
+  for (let i = totalDays - 1; i >= 0; i--) {
     const d = new Date(`${todayIso}T00:00:00Z`)
     d.setUTCDate(d.getUTCDate() - i)
     const date = d.toISOString().slice(0, 10)

@@ -15,14 +15,14 @@ import { ApiClientError } from "@/lib/api/client"
  * then mark it done. Practice/exam tasks generate a session; lesson/review
  * tasks just navigate.
  */
-export function useTaskLauncher(plan: StudyPlan) {
+export function useTaskLauncher(plan: StudyPlan | null) {
   const router = useRouter()
   const hydrate = useSessionStore((s) => s.hydrate)
   const updatePlanTask = useSessionStore((s) => s.updatePlanTask)
   const [launchingId, setLaunchingId] = useState<string | null>(null)
 
   function launch(task: StudyPlanTask) {
-    if (launchingId) return
+    if (!plan || launchingId) return
 
     if (task.type === "lesson" && task.domainName) {
       const { slug } = resolveTopicName(task.domainName, plan.examCode)

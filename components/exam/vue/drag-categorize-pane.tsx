@@ -2,18 +2,22 @@
 
 import { useMemo, useState } from "react"
 import type { DragAnswer, Question } from "@/types"
+import { cn } from "@/lib/utils"
 import { DragItemChip } from "./drag-item-chip"
 
 interface DragCategorizePaneProps {
   question: Question
   answer?: DragAnswer
   onChange: (answer: DragAnswer) => void
+  /** Locks interaction and shows per-item feedback + correct placements. */
+  revealed?: boolean
 }
 
 export function DragCategorizePane({
   question,
   answer,
   onChange,
+  revealed = false,
 }: DragCategorizePaneProps) {
   const data = question.dragData
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
@@ -28,6 +32,17 @@ export function DragCategorizePane({
 
   const assignedIds = new Set(Object.values(buckets).flat())
   const pool = categorizeData.items.filter((item) => !assignedIds.has(item.id))
+
+  const anyWrong =
+    revealed &&
+    categorizeData.categories.some((cat) => {
+      const placed = buckets[cat.id] ?? []
+      const correct = categorizeData.correctBuckets[cat.id] ?? []
+      return (
+        placed.some((id) => !correct.includes(id)) ||
+        correct.some((id) => !placed.includes(id))
+      )
+    })
 
   function assign(categoryId: string) {
     if (!selectedItemId) return
@@ -49,13 +64,16 @@ export function DragCategorizePane({
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">
-        Tap an item, then tap the category it belongs to.
-      </p>
+      {!revealed && (
+        <p className="text-sm text-muted-foreground">
+          Tap an item, then tap the category it belongs to.
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {categorizeData.categories.map((category) => {
           const ids = buckets[category.id] ?? []
+          const correctIds = categorizeData.correctBuckets[category.id] ?? []
           return (
             <div
               key={category.id}
@@ -64,20 +82,36 @@ export function DragCategorizePane({
               <p className="mb-2 text-sm font-medium">{category.label}</p>
               <div className="flex min-h-12 flex-wrap gap-2">
                 {ids.length === 0 ? (
-                  <DragItemChip
-                    label="Tap to assign"
-                    onClick={() => assign(category.id)}
-                  />
+                  revealed ? (
+                    <p className="text-xs text-muted-foreground">Empty</p>
+                  ) : (
+                    <DragItemChip
+                      label="Tap to assign"
+                      onClick={() => assign(category.id)}
+                    />
+                  )
                 ) : (
                   ids.map((itemId) => {
                     const item = categorizeData.items.find((i) => i.id === itemId)
                     if (!item) return null
+                    const isCorrect = revealed && correctIds.includes(itemId)
+                    const isWrong = revealed && !isCorrect
                     return (
                       <DragItemChip
                         key={itemId}
                         label={item.text}
                         assigned
-                        onClick={() => removeItem(category.id, itemId)}
+                        onClick={
+                          revealed
+                            ? undefined
+                            : () => removeItem(category.id, itemId)
+                        }
+                        className={cn(
+                          isCorrect &&
+                            "border-success/60 bg-success/10 text-success",
+                          isWrong &&
+                            "border-destructive/60 bg-destructive/10 text-destructive",
+                        )}
                       />
                     )
                   })
@@ -88,23 +122,53 @@ export function DragCategorizePane({
         })}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Items
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {pool.map((item) => (
-            <DragItemChip
-              key={item.id}
-              label={item.text}
-              selected={selectedItemId === item.id}
-              onClick={() =>
-                setSelectedItemId((prev) => (prev === item.id ? null : item.id))
-              }
-            />
-          ))}
+      {!revealed && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Items
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {pool.map((item) => (
+              <DragItemChip
+                key={item.id}
+                label={item.text}
+                selected={selectedItemId === item.id}
+                onClick={() =>
+                  setSelectedItemId((prev) => (prev === item.id ? null : item.id))
+                }
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {anyWrong && (
+        <div className="rounded-md border border-success/40 bg-success/5 p-3">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-success">
+            Correct placement
+          </p>
+          <div className="flex flex-col gap-2">
+            {categorizeData.categories.map((cat) => {
+              const correctIds = categorizeData.correctBuckets[cat.id] ?? []
+              if (correctIds.length === 0) return null
+              return (
+                <p key={cat.id} className="text-sm">
+                  <span className="font-medium">{cat.label}:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {correctIds
+                      .map(
+                        (id) =>
+                          categorizeData.items.find((i) => i.id === id)?.text,
+                      )
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </p>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

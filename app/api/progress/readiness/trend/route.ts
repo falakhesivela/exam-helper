@@ -85,6 +85,7 @@ export async function GET() {
     const trend = (snaps ?? []).slice(-MAX_POINTS).map((s) => ({
       label: formatLabel(s.snapshot_date),
       score: s.score,
+      date: s.snapshot_date,
     }))
 
     return NextResponse.json(trend)

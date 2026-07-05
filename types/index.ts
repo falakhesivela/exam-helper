@@ -225,7 +225,7 @@ export interface StreakSummary {
   questionsToday: number
   /** Whether the streak will break if the user doesn't practice today. */
   atRisk: boolean
-  /** Last 7 days oldest→newest. */
+  /** Trailing daily activity oldest→newest (84 days = 12 weeks). */
   activity: { date: string; count: number; goalMet: boolean }[]
 }
 

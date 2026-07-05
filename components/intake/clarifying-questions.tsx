@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Sparkles } from "lucide-react"
 import { motion } from "motion/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,30 +8,21 @@ import type { ClarifyingQuestion } from "@/types"
 
 interface ClarifyingQuestionsProps {
   questions: ClarifyingQuestion[]
-  onAnswersChange?: (answers: Record<string, string>) => void
+  /** Controlled answers keyed by question id. */
+  answers: Record<string, string>
+  onAnswerChange: (questionId: string, value: string | undefined) => void
 }
 
 /**
  * Displays the AI's clarifying questions as friendly chat-style bubbles with
- * single-select chip answers. Purely presentational for the prototype.
+ * single-select chip answers. Controlled by the intake form so answers survive
+ * step navigation.
  */
-export function ClarifyingQuestions({ questions, onAnswersChange }: ClarifyingQuestionsProps) {
-  const [answers, setAnswers] = useState<Record<string, string[]>>({})
-
-  function handleChange(id: string, value: string[]) {
-    setAnswers((a) => {
-      const next = { ...a, [id]: value }
-      if (onAnswersChange) {
-        const mapped: Record<string, string> = {}
-        for (const [qId, vals] of Object.entries(next)) {
-          if (vals[0]) mapped[qId] = vals[0]
-        }
-        onAnswersChange(mapped)
-      }
-      return next
-    })
-  }
-
+export function ClarifyingQuestions({
+  questions,
+  answers,
+  onAnswerChange,
+}: ClarifyingQuestionsProps) {
   return (
     <Card className="border-primary/20">
       <CardHeader>
@@ -59,8 +49,11 @@ export function ClarifyingQuestions({ questions, onAnswersChange }: ClarifyingQu
               {q.question}
             </p>
             <ToggleGroup
-              value={answers[q.id] ?? []}
-              onValueChange={(value) => handleChange(q.id, value)}
+              multiple={false}
+              value={answers[q.id] ? [answers[q.id]] : []}
+              onValueChange={(value: string[]) =>
+                onAnswerChange(q.id, value[value.length - 1])
+              }
               className="flex-wrap justify-start gap-2"
             >
               {q.suggestions.map((s) => (

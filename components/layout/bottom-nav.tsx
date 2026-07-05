@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils"
 // Most-used destinations stay on the bar; the rest live in the "More" drawer.
 const primaryItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/intake", label: "Practice", icon: Compass },
+  { href: "/practice", label: "Practice", icon: Compass },
   { href: "/plan", label: "Plan", icon: CalendarCheck },
   { href: "/exam", label: "Exam", icon: AlarmClock },
 ]
