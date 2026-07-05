@@ -59,11 +59,10 @@ export function OptionCard({
               ? { scale: [1, 1.02, 1] }
               : undefined
         }
-        transition={
-          showCorrect
-            ? { type: "spring", stiffness: 500, damping: 14 }
-            : { duration: 0.35 }
-        }
+        // Keyframe animations must use a tween — motion throws on springs with
+        // more than two keyframes, which kills every queued animation on the
+        // page (including the explanation panel's reveal).
+        transition={{ duration: 0.35, ease: "easeOut" }}
         aria-pressed={selected}
         className={cn(
           "flex w-full items-center gap-3.5 rounded-2xl border-2 p-4 text-left transition-colors",

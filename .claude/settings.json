@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(timeout 60 bash -c 'until curl -sf http://localhost:3100 >/dev/null 2>&1; do sleep 2; done')",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/94f13dfa-33b5-4385-858d-657dc26d1e4b/scratchpad/drive-quiz.mjs)",
+      "Bash(NODE_PATH=./node_modules node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/94f13dfa-33b5-4385-858d-657dc26d1e4b/scratchpad/drive-quiz.mjs)",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/94f13dfa-33b5-4385-858d-657dc26d1e4b/scratchpad/debug-fill.mjs)",
+      "Bash(pkill -f \"next dev -p 3100\")",
+      "Bash(rm -rf /home/fsivela/my-projects/.certforge-verify-tmp)",
+      "Read(//home/fsivela/my-projects/**)"
+    ]
+  }
+}
