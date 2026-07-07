@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { isPaidTier, TIER_NAMES } from "@/lib/config/tiers"
 import { api } from "@/lib/api/client"
+import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { AccountGate } from "@/components/auth/account-gate"
 import { useProCheckout } from "@/components/upgrade/use-pro-checkout"
@@ -39,7 +40,11 @@ export default function ProfilePage() {
     if (signingOut) return
     setSigningOut(true)
     try {
-      await api.signOut()
+      // Clear the Supabase session cookies client-side. This is what actually
+      // signs the user out — the backend endpoint is only an acknowledgment.
+      await createClient().auth.signOut()
+      // Best-effort backend notification; ignore failures so sign-out still completes.
+      await api.signOut().catch(() => {})
       router.push("/login")
       router.refresh()
     } catch {
