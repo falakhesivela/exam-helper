@@ -65,15 +65,55 @@ export function isQuestionAnswered(
 }
 
 /**
- * How many options a multi-select MCQ expects, when derivable from the stem
- * ("Select TWO answers", "Choose three responses"). Null when unknown.
+ * How many options a multi-select MCQ expects, when derivable from explicit
+ * stem instructions ("Select TWO answers", "Which three…"). Null when unknown.
+ *
+ * Avoids false positives from incidental "two" (e.g. "across two Regions").
  */
 export function expectedSelectionCount(question: Question): number | null {
   if (!isMcqQuestion(question) || !question.multiSelect) return null;
   const stem = questionStemText(question).toLowerCase();
-  if (/\bthree\b/.test(stem)) return 3;
-  if (/\btwo\b/.test(stem)) return 2;
+
+  const verbCount = stem.match(
+    /\b(?:select|choose|pick)(?:\s+(?:the|all|exactly|only))?\s*(two|three|2|3)\b/,
+  );
+  if (verbCount) {
+    return verbCount[1] === "three" || verbCount[1] === "3" ? 3 : 2;
+  }
+
+  const whichCount = stem.match(/\bwhich\s+(two|three|2|3)\b/);
+  if (whichCount) {
+    return whichCount[1] === "three" || whichCount[1] === "3" ? 3 : 2;
+  }
+
+  const parenCount = stem.match(/\(\s*select\s+(two|three|2|3)\b/);
+  if (parenCount) {
+    return parenCount[1] === "three" || parenCount[1] === "3" ? 3 : 2;
+  }
+
   return null;
+}
+
+/** Keep only option ids that exist on the current question. */
+export function validMcqSelections(
+  question: Question,
+  selectedIds: string[],
+): string[] {
+  if (!isMcqQuestion(question)) return selectedIds;
+  const optionIds = new Set((question.options ?? []).map((o) => o.id));
+  return selectedIds.filter((id) => optionIds.has(id));
+}
+
+/** Label for the submit button while a counted multi-select is incomplete. */
+export function multiSelectSubmitLabel(
+  selectedCount: number,
+  expectedCount: number,
+): string {
+  if (selectedCount < expectedCount) {
+    const remaining = expectedCount - selectedCount;
+    return `Select ${remaining} more (${selectedCount}/${expectedCount})`;
+  }
+  return `Too many selected (${selectedCount}/${expectedCount})`;
 }
 
 function recordHasResponse(record: AnswerRecord): boolean {

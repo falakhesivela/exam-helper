@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server"
 import { ZodError } from "zod"
 import { FreemiumExceededError, LessonLimitExceededError } from "@/lib/db/usage"
+import { QuotaExceededError } from "@/lib/entitlements"
 
 export interface ApiErrorBody {
   error: string
   code?: string
   details?: unknown
   remaining?: number
+  /** Which feature ran out (quota errors). */
+  feature?: string
+  /** Tier the paywall should suggest. */
+  upgradeTier?: string
 }
 
 export function apiError(
@@ -37,6 +42,14 @@ export function handleRouteError(err: unknown) {
     return apiError(err.message, 402, {
       code: err.code,
       remaining: err.remaining,
+    })
+  }
+  if (err instanceof QuotaExceededError) {
+    return apiError(err.message, 402, {
+      code: err.code,
+      remaining: err.remaining,
+      feature: err.feature,
+      upgradeTier: err.upgradeTier,
     })
   }
   if (err instanceof Error && err.message === "Unauthorized") {

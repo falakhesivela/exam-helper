@@ -3,6 +3,7 @@ import {
   streamGenerateDragQuestions,
   streamGenerateQuestions,
 } from "@/lib/ai/stream";
+import type { AiContext } from "@/lib/ai/client";
 import type { SseSend } from "@/lib/ai/sse";
 import type { GeneratedQuestion } from "@/lib/ai/schemas";
 import { verifyReferences } from "@/lib/ai/verify-references";
@@ -56,6 +57,8 @@ export interface GenerateSessionStreamParams {
   adaptiveDifficulty?: AdaptiveDifficulty;
   /** Explicit learner-chosen difficulty prompt line; overrides adaptive hints. */
   difficultyHint?: string;
+  /** Study-plan task this session fulfills (already ownership-validated). */
+  planTaskId?: string;
 }
 
 function safeSend(send: SseSend, event: string, data: unknown) {
@@ -113,6 +116,7 @@ async function generateAllQuestions(
   params: GenerateSessionStreamParams,
   total: number,
   callbacks: GenerationCallbacks,
+  ctx: AiContext,
 ): Promise<{
   exam: string;
   examCode: string;
@@ -131,6 +135,7 @@ async function generateAllQuestions(
         adaptiveDifficulty: params.adaptiveDifficulty,
         difficultyHint: params.difficultyHint,
       },
+      ctx,
     );
   }
 
@@ -147,6 +152,7 @@ async function generateAllQuestions(
           : undefined),
     },
     callbacks,
+    ctx,
   );
 }
 
@@ -157,13 +163,20 @@ function tagForDomain(
   return { ...question, topic: domain.name, domainId: domain.id };
 }
 
-function syllabusGroundingBlock(groundingText?: string): string[] {
-  if (!groundingText?.trim()) return [];
+/**
+ * Syllabus grounding appended to the *system* prompt (not the per-domain user
+ * prompt). Because the system prompt is byte-identical across every per-domain
+ * and per-drag call in one exam, both xAI and OpenAI serve it from their
+ * automatic prefix cache after the first call — instead of re-billing the full
+ * 8K excerpt 6–12 times per mock exam.
+ */
+function syllabusSystemSuffix(groundingText?: string): string {
+  if (!groundingText?.trim()) return "";
   return [
     "",
-    "Syllabus excerpt (use for topic grounding):",
+    "Syllabus excerpt (use for topic grounding across all questions):",
     groundingText.trim().slice(0, 8000),
-  ];
+  ].join("\n");
 }
 
 async function generateBlueprintExamQuestions(
@@ -178,6 +191,7 @@ async function generateBlueprintExamQuestions(
     /** Explicit learner-chosen difficulty line; wins over adaptive mastery. */
     difficultyHint?: string;
   },
+  ctx: AiContext = {},
 ): Promise<{
   exam: string;
   examCode: string;
@@ -205,8 +219,11 @@ async function generateBlueprintExamQuestions(
   const dragAlloc = typeAlloc.filter((t) => t.type !== "mcq");
 
   const allocations = allocateQuestionsByDomain(mcqTotal, domains);
-  const systemPrompt = examSimulationSystemPrompt(blueprint);
-  const dragSystemPrompt = examDragSystemPrompt(blueprint);
+  // Syllabus lives in the (byte-identical) system prompt so both providers'
+  // prefix caches cover it across every per-domain call in this exam.
+  const syllabusSuffix = syllabusSystemSuffix(groundingText);
+  const systemPrompt = examSimulationSystemPrompt(blueprint) + syllabusSuffix;
+  const dragSystemPrompt = examDragSystemPrompt(blueprint) + syllabusSuffix;
   const mcqQuestions: GeneratedQuestion[] = [];
   let globalIndex = 0;
 
@@ -223,7 +240,6 @@ async function generateBlueprintExamQuestions(
       ...difficultyFor(domain.id),
       "",
       domainGroundingText(domain),
-      ...syllabusGroundingBlock(groundingText),
     ].join("\n");
 
     const batch = await streamGenerateQuestions(
@@ -248,6 +264,7 @@ async function generateBlueprintExamQuestions(
           );
         },
       },
+      ctx,
     );
 
     for (const question of batch.questions) {
@@ -285,7 +302,6 @@ async function generateBlueprintExamQuestions(
           ...difficultyFor(domain.id),
           "",
           domainGroundingText(domain),
-          ...syllabusGroundingBlock(groundingText),
         ].join("\n");
 
         const batch = await streamGenerateDragQuestions(
@@ -309,6 +325,7 @@ async function generateBlueprintExamQuestions(
               );
             },
           },
+          ctx,
         );
 
         for (const question of batch) {
@@ -404,6 +421,7 @@ export async function runGenerateSessionStream(
       expectedQuestionCount: params.count,
       durationSec: params.durationSec,
       passMark: params.passMark,
+      planTaskId: params.planTaskId,
     });
     sessionId = shell.id;
     return sessionId;
@@ -462,23 +480,28 @@ export async function runGenerateSessionStream(
         : "Generating exam-style questions…";
     safeSend(send, "status", { message: statusMessage });
 
-    const generated = await generateAllQuestions(params, params.count, {
-      onMetadata: (meta) => {
-        if (meta.exam) shellMeta.exam = meta.exam;
-        if (meta.examCode) shellMeta.examCode = meta.examCode;
-        if (meta.focusTopics?.length) shellMeta.focusTopics = meta.focusTopics;
-        safeSend(send, "metadata", meta);
+    const generated = await generateAllQuestions(
+      params,
+      params.count,
+      {
+        onMetadata: (meta) => {
+          if (meta.exam) shellMeta.exam = meta.exam;
+          if (meta.examCode) shellMeta.examCode = meta.examCode;
+          if (meta.focusTopics?.length) shellMeta.focusTopics = meta.focusTopics;
+          safeSend(send, "metadata", meta);
+        },
+        onQuestionPreview: (index, preview) =>
+          safeSend(send, "question_preview", {
+            index,
+            ...preview,
+            total: params.count,
+          }),
+        onQuestion: (index, question) => {
+          saveQueue.push(saveQuestion(index, question));
+        },
       },
-      onQuestionPreview: (index, preview) =>
-        safeSend(send, "question_preview", {
-          index,
-          ...preview,
-          total: params.count,
-        }),
-      onQuestion: (index, question) => {
-        saveQueue.push(saveQuestion(index, question));
-      },
-    });
+      { userId },
+    );
 
     await Promise.all(saveQueue);
 

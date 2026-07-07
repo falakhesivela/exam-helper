@@ -21,6 +21,8 @@ export interface CreateSessionShellParams {
   expectedQuestionCount: number
   durationSec?: number
   passMark?: number
+  /** Study-plan task this session fulfills; completing it marks the task done. */
+  planTaskId?: string
 }
 
 export async function createSessionShell(
@@ -42,6 +44,7 @@ export async function createSessionShell(
       current_index: 0,
       expected_question_count: params.expectedQuestionCount,
       generation_status: "generating",
+      plan_task_id: params.planTaskId ?? null,
     })
     .select()
     .single()
@@ -207,8 +210,10 @@ export function gradeAnswer(
   correctIds: string[],
   selectedIds: string[],
 ): boolean {
-  const correct = [...correctIds].sort()
-  const selected = [...selectedIds].sort()
+  // Option ids are a set — dedupe both sides so a duplicate id in a stored
+  // answer key (e.g. a malformed ["b","b"]) can't fail a correct selection.
+  const correct = [...new Set(correctIds)].sort()
+  const selected = [...new Set(selectedIds)].sort()
   return (
     correct.length === selected.length &&
     correct.every((id, i) => id === selected[i])

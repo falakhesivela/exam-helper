@@ -33,10 +33,13 @@ function daysBetween(fromIso: string, toIso: string): number {
 }
 
 export function computePlanPace(plan: StudyPlan, todayIso: string): PlanPace {
-  const totalTasks = plan.tasks.length
-  const doneTasks = plan.tasks.filter((t) => t.status === "done").length
+  // Skipped tasks are out of the plan: they count toward neither the
+  // remaining work nor what "should" have been done by now.
+  const active = plan.tasks.filter((t) => t.status !== "skipped")
+  const totalTasks = active.length
+  const doneTasks = active.filter((t) => t.status === "done").length
   const tasksRemaining = totalTasks - doneTasks
-  const expectedDoneByToday = plan.tasks.filter(
+  const expectedDoneByToday = active.filter(
     (t) => t.scheduledDate <= todayIso,
   ).length
   const daysRemaining = Math.max(0, daysBetween(todayIso, plan.targetDate))

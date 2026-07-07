@@ -63,6 +63,7 @@ function statusLabel(status: string | null): {
 
 export default function BillingPage() {
   const plan = useSessionStore((s) => s.profile.plan)
+  const planExpiresAt = useSessionStore((s) => s.profile.planExpiresAt)
   const [sub, setSub] = useState<SubscriptionDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -129,6 +130,19 @@ export default function BillingPage() {
           <Card>
             <CardContent className="p-6 text-center text-sm text-muted-foreground">
               {error}
+            </CardContent>
+          </Card>
+        ) : plan === "exam_pass" ? (
+          // One-time Exam Pass purchase — no Paddle subscription to manage.
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <Sparkles className="size-6 text-primary" />
+              <h1 className="text-lg font-semibold">Exam Pass active</h1>
+              <p className="max-w-sm text-sm text-muted-foreground text-pretty">
+                {planExpiresAt
+                  ? `Full access until ${formatDate(planExpiresAt)}. Buy another pass any time to extend it.`
+                  : "Full access for your 90-day exam window."}
+              </p>
             </CardContent>
           </Card>
         ) : plan !== "pro" || !sub?.hasSubscription ? (

@@ -1,5 +1,3 @@
-import OpenAI from "openai"
-import { zodResponseFormat } from "openai/helpers/zod"
 import type { z } from "zod"
 import {
   clarifyResponseSchema,
@@ -16,88 +14,19 @@ import {
   generateUserPrompt,
 } from "./prompts"
 import { filterValidDragQuestions, filterValidMcqQuestions } from "./validator"
+import { streamStructured, type AiContext } from "./client"
+import { questionBatchMaxTokens } from "./index"
+import { verifyMcqBatch } from "./accuracy-gate"
 
-const TIMEOUT_MS = 60_000
 const MAX_REGEN_ATTEMPTS = 2
 
-type Provider = "xai" | "openai"
-
-function getXaiClient() {
-  const apiKey = process.env.XAI_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({
-    apiKey,
-    baseURL: "https://api.x.ai/v1",
-    timeout: TIMEOUT_MS,
-  })
-}
-
-function getOpenAiClient() {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({ apiKey, timeout: TIMEOUT_MS })
-}
-
-function getClient(provider: Provider) {
-  return provider === "xai" ? getXaiClient() : getOpenAiClient()
-}
-
-function getModel(provider: Provider) {
-  if (provider === "xai") {
-    return process.env.XAI_MODEL ?? "grok-3-fast"
-  }
-  return process.env.OPENAI_MODEL ?? "gpt-4o-mini"
+/** Output cap for a drag-question batch (~1100 tokens/question). */
+function dragBatchMaxTokens(count: number): number {
+  return Math.min(16000, 1100 * count + 600)
 }
 
 type ClarifyPartial = Partial<z.infer<typeof clarifyResponseSchema>>
 type GeneratePartial = Partial<z.infer<typeof generatedQuestionsSchema>>
-
-async function streamStructured<T>(
-  provider: Provider,
-  system: string,
-  user: string,
-  schema: Parameters<typeof zodResponseFormat>[0],
-  schemaName: string,
-  onDelta: (parsed: Partial<T> | null) => void,
-): Promise<T> {
-  const client = getClient(provider)
-  if (!client) throw new Error(`Missing API key for ${provider}`)
-
-  const completionStream = client.chat.completions.stream({
-    model: getModel(provider),
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: zodResponseFormat(schema, schemaName),
-    stream: true,
-  })
-
-  completionStream.on("content.delta", (event) => {
-    onDelta(event.parsed as Partial<T> | null)
-  })
-
-  const completion = await completionStream.finalChatCompletion()
-  const parsed = completion.choices[0]?.message?.parsed
-  if (!parsed) throw new Error(`Empty ${schemaName} response from ${provider}`)
-  return parsed as T
-}
-
-async function withStreamingFailover<T>(
-  fn: (provider: Provider) => Promise<T>,
-): Promise<T> {
-  const providers: Provider[] = ["xai", "openai"]
-  let lastError: unknown
-  for (const provider of providers) {
-    try {
-      return await fn(provider)
-    } catch (err) {
-      lastError = err
-      console.warn(`[ai:stream] ${provider} failed:`, err)
-    }
-  }
-  throw lastError ?? new Error("All AI providers failed")
-}
 
 function isClarifyQuestionComplete(
   q: Partial<z.infer<typeof clarifyResponseSchema>["questions"][number]>,
@@ -178,28 +107,28 @@ export async function streamClarify(
     onQuestion?: (index: number, question: z.infer<typeof clarifyResponseSchema>["questions"][number]) => void
     onDelta?: (partial: ClarifyPartial) => void
   },
+  ctx: AiContext = {},
 ) {
   let emittedQuestions = 0
 
-  const result = await withStreamingFailover((provider) =>
-    streamStructured<z.infer<typeof clarifyResponseSchema>>(
-      provider,
-      clarifySystemPrompt(),
-      clarifyUserPrompt(description),
-      clarifyResponseSchema,
-      "clarify_response",
-      (partial) => {
-        onEvent.onDelta?.(partial ?? {})
-        const questions = partial?.questions ?? []
-        for (let i = emittedQuestions; i < questions.length; i++) {
-          const q = questions[i]
-          if (isClarifyQuestionComplete(q)) {
-            onEvent.onQuestion?.(i, q)
-            emittedQuestions = i + 1
-          }
+  const result = await streamStructured<z.infer<typeof clarifyResponseSchema>>(
+    "clarify",
+    ctx,
+    clarifySystemPrompt(),
+    clarifyUserPrompt(description),
+    clarifyResponseSchema,
+    "clarify_response",
+    (partial) => {
+      onEvent.onDelta?.(partial ?? {})
+      const questions = partial?.questions ?? []
+      for (let i = emittedQuestions; i < questions.length; i++) {
+        const q = questions[i]
+        if (isClarifyQuestionComplete(q)) {
+          onEvent.onQuestion?.(i, q)
+          emittedQuestions = i + 1
         }
-      },
-    ),
+      }
+    },
   )
 
   return result
@@ -230,6 +159,7 @@ export async function streamGenerateQuestions(
     onQuestion?: (index: number, question: GeneratedQuestion) => void
     onDelta?: (partial: GeneratePartial) => void
   },
+  ctx: AiContext = {},
 ): Promise<{
   exam: string
   examCode: string
@@ -254,55 +184,60 @@ export async function streamGenerateQuestions(
         difficultyHint: params.difficultyHint,
       })
 
-    const result = await withStreamingFailover((provider) =>
-      streamStructured<z.infer<typeof generatedQuestionsSchema>>(
-        provider,
-        system,
-        user +
-          (attempt > 0
-            ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
-            : ""),
-        generatedQuestionsSchema,
-        "generated_questions",
-        (partial) => {
-          onEvent.onDelta?.(partial ?? {})
+    const result = await streamStructured<z.infer<typeof generatedQuestionsSchema>>(
+      "generate",
+      ctx,
+      system,
+      user +
+        (attempt > 0
+          ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
+          : ""),
+      generatedQuestionsSchema,
+      "generated_questions",
+      (partial) => {
+        onEvent.onDelta?.(partial ?? {})
 
-          const metaKey = `${partial?.exam ?? ""}|${partial?.examCode ?? ""}|${(partial?.focusTopics ?? []).join(",")}`
-          if (metaKey !== lastMetadataKey && (partial?.exam || partial?.examCode)) {
-            lastMetadataKey = metaKey
-            onEvent.onMetadata?.({
-              exam: partial?.exam,
-              examCode: partial?.examCode,
-              focusTopics: partial?.focusTopics,
+        const metaKey = `${partial?.exam ?? ""}|${partial?.examCode ?? ""}|${(partial?.focusTopics ?? []).join(",")}`
+        if (metaKey !== lastMetadataKey && (partial?.exam || partial?.examCode)) {
+          lastMetadataKey = metaKey
+          onEvent.onMetadata?.({
+            exam: partial?.exam,
+            examCode: partial?.examCode,
+            focusTopics: partial?.focusTopics,
+          })
+        }
+
+        const questions = partial?.questions ?? []
+        for (let i = emittedPreviews; i < questions.length; i++) {
+          const q = questions[i]
+          if (q?.topic || q?.prompt) {
+            onEvent.onQuestionPreview?.(i, {
+              topic: q.topic,
+              difficulty: q.difficulty,
             })
+            emittedPreviews = i + 1
           }
+        }
 
-          const questions = partial?.questions ?? []
-          for (let i = emittedPreviews; i < questions.length; i++) {
-            const q = questions[i]
-            if (q?.topic || q?.prompt) {
-              onEvent.onQuestionPreview?.(i, {
-                topic: q.topic,
-                difficulty: q.difficulty,
-              })
-              emittedPreviews = i + 1
-            }
+        for (let i = emittedQuestions; i < questions.length; i++) {
+          const q = questions[i]
+          if (isGeneratedMcqComplete(q)) {
+            onEvent.onQuestion?.(i, { ...q, questionType: "mcq" })
+            emittedQuestions = i + 1
           }
-
-          for (let i = emittedQuestions; i < questions.length; i++) {
-            const q = questions[i]
-            if (isGeneratedMcqComplete(q)) {
-              onEvent.onQuestion?.(i, { ...q, questionType: "mcq" })
-              emittedQuestions = i + 1
-            }
-          }
-        },
-      ),
+        }
+      },
+      { maxTokens: questionBatchMaxTokens(params.count) },
     )
 
-    const valid = filterValidMcqQuestions(
+    const structurallyValid = filterValidMcqQuestions(
       result.questions.map((q) => ({ ...q, questionType: "mcq" as const })),
     )
+    // Blind re-answer gate: a second model must independently reproduce each
+    // answer key. Rejects trigger another loop iteration (regeneration).
+    // Questions already streamed to the client optimistically are fine — the
+    // caller's final per-position overwrite replaces any rejected ones.
+    const { passed: valid } = await verifyMcqBatch(structurallyValid, ctx)
     lastValid = valid
 
     if (valid.length >= params.count) {
@@ -343,6 +278,7 @@ export async function streamGenerateDragQuestions(
     onQuestionPreview?: (index: number, preview: { topic?: string; difficulty?: string }) => void
     onQuestion?: (index: number, question: GeneratedDragQuestion) => void
   },
+  ctx: AiContext = {},
 ): Promise<GeneratedDragQuestion[]> {
   let lastValid: GeneratedDragQuestion[] = []
 
@@ -350,38 +286,38 @@ export async function streamGenerateDragQuestions(
     let emittedPreviews = 0
     let emittedQuestions = 0
 
-    const result = await withStreamingFailover((provider) =>
-      streamStructured<z.infer<typeof generatedDragBatchSchema>>(
-        provider,
-        params.systemPrompt,
-        params.userPrompt +
-          (attempt > 0
-            ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
-            : ""),
-        generatedDragBatchSchema,
-        "generated_drag_questions",
-        (partial) => {
-          const questions = partial?.questions ?? []
-          for (let i = emittedPreviews; i < questions.length; i++) {
-            const q = questions[i]
-            if (q?.topic || q?.prompt) {
-              onEvent.onQuestionPreview?.(i, {
-                topic: q.topic,
-                difficulty: q.difficulty,
-              })
-              emittedPreviews = i + 1
-            }
+    const result = await streamStructured<z.infer<typeof generatedDragBatchSchema>>(
+      "generate",
+      ctx,
+      params.systemPrompt,
+      params.userPrompt +
+        (attempt > 0
+          ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.`
+          : ""),
+      generatedDragBatchSchema,
+      "generated_drag_questions",
+      (partial) => {
+        const questions = partial?.questions ?? []
+        for (let i = emittedPreviews; i < questions.length; i++) {
+          const q = questions[i]
+          if (q?.topic || q?.prompt) {
+            onEvent.onQuestionPreview?.(i, {
+              topic: q.topic,
+              difficulty: q.difficulty,
+            })
+            emittedPreviews = i + 1
           }
+        }
 
-          for (let i = emittedQuestions; i < questions.length; i++) {
-            const q = questions[i]
-            if (isGeneratedDragComplete(q)) {
-              onEvent.onQuestion?.(i, q)
-              emittedQuestions = i + 1
-            }
+        for (let i = emittedQuestions; i < questions.length; i++) {
+          const q = questions[i]
+          if (isGeneratedDragComplete(q)) {
+            onEvent.onQuestion?.(i, q)
+            emittedQuestions = i + 1
           }
-        },
-      ),
+        }
+      },
+      { maxTokens: dragBatchMaxTokens(params.count) },
     )
 
     lastValid = filterValidDragQuestions(result.questions)

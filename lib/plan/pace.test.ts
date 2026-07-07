@@ -25,9 +25,12 @@ function plan(tasks: StudyPlanTask[], targetDate: string): StudyPlan {
     id: "p1",
     examCode: "SAA-C03",
     exam: "AWS SAA",
+    startDate: "2026-06-01",
     targetDate,
     targetScore: 75,
     projectedScore: 72,
+    restDays: [],
+    effort: "standard",
     tasks,
   }
 }
@@ -95,6 +98,32 @@ test("one task behind is tolerated (still on-track)", () => {
   )
   const pace = computePlanPace(p, "2026-06-02")
   assert.equal(pace.status, "on-track")
+})
+
+test("skipped tasks count toward neither remaining nor expected work", () => {
+  const p = plan(
+    [
+      task(0, "2026-06-01", "done"),
+      task(1, "2026-06-02", "skipped"),
+      task(2, "2026-06-03", "skipped"),
+      task(3, "2026-06-04", "pending"),
+    ],
+    "2026-06-10",
+  )
+  const pace = computePlanPace(p, "2026-06-03")
+  // Two skipped tasks would otherwise read as "2 behind".
+  assert.equal(pace.status, "on-track")
+  assert.equal(pace.totalTasks, 2)
+  assert.equal(pace.tasksRemaining, 1)
+  assert.equal(pace.expectedDoneByToday, 1)
+})
+
+test("complete even when some tasks were skipped", () => {
+  const p = plan(
+    [task(0, "2026-06-01", "done"), task(1, "2026-06-02", "skipped")],
+    "2026-06-10",
+  )
+  assert.equal(computePlanPace(p, "2026-06-05").status, "complete")
 })
 
 test("required-per-day reflects remaining workload", () => {

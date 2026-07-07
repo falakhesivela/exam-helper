@@ -46,6 +46,8 @@ interface GenerationState {
       adaptive?: boolean;
       durationSec?: number;
       difficulty?: "easier" | "balanced" | "harder";
+      /** Study-plan task this session fulfills. */
+      planTaskId?: string;
     },
     handlers?: GenerationProgressHandlers,
   ) => void;
@@ -60,6 +62,8 @@ interface GenerationState {
       focusTopics?: string[];
       fileId?: string;
       focusDomainIds?: string[];
+      /** Study-plan task this session fulfills. */
+      planTaskId?: string;
     },
     handlers?: GenerationProgressHandlers,
   ) => void;

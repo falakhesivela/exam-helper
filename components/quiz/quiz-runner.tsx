@@ -51,6 +51,8 @@ import {
   isMcqQuestion,
   isQuestionAnswered,
   mergeSessionUpdate,
+  multiSelectSubmitLabel,
+  validMcqSelections,
 } from "@/lib/session-utils";
 import { cn } from "@/lib/utils";
 
@@ -254,10 +256,12 @@ function QuizRunnerInner({
 
   const correct = answerCorrect;
   const expectedCount = question ? expectedSelectionCount(question) : null;
+  const activeSelected =
+    question != null ? validMcqSelections(question, selected) : selected;
   const answerComplete =
     question != null &&
-    isQuestionAnswered(question, selected, dragAnswer) &&
-    (expectedCount == null || selected.length === expectedCount);
+    isQuestionAnswered(question, activeSelected, dragAnswer) &&
+    (expectedCount == null || activeSelected.length === expectedCount);
 
   // Sync per-question state when the question on screen changes: restore
   // graded state for an already-answered question (refresh, resume, stepping
@@ -282,6 +286,18 @@ function QuizRunnerInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync only when the question changes
   }, [question?.id]);
 
+  // Drop selections that no longer match the question's options (e.g. after a
+  // session poll refreshes the question payload with the same id).
+  const optionIdKey = (question?.options ?? []).map((o) => o.id).join("\0");
+  useEffect(() => {
+    if (!question) return;
+    setSelected((prev) => {
+      const next = validMcqSelections(question, prev);
+      return next.length === prev.length ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- prune when option ids change
+  }, [question?.id, optionIdKey]);
+
   // Auto-advance past correct answers when the learner has opted in. The
   // cleanup cancels the timer if they navigate away first; the last question
   // always waits for a manual "Finish session".
@@ -292,6 +308,101 @@ function QuizRunnerInner({
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- advance closes over latest state
   }, [autoAdvance, revealed, answerCorrect, reviewing, cursor, total]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (busy || finished) return;
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "ArrowLeft") {
+        if (index > 0 && (revealed || reviewing)) {
+          e.preventDefault();
+          goBack();
+        }
+        return;
+      }
+
+      if (e.key === "ArrowRight") {
+        if (reviewing) {
+          e.preventDefault();
+          goForward();
+        }
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (reviewing) goForward();
+        else if (revealed) void advance();
+        else void handleSubmit();
+        return;
+      }
+
+      if (reviewing) return;
+
+      if (e.key === "s" || e.key === "S") {
+        if (!revealed) {
+          e.preventDefault();
+          void handleSkip();
+        }
+        return;
+      }
+
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        void handleMark();
+        return;
+      }
+
+      if (revealed || !question || !isMcqQuestion(question)) return;
+
+      const opts = question.options ?? [];
+      const keyMap: Record<string, number> = {
+        "1": 0,
+        "2": 1,
+        "3": 2,
+        "4": 3,
+        a: 0,
+        b: 1,
+        c: 2,
+        d: 3,
+        A: 0,
+        B: 1,
+        C: 2,
+        D: 3,
+      };
+      const idx = keyMap[e.key];
+      if (idx != null && idx < opts.length) {
+        e.preventDefault();
+        toggleOption(opts[idx].id);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers close over latest state
+    [
+      busy,
+      finished,
+      revealed,
+      reviewing,
+      index,
+      cursor,
+      question,
+      selected,
+      dragAnswer,
+      submitting,
+    ],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   if (!question && session.generationStatus === "generating") {
     return <LoadingScreen message="Preparing next question…" />;
@@ -357,13 +468,19 @@ function QuizRunnerInner({
 
   async function handleSubmit() {
     if (!question || submitting || reviewing) return;
-    if (!answerComplete) return;
+    const chosen = validMcqSelections(question, selected);
+    if (
+      !isQuestionAnswered(question, chosen, dragAnswer) ||
+      (expectedCount != null && chosen.length !== expectedCount)
+    ) {
+      return;
+    }
     setSubmitting(true);
     try {
       const result = await onAnswer(
         session.id,
         question.id,
-        selected,
+        chosen,
         seconds,
         dragAnswer,
         confidence,
@@ -494,101 +611,6 @@ function QuizRunnerInner({
       setMarking(false);
     }
   }
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (busy || finished) return;
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      if (e.key === "ArrowLeft") {
-        if (index > 0 && (revealed || reviewing)) {
-          e.preventDefault();
-          goBack();
-        }
-        return;
-      }
-
-      if (e.key === "ArrowRight") {
-        if (reviewing) {
-          e.preventDefault();
-          goForward();
-        }
-        return;
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (reviewing) goForward();
-        else if (revealed) void advance();
-        else void handleSubmit();
-        return;
-      }
-
-      if (reviewing) return;
-
-      if (e.key === "s" || e.key === "S") {
-        if (!revealed) {
-          e.preventDefault();
-          void handleSkip();
-        }
-        return;
-      }
-
-      if (e.key === "f" || e.key === "F") {
-        e.preventDefault();
-        void handleMark();
-        return;
-      }
-
-      if (revealed || !isMcqQuestion(question)) return;
-
-      const opts = question.options ?? [];
-      const keyMap: Record<string, number> = {
-        "1": 0,
-        "2": 1,
-        "3": 2,
-        "4": 3,
-        a: 0,
-        b: 1,
-        c: 2,
-        d: 3,
-        A: 0,
-        B: 1,
-        C: 2,
-        D: 3,
-      };
-      const idx = keyMap[e.key];
-      if (idx != null && idx < opts.length) {
-        e.preventDefault();
-        toggleOption(opts[idx].id);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers close over latest state
-    [
-      busy,
-      finished,
-      revealed,
-      reviewing,
-      index,
-      cursor,
-      question,
-      selected,
-      dragAnswer,
-      submitting,
-    ],
-  );
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -734,7 +756,7 @@ function QuizRunnerInner({
                         key={`${question.id}-${option.id}`}
                         option={option}
                         index={i}
-                        selected={selected.includes(option.id)}
+                        selected={activeSelected.includes(option.id)}
                         revealed={revealed}
                         isCorrect={(question.correctOptionIds ?? []).includes(
                           option.id,
@@ -902,13 +924,9 @@ function QuizRunnerInner({
                     Checking…
                   </>
                 ) : expectedCount != null &&
-                  selected.length > 0 &&
-                  selected.length !== expectedCount ? (
-                  selected.length < expectedCount ? (
-                    `Select ${expectedCount - selected.length} more`
-                  ) : (
-                    `Select only ${expectedCount}`
-                  )
+                  activeSelected.length > 0 &&
+                  activeSelected.length !== expectedCount ? (
+                  multiSelectSubmitLabel(activeSelected.length, expectedCount)
                 ) : (
                   "Check answer"
                 )}

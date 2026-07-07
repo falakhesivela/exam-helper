@@ -1,12 +1,7 @@
-import { ApiClientError } from "./client"
+"use client"
 
-function getTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
-  } catch {
-    return "UTC"
-  }
-}
+import { ApiClientError } from "./client"
+import { buildApiFetchInit } from "./fetch-init"
 
 export interface SseHandlers<TDone> {
   onStatus?: (message: string) => void
@@ -59,8 +54,11 @@ async function readSseStream<TDone>(
         } else if (event === "ready") {
           handlers.onReady?.(parsed)
         } else if (event === "error") {
-          const msg = (parsed as { message?: string }).message ?? "Stream error"
-          throw new Error(msg)
+          const { message, code } = parsed as { message?: string; code?: string }
+          // Mid-stream errors arrive over a 200 response; surface app error
+          // codes (quota limits etc.) the same way non-200 JSON errors do.
+          if (code) throw new ApiClientError(message ?? "Stream error", 402, { code })
+          throw new Error(message ?? "Stream error")
         } else if (event === "done") {
           doneData = parsed as TDone
           handlers.onDone?.(doneData)
@@ -84,17 +82,13 @@ export async function consumeSse<TDone>(
   body: unknown,
   handlers: ConsumeSseOptions<TDone> = {},
 ): Promise<TDone> {
-  const res = await fetch(path, {
+  const { url, init: fetchInit } = await buildApiFetchInit(path, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-      "X-Timezone": getTimezone(),
-    },
-    credentials: "include",
+    headers: { Accept: "text/event-stream" },
     body: JSON.stringify(body),
     signal: handlers.signal,
   })
+  const res = await fetch(url, fetchInit)
 
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}))

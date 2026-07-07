@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { ArrowLeft, ExternalLink, GraduationCap } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +13,7 @@ import { LessonActions } from "@/components/learn/lesson-actions"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import type { TopicLesson } from "@/types"
+import type { StreamingLessonContent } from "@/lib/ai/index"
 import { ApiClientError } from "@/lib/api/client"
 
 interface TopicLessonViewProps {
@@ -24,10 +26,16 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
   const generateLesson = useSessionStore((s) => s.generateLesson)
   const ensureLesson = useSessionStore((s) => s.ensureLesson)
   const updateLessonProgress = useSessionStore((s) => s.updateLessonProgress)
+  const updatePlanTask = useSessionStore((s) => s.updatePlanTask)
+  // Set when this lesson was opened from a study-plan task; completing the
+  // lesson also completes that task.
+  const planTaskId = useSearchParams().get("planTask")
 
   const [lesson, setLesson] = useState<TopicLesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  /** Latest partial lesson snapshot while generation streams in. */
+  const [streaming, setStreaming] = useState<StreamingLessonContent | null>(null)
   const [completing, setCompleting] = useState(false)
 
   const load = useCallback(async () => {
@@ -35,12 +43,16 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
     try {
       const data = await fetchLesson(topicSlug)
       setLesson(data)
+      // Already-completed lesson: the plan task is fulfilled as-is.
+      if (planTaskId && data.status === "completed") {
+        void updatePlanTask(planTaskId, { status: "done" })
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load lesson")
     } finally {
       setLoading(false)
     }
-  }, [fetchLesson, topicSlug])
+  }, [fetchLesson, topicSlug, planTaskId, updatePlanTask])
 
   useEffect(() => {
     load()
@@ -48,17 +60,21 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
 
   async function handleGenerate(force = false) {
     setGenerating(true)
+    setStreaming(null)
     try {
-      const data = await generateLesson(topicSlug, force)
+      const data = await generateLesson(topicSlug, force, {
+        onDelta: setStreaming,
+      })
       setLesson(data)
     } catch (err) {
       if (err instanceof ApiClientError && err.code === "LESSON_LIMIT") {
-        toast.error("Daily AI lesson limit reached. Cached lessons are still available.")
+        toast.error("AI lesson limit reached on your plan. Cached lessons are still available.")
       } else {
         toast.error(err instanceof Error ? err.message : "Could not generate lesson")
       }
     } finally {
       setGenerating(false)
+      setStreaming(null)
     }
   }
 
@@ -74,6 +90,7 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
 
       await updateLessonProgress(current.id, { status: "completed" })
       setLesson((prev) => (prev ? { ...prev, status: "completed", id: current!.id } : prev))
+      if (planTaskId) void updatePlanTask(planTaskId, { status: "done" })
       toast.success("Lesson marked complete")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update progress")
@@ -106,8 +123,9 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
     return <LoadingScreen message="Loading lesson…" className="min-h-[50vh]" />
   }
 
+  // null = unlimited on the user's tier.
   const remainingLessons =
-    lesson.dailyLessonLimit === Infinity
+    lesson.dailyLessonLimit === null
       ? Infinity
       : Math.max(
           0,
@@ -115,8 +133,8 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         )
 
   const limitMessage =
-    lesson.dailyLessonLimit !== Infinity
-      ? `${remainingLessons} of ${lesson.dailyLessonLimit} AI lessons remaining today`
+    lesson.dailyLessonLimit != null
+      ? `${remainingLessons} of ${lesson.dailyLessonLimit} AI lessons remaining`
       : undefined
 
   const readMinutes = Math.max(
@@ -194,6 +212,7 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
       <AiDeepDive
         content={lesson.content}
         loading={generating}
+        streaming={streaming}
         onGenerate={() => handleGenerate(false)}
         onRefresh={lesson.content ? () => handleGenerate(true) : undefined}
         canGenerate={remainingLessons > 0 || Boolean(lesson.content)}

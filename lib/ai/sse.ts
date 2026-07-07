@@ -18,8 +18,15 @@ export function createEventStream(
       try {
         await handler(send)
       } catch (err) {
+        // Preserve app error codes (e.g. quota errors) so clients can branch
+        // on them even when the failure happens mid-stream.
+        const code =
+          err instanceof Error && "code" in err && typeof err.code === "string"
+            ? err.code
+            : undefined
         send("error", {
           message: err instanceof Error ? err.message : "Unknown error",
+          code,
         })
       } finally {
         controller.close()

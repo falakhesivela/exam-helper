@@ -35,6 +35,7 @@ export function ShareScoreCard({
     total: String(total),
     pass: passed ? "1" : "0",
   })
+  // OG image route stays on the Next.js frontend (uses next/og).
   const imagePath = `/api/share/score?${params.toString()}`
   const shareText = `I scored ${pct}% on a Prepa ${examCode} mock exam${passed ? " — passed! 🎉" : "."}`
 

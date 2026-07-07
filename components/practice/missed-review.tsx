@@ -16,6 +16,7 @@ import { AiTutorPanel } from "@/components/quiz/ai-tutor-panel"
 import { ExamQuestionPane } from "@/components/exam/vue/exam-question-pane"
 import { QuestionStem } from "@/components/exam/vue/question-stem"
 import { api } from "@/lib/api/client"
+import { useSessionStore } from "@/lib/store/use-session-store"
 import type { DragAnswer, Question } from "@/types"
 import { isMcqQuestion, isQuestionAnswered } from "@/lib/session-utils"
 
@@ -32,6 +33,10 @@ export function MissedReview() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const dueOnly = searchParams.get("due") === "true"
+  // Set when this review was opened from a study-plan task; finishing the
+  // run (or having nothing to review) completes that task.
+  const planTaskId = searchParams.get("planTask")
+  const updatePlanTask = useSessionStore((s) => s.updatePlanTask)
 
   const [items, setItems] = useState<MissedItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,10 +55,14 @@ export function MissedReview() {
       setItems(data.items)
       setIndex(0)
       setFinished(data.items.length === 0)
+      // Empty queue: there was nothing to review, the plan task is fulfilled.
+      if (planTaskId && data.items.length === 0) {
+        void updatePlanTask(planTaskId, { status: "done" })
+      }
     } finally {
       setLoading(false)
     }
-  }, [dueOnly])
+  }, [dueOnly, planTaskId, updatePlanTask])
 
   useEffect(() => {
     void load()
@@ -93,6 +102,7 @@ export function MissedReview() {
     resetQuestionState()
     if (index + 1 >= items.length) {
       setFinished(true)
+      if (planTaskId) void updatePlanTask(planTaskId, { status: "done" })
     } else {
       setIndex((i) => i + 1)
     }

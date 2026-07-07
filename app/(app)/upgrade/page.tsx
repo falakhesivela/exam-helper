@@ -2,39 +2,34 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Check } from "lucide-react"
 import { SubscribeButton } from "@/components/upgrade/subscribe-button"
-import { FREE_PLAN, PRO_PLAN } from "@/lib/config/pricing"
+import { PLANS } from "@/lib/config/pricing"
 import { LEGAL_LINKS } from "@/app/(legal)/legal-config"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
-  title: "Upgrade to Pro",
-  description: "Go unlimited with Prepa Pro.",
+  title: "Upgrade your plan",
+  description: "Pick the plan that fits your exam timeline.",
 }
-
-const plans = [
-  { ...FREE_PLAN, highlighted: false, cta: null },
-  { ...PRO_PLAN, highlighted: true, cta: <SubscribeButton /> },
-]
 
 export default function UpgradePage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-10">
+    <div className="mx-auto max-w-4xl space-y-10">
       <header className="space-y-2 text-center">
         <h1 className="text-3xl font-semibold tracking-tight text-balance">
-          Upgrade to Prepa Pro
+          Choose your plan
         </h1>
         <p className="text-muted-foreground text-pretty">
-          Practise as much as you want. Cancel anytime.
+          Practise as much as you need. Cancel anytime.
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {plans.map((plan) => (
+      <div className="grid gap-4 sm:grid-cols-3">
+        {PLANS.map((plan) => (
           <section
-            key={plan.name}
+            key={plan.tier}
             className={cn(
               "flex flex-col gap-5 rounded-2xl border p-6",
-              plan.highlighted
+              plan.featured
                 ? "border-primary bg-primary/5"
                 : "border-border bg-card",
             )}
@@ -63,7 +58,10 @@ export default function UpgradePage() {
               ))}
             </ul>
 
-            {plan.cta}
+            {plan.tier === "pro" && <SubscribeButton tier="pro" />}
+            {plan.tier === "exam_pass" && (
+              <SubscribeButton tier="exam_pass" variant="outline" />
+            )}
           </section>
         ))}
       </div>

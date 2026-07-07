@@ -221,8 +221,8 @@ export function IntakeForm({
   const [practiceMinutes, setPracticeMinutes] = useState(15);
   const clarifyAbortRef = useRef<AbortController | null>(null);
   const presetGroups = listExamPresetsByProvider();
-  const isPro = useSessionStore((s) => s.profile.plan === "pro");
-  const maxQuestions = isPro ? 20 : Math.min(20, remaining);
+  // remaining is Infinity on unlimited tiers, so min() handles every plan.
+  const maxQuestions = Math.min(20, remaining);
   const selectedPreset = selectedPresetCode
     ? presetGroups
         .flatMap((g) => g.presets)
@@ -432,8 +432,8 @@ export function IntakeForm({
   }
 
   async function handleGenerate() {
-    if (!isPro && questionCount > remaining) {
-      toast.error(`Only ${remaining} free questions remaining today`);
+    if (questionCount > remaining) {
+      toast.error(`Only ${remaining} questions remaining on your plan`);
       return;
     }
     setPhase("generating");
@@ -537,7 +537,7 @@ export function IntakeForm({
               err.code === "FREEMIUM_LIMIT"
             ) {
               toast.error(
-                "Daily question limit reached. Upgrade to Pro for unlimited practice.",
+                "Question limit reached. Upgrade your plan for more practice.",
               );
             } else {
               toast.error(err.message);
@@ -918,9 +918,9 @@ export function IntakeForm({
                     </OptionChip>
                   ))}
                 </div>
-                {!isPro && maxQuestions < 20 && (
+                {maxQuestions < 20 && (
                   <p className="text-xs text-muted-foreground">
-                    Limited to {maxQuestions} based on your remaining daily
+                    Limited to {maxQuestions} based on your remaining plan
                     quota.
                   </p>
                 )}
@@ -1028,8 +1028,8 @@ export function IntakeForm({
       {(phase === "customize" || phase === "generating") && (
         <p className="text-center text-xs text-muted-foreground">
           {remaining === Infinity
-            ? "Pro plan — unlimited questions"
-            : `${remaining} free questions remaining today`}
+            ? "Unlimited questions on your plan"
+            : `${remaining} questions remaining on your plan`}
         </p>
       )}
     </div>

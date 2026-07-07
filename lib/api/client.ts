@@ -1,3 +1,5 @@
+"use client";
+
 import type {
   ClarifyingQuestion,
   LearnTopic,
@@ -6,6 +8,7 @@ import type {
   TopicMastery,
   UserProfile,
 } from "@/types";
+import { buildApiFetchInit } from "./fetch-init";
 import { consumeSse } from "./stream";
 import {
   buildMockBookmarks,
@@ -30,24 +33,9 @@ export class ApiClientError extends Error {
   }
 }
 
-function getTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "UTC";
-  }
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Timezone": getTimezone(),
-      ...init?.headers,
-    },
-    credentials: "include",
-  });
+  const { url, init: fetchInit } = await buildApiFetchInit(path, init);
+  const res = await fetch(url, fetchInit);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -102,12 +90,11 @@ export const api = {
   uploadPdf: async (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch("/api/uploads", {
+    const { url, init: fetchInit } = await buildApiFetchInit("/api/uploads", {
       method: "POST",
       body: form,
-      credentials: "include",
-      headers: { "X-Timezone": getTimezone() },
     });
+    const res = await fetch(url, fetchInit);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new ApiClientError(body.error ?? res.statusText, res.status);
@@ -192,7 +179,8 @@ export const api = {
       answer: PracticeSession["answers"][string];
       question: PracticeSession["questions"][number];
       session: PracticeSession;
-      remainingFreeQuestions: number;
+      /** null = unlimited on the user's tier. */
+      remainingFreeQuestions: number | null;
     }>(`/api/sessions/${sessionId}/answer`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -322,16 +310,39 @@ export const api = {
 
   getPlan: () => request<import("@/types").StudyPlan | null>("/api/plan"),
 
-  createPlan: (targetDate: string) =>
+  createPlan: (input: {
+    targetDate: string;
+    restDays?: number[];
+    effort?: import("@/types").PlanEffort;
+  }) =>
     request<import("@/types").StudyPlan>("/api/plan", {
       method: "POST",
-      body: JSON.stringify({ targetDate }),
+      body: JSON.stringify(input),
     }),
 
-  updatePlanTask: (taskId: string, status: import("@/types").StudyTaskStatus) =>
+  patchPlan: (input: {
+    targetDate?: string;
+    restDays?: number[];
+    effort?: import("@/types").PlanEffort;
+  }) =>
+    request<import("@/types").StudyPlan>("/api/plan", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+
+  deletePlan: () =>
+    request<null>("/api/plan", { method: "DELETE" }),
+
+  updatePlanTask: (
+    taskId: string,
+    updates: {
+      status?: import("@/types").StudyTaskStatus;
+      scheduledDate?: string;
+    },
+  ) =>
     request<import("@/types").StudyPlanTask>(`/api/plan/tasks/${taskId}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(updates),
     }),
 
   coachPlan: () =>
@@ -359,10 +370,28 @@ export const api = {
   getLesson: (topicSlug: string) =>
     request<TopicLesson>(`/api/learn/lessons/${topicSlug}`),
 
-  generateLesson: (topicSlug: string, force = false) =>
-    request<TopicLesson>(
+  generateLesson: (
+    topicSlug: string,
+    force = false,
+    opts?: {
+      /** Partial lesson snapshots while the model writes (streaming UI). */
+      onDelta?: (
+        partial: import("@/lib/ai/index").StreamingLessonContent,
+      ) => void;
+    },
+  ) =>
+    consumeSse<TopicLesson>(
       `/api/learn/lessons/${topicSlug}/generate${force ? "?force=true" : ""}`,
-      { method: "POST" },
+      {},
+      {
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            opts?.onDelta?.(
+              data as import("@/lib/ai/index").StreamingLessonContent,
+            );
+          }
+        },
+      },
     ),
 
   startLesson: (topicSlug: string) =>

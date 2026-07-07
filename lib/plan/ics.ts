@@ -42,7 +42,12 @@ function fold(line: string): string {
   return chunks.join("\r\n")
 }
 
-export function buildPlanIcs(plan: StudyPlan, dtstamp = "20240101T000000Z"): string {
+/** Current time as an RFC 5545 UTC timestamp, e.g. "20260705T142500Z". */
+function nowDtstamp(): string {
+  return `${new Date().toISOString().slice(0, 19).replace(/[-:]/g, "")}Z`
+}
+
+export function buildPlanIcs(plan: StudyPlan, dtstamp = nowDtstamp()): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -53,6 +58,7 @@ export function buildPlanIcs(plan: StudyPlan, dtstamp = "20240101T000000Z"): str
   ]
 
   for (const task of plan.tasks) {
+    if (task.status === "skipped") continue
     lines.push(
       "BEGIN:VEVENT",
       `UID:${task.id}@prepa.app`,

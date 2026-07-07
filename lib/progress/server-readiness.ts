@@ -14,12 +14,15 @@ export interface ReadinessForExam {
 }
 
 /**
- * Load and compute readiness for the user's primary (most recently practiced)
- * exam, server-side. Returns null for custom exams with no blueprint.
+ * Load and compute readiness for one of the user's exams, server-side. When
+ * `examCode` is given the readiness is pinned to that exam; otherwise it falls
+ * back to the primary (most recently practiced) exam. Returns null for custom
+ * exams with no blueprint.
  */
-export async function loadPrimaryExamReadiness(
+export async function loadExamReadiness(
   admin: AdminClient,
   userId: string,
+  examCode?: string,
 ): Promise<ReadinessForExam | null> {
   const [{ data: masteryRows }, { data: sessionRows }] = await Promise.all([
     admin.from("topic_mastery").select("*").eq("user_id", userId),
@@ -36,8 +39,8 @@ export async function loadPrimaryExamReadiness(
     createdAt: s.created_at,
   }))
 
-  const { examCode } = inferExamFromSessions(sessions)
-  const blueprint = getExamBlueprint(examCode)
+  const resolvedCode = examCode ?? inferExamFromSessions(sessions).examCode
+  const blueprint = getExamBlueprint(resolvedCode)
   if (!blueprint) return null
 
   const accuracy = await computeRecentExamAccuracy(admin, userId)

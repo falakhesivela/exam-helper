@@ -1,15 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import {
-  AlarmClock,
-  ArrowRight,
-  BookOpen,
-  CalendarCheck,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react"
-import type { StudyTaskType } from "@/types"
+import { ArrowRight, CalendarCheck } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -20,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useTaskLauncher } from "@/components/plan/use-task-launcher"
+import { TASK_ICON, todayIso } from "@/components/plan/task-meta"
 import { computePlanPace, type PlanPaceStatus } from "@/lib/plan/pace"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
@@ -28,17 +21,6 @@ const PACE_LABEL: Record<PlanPaceStatus, { text: string; className: string }> = 
   "on-track": { text: "On track", className: "text-primary" },
   ahead: { text: "Ahead", className: "text-primary" },
   complete: { text: "Complete", className: "text-primary" },
-}
-
-const TASK_ICON: Record<StudyTaskType, typeof Sparkles> = {
-  practice: Sparkles,
-  exam: AlarmClock,
-  lesson: BookOpen,
-  review: RotateCcw,
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /** Dashboard card: today's plan tasks with one-tap start, or a build-plan CTA. */
@@ -77,7 +59,7 @@ function PlanTodayInner({ plan }: { plan: NonNullable<ReturnType<typeof useSessi
   const today = todayIso()
   const pace = PACE_LABEL[computePlanPace(plan, today).status]
 
-  const pending = plan.tasks.filter((t) => t.status !== "done")
+  const pending = plan.tasks.filter((t) => t.status === "pending")
   const todays = pending.filter((t) => t.scheduledDate <= today)
   // Show today's outstanding work, or the next upcoming task if caught up.
   const show = (todays.length > 0 ? todays : pending.slice(0, 1)).slice(0, 3)

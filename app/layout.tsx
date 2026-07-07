@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
@@ -102,13 +101,13 @@ export default function RootLayout({
     <html
       lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
       <body className="bg-background font-sans antialiased">
         <SerwistProvider swUrl="/serwist/sw.js">
           <StoreHydrator>{children}</StoreHydrator>
           <InstallPrompt />
           <Toaster position="top-center" />
-          {process.env.NODE_ENV === 'production' && <Analytics />}
         </SerwistProvider>
       </body>
     </html>

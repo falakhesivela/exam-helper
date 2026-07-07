@@ -1,8 +1,7 @@
 "use client"
 
 import type { DragAnswer, Question } from "@/types"
-import { questionStemText } from "@/lib/question-stem"
-import { questionTypeOf } from "@/lib/session-utils"
+import { expectedSelectionCount, questionTypeOf } from "@/lib/session-utils"
 import { DragCategorizePane } from "./drag-categorize-pane"
 import { DragMatchPane } from "./drag-match-pane"
 import { DragOrderPane } from "./drag-order-pane"
@@ -23,9 +22,9 @@ interface ExamQuestionPaneProps {
 
 function multiSelectHint(question: Question): string | null {
   if (!question.multiSelect) return null
-  const stem = questionStemText(question).toLowerCase()
-  if (stem.includes("three")) return "Select THREE answers"
-  if (stem.includes("two")) return "Select TWO answers"
+  const count = expectedSelectionCount(question)
+  if (count === 3) return "Select THREE answers"
+  if (count === 2) return "Select TWO answers"
   return "Select all that apply"
 }
 

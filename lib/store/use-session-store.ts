@@ -59,15 +59,36 @@ interface SessionState {
   refreshTopicMastery: () => Promise<void>;
   refreshExamAccuracy: () => Promise<void>;
   refreshPlan: () => Promise<void>;
-  createPlan: (targetDate: string) => Promise<StudyPlan>;
-  updatePlanTask: (taskId: string, status: StudyTaskStatus) => Promise<void>;
+  createPlan: (input: {
+    targetDate: string;
+    restDays?: number[];
+    effort?: import("@/types").PlanEffort;
+  }) => Promise<StudyPlan>;
+  updatePlanSettings: (input: {
+    targetDate?: string;
+    restDays?: number[];
+    effort?: import("@/types").PlanEffort;
+  }) => Promise<StudyPlan>;
+  deletePlan: () => Promise<void>;
+  updatePlanTask: (
+    taskId: string,
+    updates: { status?: StudyTaskStatus; scheduledDate?: string },
+  ) => Promise<void>;
   requestCoaching: () => Promise<void>;
   refreshStreak: () => Promise<void>;
   setDailyGoal: (dailyGoal: number) => Promise<void>;
   toggleBookmark: (questionId: string) => Promise<void>;
   refreshLearnTopics: () => Promise<void>;
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>;
-  generateLesson: (topicSlug: string, force?: boolean) => Promise<TopicLesson>;
+  generateLesson: (
+    topicSlug: string,
+    force?: boolean,
+    opts?: {
+      onDelta?: (
+        partial: import("@/lib/ai/index").StreamingLessonContent,
+      ) => void;
+    },
+  ) => Promise<TopicLesson>;
   ensureLesson: (topicSlug: string) => Promise<TopicLesson>;
   updateLessonProgress: (
     lessonId: string,
@@ -142,7 +163,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   remainingFreeQuestions: () => {
     const { profile } = get();
-    if (profile.plan === "pro") return Infinity;
+    // null limit = unlimited; Infinity is fine in memory (never serialized).
+    if (profile.dailyLimit === null) return Infinity;
     return Math.max(0, profile.dailyLimit - profile.questionsUsedToday);
   },
 
@@ -241,18 +263,35 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
   },
 
-  createPlan: async (targetDate) => {
+  createPlan: async (input) => {
     if (USE_MOCKS) {
       const plan = get().plan ?? buildMockStudyPlan();
-      set({ plan });
+      set({ plan, coaching: null });
       return plan;
     }
-    const plan = await api.createPlan(targetDate);
-    set({ plan });
+    const plan = await api.createPlan(input);
+    // A new schedule invalidates any coaching fetched for the old one.
+    set({ plan, coaching: null });
     return plan;
   },
 
-  updatePlanTask: async (taskId, status) => {
+  updatePlanSettings: async (input) => {
+    if (USE_MOCKS) {
+      const plan = get().plan ?? buildMockStudyPlan();
+      set({ plan, coaching: null });
+      return plan;
+    }
+    const plan = await api.patchPlan(input);
+    set({ plan, coaching: null });
+    return plan;
+  },
+
+  deletePlan: async () => {
+    if (!USE_MOCKS) await api.deletePlan();
+    set({ plan: null, coaching: null });
+  },
+
+  updatePlanTask: async (taskId, updates) => {
     // Optimistic local update, then persist.
     set((state) =>
       state.plan
@@ -260,7 +299,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             plan: {
               ...state.plan,
               tasks: state.plan.tasks.map((t) =>
-                t.id === taskId ? { ...t, status } : t,
+                t.id === taskId
+                  ? {
+                      ...t,
+                      ...(updates.status ? { status: updates.status } : {}),
+                      ...(updates.scheduledDate
+                        ? { scheduledDate: updates.scheduledDate }
+                        : {}),
+                    }
+                  : t,
               ),
             },
           }
@@ -268,7 +315,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     );
     if (USE_MOCKS) return;
     try {
-      await api.updatePlanTask(taskId, status);
+      await api.updatePlanTask(taskId, updates);
     } catch {
       await get().refreshPlan();
     }
@@ -347,7 +394,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return api.getLesson(topicSlug);
   },
 
-  generateLesson: async (topicSlug, force = false) => {
+  generateLesson: async (topicSlug, force = false, opts) => {
     if (USE_MOCKS) {
       const lesson = generateMockTopicLesson(topicSlug);
       set((state) => ({
@@ -365,7 +412,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return lesson;
     }
 
-    const lesson = await api.generateLesson(topicSlug, force);
+    const lesson = await api.generateLesson(topicSlug, force, opts);
     await get().refreshLearnTopics();
     return lesson;
   },
@@ -500,6 +547,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       get().refreshProfile(),
       get().refreshTopicMastery(),
       get().refreshExamAccuracy(),
+      // Plan-linked task is marked done server-side on submit.
+      get().refreshPlan(),
     ]);
   },
 
@@ -663,6 +712,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       sessions: mergeUpsertSession(state.sessions, session),
     }));
+    // Plan-linked task is marked done server-side on completion.
+    void get().refreshPlan();
     await get().refreshProfile();
   },
 }));

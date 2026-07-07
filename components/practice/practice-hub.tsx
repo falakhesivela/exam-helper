@@ -117,15 +117,17 @@ export function PracticeHub() {
 
       <PracticeMomentum />
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button asChild size="lg" className="flex-1">
-          <Link href="/intake">
-            <Sparkles data-icon="inline-start" />
-            Start a session
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
-      </div>
+      <Button
+        asChild
+        size="lg"
+        className="!h-12 w-full text-base sm:!h-control-lg sm:text-sm"
+      >
+        <Link href="/intake">
+          <Sparkles data-icon="inline-start" />
+          Start a session
+          <ArrowRight data-icon="inline-end" />
+        </Link>
+      </Button>
 
       {inProgress && (
         <Card className="border-primary/30 bg-linear-to-br from-primary/10 via-card to-card">

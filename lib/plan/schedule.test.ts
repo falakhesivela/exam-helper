@@ -89,6 +89,56 @@ test("rejects a non-positive timeline", () => {
   assert.throws(() => buildStudyPlan(fixture({ targetDate: "2026-06-01" })), RangeError)
 })
 
+test("rest days get no tasks", () => {
+  // 2026-06-01 is a Monday; rest on Sat(6)+Sun(0).
+  const plan = buildStudyPlan(fixture({ restDays: [0, 6] }))
+  const restDates = new Set(
+    plan.tasks
+      .map((t) => new Date(`${t.date}T00:00:00Z`).getUTCDay())
+      .filter((d) => d === 0 || d === 6),
+  )
+  assert.equal(restDates.size, 0, "no task may land on a rest weekday")
+  assert.ok(plan.tasks.length > 0)
+  assert.deepEqual(plan.restDays, [0, 6])
+})
+
+test("mock exam cadence counts study days, not calendar days", () => {
+  // 5 study days/week over 28 days = 20 study days → still ≥2 mocks.
+  const plan = buildStudyPlan(fixture({ restDays: [0, 6] }))
+  const exams = plan.tasks.filter((t) => t.type === "exam")
+  assert.ok(exams.length >= 2, `expected ≥2 mocks, got ${exams.length}`)
+  // The review after each mock lands on the next *study* day.
+  for (const e of exams) {
+    const after = plan.tasks.find((t) => t.dayIndex > e.dayIndex)
+    assert.equal(after?.type, "review")
+  }
+})
+
+test("effort maps to the per-day question budget", () => {
+  const light = buildStudyPlan(fixture({ effort: "light" }))
+  const intense = buildStudyPlan(fixture({ effort: "intense" }))
+  const capped = buildStudyPlan(fixture({ effort: "intense", dailyLimit: 10 }))
+  const maxQ = (p: ReturnType<typeof buildStudyPlan>) =>
+    Math.max(...p.tasks.filter((t) => t.type === "practice").map((t) => t.questionCount))
+  assert.equal(maxQ(light), 8)
+  assert.equal(maxQ(intense), 20)
+  assert.equal(maxQ(capped), 10, "dailyLimit caps the effort budget")
+})
+
+test("throws when rest days leave no study days", () => {
+  // Two-day window (Mon 1st + Tue 2nd) with both weekdays rested out.
+  assert.throws(
+    () => buildStudyPlan(fixture({ targetDate: "2026-06-03", restDays: [1, 2] })),
+    RangeError,
+  )
+})
+
+test("final study day before the exam is a review", () => {
+  const plan = buildStudyPlan(fixture({ restDays: [0, 6] }))
+  const last = plan.tasks[plan.tasks.length - 1]
+  assert.equal(last.type, "review")
+})
+
 test("handles a short 3-day crunch without exams", () => {
   const plan = buildStudyPlan(fixture({ targetDate: "2026-06-04" })) // 3 days
   assert.equal(plan.totalDays, 3)

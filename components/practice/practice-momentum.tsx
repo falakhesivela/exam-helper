@@ -18,8 +18,8 @@ export function PracticeMomentum() {
   const atRisk = streak?.atRisk ?? false
   const goal = Math.max(1, streak?.dailyGoal ?? profile.dailyGoal)
   const questionsToday = streak?.questionsToday ?? profile.questionsUsedToday
-  const dailyLimit =
-    profile.plan === "pro" ? null : profile.dailyLimit
+  // null = unlimited on the user's tier.
+  const dailyLimit = profile.dailyLimit
   const goalPct = Math.min(100, Math.round((questionsToday / goal) * 100))
 
   const weekAccuracy = useMemo(() => {
@@ -74,7 +74,7 @@ export function PracticeMomentum() {
               </span>
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {dailyLimit != null ? "today · free limit" : "today · daily goal"}
+              {dailyLimit != null ? "of plan limit" : "today · daily goal"}
             </p>
           </div>
         </CardContent>

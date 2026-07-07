@@ -13,7 +13,7 @@ import type {
 } from "@/types"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
 import { buildStudyPlan } from "@/lib/plan/schedule"
-import { DEFAULT_FREE_DAILY_QUESTION_LIMIT } from "@/lib/config/freemium"
+import { limitsFor } from "@/lib/config/tiers"
 
 // ---------------------------------------------------------------------------
 // Realistic mock content for the Prepa prototype. In production these
@@ -26,7 +26,9 @@ export const mockProfile: UserProfile = {
   isAnonymous: false,
   plan: "free",
   subscriptionStatus: null,
-  dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
+  planExpiresAt: null,
+  limits: limitsFor("free"),
+  dailyLimit: limitsFor("free").questions,
   questionsUsedToday: 8,
   streakDays: 12,
   longestStreak: 21,
@@ -40,7 +42,9 @@ export const emptyProfile: UserProfile = {
   isAnonymous: true,
   plan: "free",
   subscriptionStatus: null,
-  dailyLimit: DEFAULT_FREE_DAILY_QUESTION_LIMIT,
+  planExpiresAt: null,
+  limits: limitsFor("free"),
+  dailyLimit: limitsFor("free").questions,
   questionsUsedToday: 0,
   streakDays: 0,
   longestStreak: 0,
@@ -149,9 +153,12 @@ export function buildMockStudyPlan(): StudyPlan {
     id: "mock-plan-1",
     examCode: "SAA-C03",
     exam: "AWS Certified Solutions Architect – Associate",
+    startDate: built.startDate,
     targetDate: built.targetDate,
     targetScore: built.targetScore,
     projectedScore: built.projectedScore,
+    restDays: [],
+    effort: "standard",
     tasks: built.tasks.map((t, i) => ({
       id: `mock-task-${i}`,
       dayIndex: t.dayIndex,

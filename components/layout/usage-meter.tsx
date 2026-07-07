@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { useSessionStore } from "@/lib/store/use-session-store"
+import { isPaidTier } from "@/lib/config/tiers"
 import { cn } from "@/lib/utils"
 
 /**
@@ -13,7 +14,8 @@ import { cn } from "@/lib/utils"
 export function UsageMeter() {
   const profile = useSessionStore((s) => s.profile)
 
-  if (profile.plan === "pro") return null
+  // Only the free trial gets the meter; null limit = unlimited.
+  if (isPaidTier(profile.plan) || profile.dailyLimit === null) return null
 
   const used = profile.questionsUsedToday
   const limit = Math.max(1, profile.dailyLimit)
@@ -24,12 +26,12 @@ export function UsageMeter() {
   return (
     <Link
       href="/upgrade"
-      aria-label={`Free plan: ${remaining} of ${limit} questions left today. Upgrade to Pro for unlimited.`}
+      aria-label={`Free trial: ${remaining} of ${limit} questions left. Upgrade to Pro for more.`}
       className="group flex w-28 shrink-0 flex-col gap-1 sm:w-32"
     >
       <span className="flex items-baseline justify-between text-[11px] leading-none">
         <span className={cn("tabular-nums", exhausted ? "font-medium text-warning" : "text-muted-foreground")}>
-          {exhausted ? "0 left today" : `${remaining} left today`}
+          {exhausted ? "0 left" : `${remaining} left`}
         </span>
         <span className="flex items-center gap-0.5 font-medium text-primary group-hover:underline">
           <Sparkles className="size-3" />

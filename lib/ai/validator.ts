@@ -14,14 +14,20 @@ export function validateMcqQuestion(q: GeneratedMcqQuestion): string | null {
   }
 
   if (q.correctOptionIds.length === 0) return "No correct option"
+  // Track uniques: a duplicate correct id (e.g. a single-answer question the
+  // model mislabeled multi-select and padded to ["b","b"]) otherwise passes the
+  // length checks below and then fails grading against a valid single tap.
+  const correctIds = new Set<string>()
   for (const id of q.correctOptionIds) {
     if (!optionIds.has(id)) return "Correct id not in options"
+    if (correctIds.has(id)) return "Duplicate correct id"
+    correctIds.add(id)
   }
 
-  if (q.multiSelect && q.correctOptionIds.length < 2) {
+  if (q.multiSelect && correctIds.size < 2) {
     return "Multi-select needs 2+ correct answers"
   }
-  if (!q.multiSelect && q.correctOptionIds.length !== 1) {
+  if (!q.multiSelect && correctIds.size !== 1) {
     return "Single-select must have exactly one correct answer"
   }
 

@@ -5,6 +5,7 @@ import { Logo } from "@/components/layout/logo"
 import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
+import { PLANS } from "@/lib/config/pricing"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -115,7 +116,7 @@ const faqs = [
   },
   {
     q: "Is Prepa free to use?",
-    a: "Yes. The free plan includes 20 AI-generated practice questions per day with instant explanations, progress tracking, and streaks. Pro ($6/month) unlocks unlimited questions and full timed mock exams. Cancel anytime.",
+    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($9/month) unlocks daily practice, mock exams, and the AI tutor and coach. Exam Pass ($29 one-time) gives you unlimited everything for 90 days — ideal for an exam crunch.",
   },
   {
     q: "How is Prepa different from static question banks?",
@@ -131,18 +132,9 @@ const faqs = [
   },
 ]
 
-const freeFeatures = [
-  "20 practice questions per day",
-  "AI questions & instant explanations",
-  "Readiness score, streaks & flashcards",
-  "Upload your own study notes (PDF)",
-]
-const proFeatures = [
-  "Unlimited practice questions",
-  "Full timed mock exams, any length",
-  "Priority AI generation",
-  "Everything in Free",
-]
+const freePlan = PLANS.find((p) => p.tier === "free")!
+const proPlan = PLANS.find((p) => p.tier === "pro")!
+const examPassPlan = PLANS.find((p) => p.tier === "exam_pass")!
 
 function buildStructuredData() {
   const siteUrl = getSiteUrl()
@@ -168,14 +160,21 @@ function buildStructuredData() {
           name: "Free",
           price: "0",
           priceCurrency: "USD",
-          description: "20 practice questions per day, AI explanations, progress tracking.",
+          description: freePlan.tagline,
         },
         {
           "@type": "Offer",
           name: "Pro",
-          price: "6",
+          price: "9",
           priceCurrency: "USD",
-          description: "Unlimited practice questions and full timed mock exams.",
+          description: proPlan.tagline,
+        },
+        {
+          "@type": "Offer",
+          name: "Exam Pass",
+          price: "29",
+          priceCurrency: "USD",
+          description: examPassPlan.tagline,
         },
       ],
       featureList: features.map((f) => f.h).join(", "),
@@ -389,7 +388,7 @@ export default async function LandingPage() {
         .lp-vs-col .lp-vs-row:last-child { border-bottom:none; }
 
         /* Pricing */
-        .lp-pricing { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:820px; margin:0 auto; }
+        .lp-pricing { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; max-width:1000px; margin:0 auto; }
         .lp-price { font-family:var(--serif); font-size:46px; font-weight:500; }
         .lp-plan-row { display:flex; gap:10px; font-size:14.5px; color:#3D403A; }
 
@@ -469,7 +468,7 @@ export default async function LandingPage() {
             </a>
           </div>
           <div className="lp-hero-trust rise rise-4">
-            <span><span className="check">✓</span>20 free questions daily</span>
+            <span><span className="check">✓</span>10 free questions daily</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
             <span><span className="check">✓</span>Any exam, any topic</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
@@ -650,16 +649,16 @@ export default async function LandingPage() {
         <div className="lp-pricing">
           {/* Free */}
           <div className="card" style={{ borderRadius: "18px", padding: "32px" }}>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>Free</div>
+            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>{freePlan.name}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
-              <span className="lp-price">$0</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/forever</span>
+              <span className="lp-price">{freePlan.price}</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{freePlan.cycle}</span>
             </div>
             <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
-              Everything you need to start studying today.
+              {freePlan.tagline}
             </p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
-              {freeFeatures.map((f) => (
+              {freePlan.features.map((f) => (
                 <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
               ))}
             </div>
@@ -672,20 +671,37 @@ export default async function LandingPage() {
             <span style={{ position: "absolute", top: "-12px", left: "32px", fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 600, color: "#fff", background: ACCENT, padding: "5px 12px", borderRadius: "99px" }}>
               Most popular
             </span>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>Pro</div>
+            <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>{proPlan.name}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
-              <span className="lp-price">$6</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/month</span>
+              <span className="lp-price">{proPlan.price}</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{proPlan.cycle}</span>
             </div>
             <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
-              Unlimited practice for serious exam prep.
+              {proPlan.tagline}
             </p>
             <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
-              {proFeatures.map((f) => (
+              {proPlan.features.map((f) => (
                 <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
               ))}
             </div>
-            <LandingProButton />
+            <LandingProButton tier="pro" label="Get Pro" />
+          </div>
+          {/* Exam Pass */}
+          <div className="card" style={{ borderRadius: "18px", padding: "32px" }}>
+            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>{examPassPlan.name}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
+              <span className="lp-price">{examPassPlan.price}</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{examPassPlan.cycle}</span>
+            </div>
+            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
+              {examPassPlan.tagline}
+            </p>
+            <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
+              {examPassPlan.features.map((f) => (
+                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
+              ))}
+            </div>
+            <LandingProButton tier="exam_pass" label="Get Exam Pass" filled={false} />
           </div>
         </div>
       </section>
@@ -713,7 +729,7 @@ export default async function LandingPage() {
             Your exam won&apos;t study for itself
           </h2>
           <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>
-            Get 20 free AI-generated questions every day, with explanations that actually teach. Set up in under a minute.
+            Get 10 free AI-generated questions every day, with explanations that actually teach. Set up in under a minute.
           </p>
           <Link href="/signup" className="btn" style={{ position: "relative", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,.35)" }}>
             Start practising free

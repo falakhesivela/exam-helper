@@ -93,8 +93,10 @@ function applyBlueprintDefaults(blueprint: ExamBlueprint) {
 export function ExamConfig() {
   const router = useRouter()
   const remaining = useSessionStore((s) => s.remainingFreeQuestions())
+  const maxExamLength = useSessionStore((s) => s.profile.limits.maxExamLength)
   const hydrate = useSessionStore((s) => s.hydrate)
-  const isPro = remaining === Infinity
+  // Largest exam launchable right now: question quota ∩ per-exam plan cap.
+  const examCap = Math.min(remaining, maxExamLength)
 
   const presets = useMemo(() => listExamPresets(), [])
   const presetGroups = useMemo(() => listExamPresetsByProvider(), [])
@@ -175,10 +177,10 @@ export function ExamConfig() {
   const validCount = count >= 1 && count <= 100
   const validMinutes = minutes >= 1 && minutes <= 240
 
-  /** Free tier: cap at remaining daily questions with proportional time. */
+  /** Cap at the plan's launchable size with proportional time. */
   const effectiveLaunch = useMemo(() => {
-    if (isPro) return { questionCount: count, durationMin: minutes }
-    const capped = Math.min(count, remaining)
+    const capped = Math.min(count, examCap)
+    if (capped === count) return { questionCount: count, durationMin: minutes }
     if (selectedBlueprint) {
       return scaledExamParams(selectedBlueprint, capped)
     }
@@ -189,20 +191,20 @@ export function ExamConfig() {
         Math.round(minutes * (capped / Math.max(count, 1))),
       ),
     }
-  }, [count, minutes, remaining, isPro, selectedBlueprint])
+  }, [count, minutes, examCap, selectedBlueprint])
 
   function selectPreset(code: string) {
     setSelectedCode(code)
     const blueprint = getExamBlueprint(code)
     if (blueprint) {
       const defaults = applyBlueprintDefaults(blueprint)
-      if (isPro) {
+      if (defaults.questionCount <= examCap) {
         setCount(defaults.questionCount)
         setMinutes(defaults.durationMin)
       } else {
         const scaled = scaledExamParams(
           blueprint,
-          Math.min(defaults.questionCount, remaining),
+          Math.min(defaults.questionCount, examCap),
         )
         setCount(scaled.questionCount)
         setMinutes(scaled.durationMin)
@@ -237,8 +239,12 @@ export function ExamConfig() {
       toast.error("Tell us which exam you want to practice")
       return
     }
-    if (!isPro && questionCount > remaining) {
-      toast.error(`Only ${remaining} free questions remaining today`)
+    if (questionCount > examCap) {
+      toast.error(
+        remaining < maxExamLength
+          ? `Only ${remaining} questions left on your plan`
+          : `Your plan caps exams at ${maxExamLength} questions`,
+      )
       return
     }
     setStarting(true)
@@ -266,7 +272,7 @@ export function ExamConfig() {
           },
           onError: (err) => {
             if (err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT") {
-              toast.error("Daily question limit reached.")
+              toast.error("Question limit reached on your plan.")
             } else {
               toast.error(err.message)
             }
@@ -495,9 +501,9 @@ export function ExamConfig() {
                 {isCustomExam ? "Start custom mock exam" : "Start realistic mock exam"}
               </h2>
               <p className="max-w-md text-sm text-muted-foreground">
-                {isPro
-                  ? `${realisticDefaults!.questionCount} questions · ${realisticDefaults!.durationMin} min · domain-weighted AI generation`
-                  : `${effectiveLaunch.questionCount} questions · ${effectiveLaunch.durationMin} min (scaled to your free daily limit)`}
+                {realisticDefaults && realisticDefaults.questionCount <= examCap
+                  ? `${realisticDefaults.questionCount} questions · ${realisticDefaults.durationMin} min · domain-weighted AI generation`
+                  : `${effectiveLaunch.questionCount} questions · ${effectiveLaunch.durationMin} min (scaled to your plan limit)`}
               </p>
             </div>
             <Button
@@ -506,11 +512,11 @@ export function ExamConfig() {
               disabled={starting || !validExam}
               onClick={() =>
                 launch(
-                  isPro
-                    ? realisticDefaults!.questionCount
+                  realisticDefaults && realisticDefaults.questionCount <= examCap
+                    ? realisticDefaults.questionCount
                     : effectiveLaunch.questionCount,
-                  isPro
-                    ? realisticDefaults!.durationMin
+                  realisticDefaults && realisticDefaults.questionCount <= examCap
+                    ? realisticDefaults.durationMin
                     : effectiveLaunch.durationMin,
                 )
               }
@@ -639,7 +645,7 @@ export function ExamConfig() {
               !validCount ||
               !validMinutes ||
               !validExam ||
-              (!isPro && count > remaining)
+              count > examCap
             }
             onClick={() => launch(effectiveLaunch.questionCount, effectiveLaunch.durationMin)}
           >
@@ -653,13 +659,13 @@ export function ExamConfig() {
             )}
           </Button>
 
-          {!isPro && (
+          {Number.isFinite(remaining) && (
             <p className="text-center text-xs text-muted-foreground">
-              {remaining} free questions remaining today
-              {count > remaining && (
+              {remaining} questions remaining on your plan
+              {count > examCap && (
                 <span className="block text-destructive">
-                  Reduce to {remaining} or fewer questions, or upgrade to Pro
-                  for full-length exams.
+                  Reduce to {examCap} or fewer questions, or upgrade for
+                  full-length exams.
                 </span>
               )}
             </p>

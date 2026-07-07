@@ -11,28 +11,36 @@ import { useSessionStore } from "@/lib/store/use-session-store"
 import { ApiClientError } from "@/lib/api/client"
 
 /**
- * Launch a study-plan task through the existing generation/navigation flows,
- * then mark it done. Practice/exam tasks generate a session; lesson/review
- * tasks just navigate.
+ * Launch a study-plan task through the existing generation/navigation flows.
+ * The task is NOT marked done here — practice/exam sessions carry the task id
+ * (`planTaskId`) and the server completes the task when the session is actually
+ * finished; lesson/review pages get it as a `planTask` query param and mark it
+ * done client-side on completion.
  */
 export function useTaskLauncher(plan: StudyPlan | null) {
   const router = useRouter()
   const hydrate = useSessionStore((s) => s.hydrate)
-  const updatePlanTask = useSessionStore((s) => s.updatePlanTask)
   const [launchingId, setLaunchingId] = useState<string | null>(null)
 
   function launch(task: StudyPlanTask) {
     if (!plan || launchingId) return
 
-    if (task.type === "lesson" && task.domainName) {
-      const { slug } = resolveTopicName(task.domainName, plan.examCode)
-      void updatePlanTask(task.id, "done")
-      router.push(`/learn/${slug}`)
+    if (task.type === "lesson") {
+      // Fall back to the title ("Learn: <domain>") when domainName is absent so
+      // a lesson never silently turns into a practice run.
+      const topicName =
+        task.domainName ?? task.title.replace(/^Learn:\s*/i, "").trim()
+      if (!topicName) {
+        toast.info("Pick the matching topic to study.")
+        router.push("/learn")
+        return
+      }
+      const { slug } = resolveTopicName(topicName, plan.examCode)
+      router.push(`/learn/${slug}?planTask=${task.id}`)
       return
     }
     if (task.type === "review") {
-      void updatePlanTask(task.id, "done")
-      router.push("/practice/missed")
+      router.push(`/practice/missed?planTask=${task.id}`)
       return
     }
 
@@ -52,10 +60,10 @@ export function useTaskLauncher(plan: StudyPlan | null) {
           exam: plan.exam,
           examCode: plan.examCode,
           focusDomainIds: [],
+          planTaskId: task.id,
         },
         {
           onReady: (session) => {
-            void updatePlanTask(task.id, "done")
             toast.success("Mock exam ready!")
             router.push(`/exam/${session.id}`)
             setLaunchingId(null)
@@ -66,7 +74,7 @@ export function useTaskLauncher(plan: StudyPlan | null) {
           onError: (err) => {
             toast.error(
               err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-                ? "Daily question limit reached."
+                ? "Question limit reached on your plan."
                 : err.message,
             )
             setLaunchingId(null)
@@ -85,10 +93,10 @@ export function useTaskLauncher(plan: StudyPlan | null) {
         focusTopics: task.domainName ? [task.domainName] : [],
         exam: plan.exam,
         examCode: plan.examCode,
+        planTaskId: task.id,
       },
       {
         onReady: (session) => {
-          void updatePlanTask(task.id, "done")
           toast.success("Practice ready!")
           router.push(`/quiz/${session.id}`)
           setLaunchingId(null)
@@ -99,7 +107,7 @@ export function useTaskLauncher(plan: StudyPlan | null) {
         onError: (err) => {
           toast.error(
             err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Daily question limit reached."
+              ? "Question limit reached on your plan."
               : err.message,
           )
           setLaunchingId(null)

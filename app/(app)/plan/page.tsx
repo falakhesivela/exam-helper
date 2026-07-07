@@ -1,8 +1,8 @@
 "use client"
 
 import { motion } from "motion/react"
-import { PlanSetup } from "@/components/plan/plan-setup"
-import { PlanView } from "@/components/plan/plan-view"
+import { PlanSetupWizard } from "@/components/plan/plan-setup-wizard"
+import { PlanOverview } from "@/components/plan/plan-overview"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 export default function PlanPage() {
@@ -18,11 +18,11 @@ export default function PlanPage() {
       >
         <h1 className="text-2xl font-semibold tracking-tight">Study plan</h1>
         <p className="text-sm text-muted-foreground">
-          A day-by-day path to your pass mark, focused on your weakest domains.
+          A day-by-day path to your pass mark that adapts as you go.
         </p>
       </motion.div>
 
-      {plan ? <PlanView plan={plan} /> : <PlanSetup />}
+      {plan ? <PlanOverview plan={plan} /> : <PlanSetupWizard />}
     </div>
   )
 }

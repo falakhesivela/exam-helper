@@ -7,9 +7,10 @@
       "webworker"
     ],
     "types": [
-      "@serwist/turbopack/typings"
+      "node"
     ],
     "allowJs": true,
+    "allowImportingTsExtensions": true,
     "target": "ES6",
     "skipLibCheck": true,
     "strict": true,

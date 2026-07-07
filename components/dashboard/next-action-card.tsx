@@ -109,7 +109,7 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
         onError: (err) => {
           toast.error(
             err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Daily question limit reached."
+              ? "Question limit reached on your plan."
               : err.message,
           )
           setStartingDrill(false)

@@ -8,9 +8,12 @@ function plan(): StudyPlan {
     id: "p1",
     examCode: "SAA-C03",
     exam: "AWS SAA",
+    startDate: "2026-06-27",
     targetDate: "2026-07-18",
     targetScore: 75,
     projectedScore: 72,
+    restDays: [],
+    effort: "standard",
     tasks: [
       {
         id: "task-1",
@@ -57,6 +60,26 @@ test("escapes commas and semicolons in text", () => {
   const ics = buildPlanIcs(plan())
   // "Learn: Cost-Optimized; review S3, EC2" → ; and , escaped.
   assert.match(ics, /SUMMARY:Learn: Cost-Optimized\\; review S3\\, EC2/)
+})
+
+test("default DTSTAMP is the current time, not a fixed constant", () => {
+  const ics = buildPlanIcs(plan())
+  const year = new Date().getUTCFullYear()
+  assert.match(ics, new RegExp(`DTSTAMP:${year}\\d{4}T\\d{6}Z`))
+  assert.ok(!ics.includes("DTSTAMP:20240101T000000Z"))
+})
+
+test("injectable DTSTAMP stays deterministic", () => {
+  const ics = buildPlanIcs(plan(), "20260101T120000Z")
+  assert.match(ics, /DTSTAMP:20260101T120000Z/)
+})
+
+test("skipped tasks are not exported", () => {
+  const p = plan()
+  p.tasks[0].status = "skipped"
+  const ics = buildPlanIcs(p)
+  assert.equal(ics.match(/BEGIN:VEVENT/g)?.length, 1)
+  assert.ok(!ics.includes("UID:task-1@prepa.app"))
 })
 
 test("uses CRLF line endings", () => {

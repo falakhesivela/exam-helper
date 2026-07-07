@@ -3,6 +3,7 @@ import type {
   DragAnswer,
   DragQuestionData,
   GenerationStatus,
+  PlanEffort,
   PracticeSession,
   Question,
   QuestionOption,
@@ -16,13 +17,15 @@ import type {
 } from "@/types"
 import type { GeneratedQuestion } from "@/lib/ai/schemas"
 import { isGeneratedDrag, isGeneratedMcq } from "@/lib/ai/schemas"
+import { isTier, limitsFor } from "@/lib/config/tiers"
 
 export interface DbProfile {
   id: string
   name: string
   email: string
-  plan: "free" | "pro"
+  plan: "free" | "pro" | "exam_pass"
   subscription_status: string | null
+  plan_expires_at?: string | null
   paddle_subscription_id: string | null
   paddle_customer_id: string | null
   daily_limit: number
@@ -47,6 +50,7 @@ export interface DbSession {
   current_index: number
   expected_question_count?: number
   generation_status?: GenerationStatus
+  plan_task_id?: string | null
   created_at: string
   completed_at: string | null
 }
@@ -249,15 +253,20 @@ export function toPracticeSession(
 export function toUserProfile(
   profile: DbProfile,
   questionsUsedToday: number,
-  options?: { dailyLimit?: number; isAnonymous?: boolean },
+  options?: { dailyLimit?: number | null; isAnonymous?: boolean },
 ): UserProfile {
+  const limits = limitsFor(profile.plan)
   return {
     name: profile.name,
     email: profile.email,
     isAnonymous: options?.isAnonymous ?? false,
-    plan: profile.plan,
+    plan: isTier(profile.plan) ? profile.plan : "free",
     subscriptionStatus: profile.subscription_status ?? null,
-    dailyLimit: options?.dailyLimit ?? profile.daily_limit,
+    planExpiresAt: profile.plan_expires_at ?? null,
+    limits,
+    // null = unlimited; `undefined` (option not passed) falls back to limits.
+    dailyLimit:
+      options?.dailyLimit !== undefined ? options.dailyLimit : limits.questions,
     questionsUsedToday,
     streakDays: profile.streak_days,
     longestStreak: profile.longest_streak ?? 0,
@@ -320,9 +329,12 @@ export interface DbStudyPlan {
   id: string
   exam_code: string
   exam: string
+  start_date: string
   target_date: string
   target_score: number
   projected_score: number
+  rest_days: number[] | null
+  effort: PlanEffort | null
 }
 
 export function toStudyPlanTask(row: DbStudyPlanTask): StudyPlanTask {
@@ -348,9 +360,12 @@ export function toStudyPlan(
     id: row.id,
     examCode: row.exam_code,
     exam: row.exam,
+    startDate: row.start_date,
     targetDate: row.target_date,
     targetScore: row.target_score,
     projectedScore: row.projected_score,
+    restDays: row.rest_days ?? [],
+    effort: row.effort ?? "standard",
     tasks: tasks
       .map(toStudyPlanTask)
       .sort((a, b) => a.dayIndex - b.dayIndex),

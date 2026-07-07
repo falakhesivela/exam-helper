@@ -105,7 +105,7 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
           setRepeating(false)
           toast.error(
             err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Daily question limit reached. Upgrade to Pro for unlimited practice."
+              ? "Question limit reached. Upgrade your plan for more practice."
               : err.message,
           )
         },

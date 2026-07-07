@@ -1,31 +1,4 @@
-import OpenAI from "openai"
-
-import type { DragAnswer } from "@/types"
-
-const TIMEOUT_MS = 30_000
-
-type Provider = "xai" | "openai"
-
-function getClient(provider: Provider) {
-  if (provider === "xai") {
-    const apiKey = process.env.XAI_API_KEY
-    if (!apiKey) return null
-    return new OpenAI({
-      apiKey,
-      baseURL: "https://api.x.ai/v1",
-      timeout: TIMEOUT_MS,
-    })
-  }
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({ apiKey, timeout: TIMEOUT_MS })
-}
-
-function getModel(provider: Provider) {
-  return provider === "xai"
-    ? (process.env.XAI_MODEL ?? "grok-3-fast")
-    : (process.env.OPENAI_MODEL ?? "gpt-4o-mini")
-}
+import { callChat, streamChat, type AiContext, type ChatMessage } from "./client"
 
 export interface TutorContext {
   prompt: string
@@ -81,14 +54,17 @@ function buildSystemPrompt(context: TutorContext): string {
     .join("\n")
 }
 
-function buildMessages(context: TutorContext, history: TutorMessage[]) {
+function buildMessages(
+  context: TutorContext,
+  history: TutorMessage[],
+): ChatMessage[] {
   const turns: TutorMessage[] =
     history.length > 0
       ? history
       : [{ role: "user", content: TUTOR_OPENING_PROMPT }]
 
   return [
-    { role: "system" as const, content: buildSystemPrompt(context) },
+    { role: "system", content: buildSystemPrompt(context) },
     ...turns.map((m) => ({ role: m.role, content: m.content })),
   ]
 }
@@ -100,67 +76,20 @@ function buildMessages(context: TutorContext, history: TutorMessage[]) {
 export async function tutorReply(
   context: TutorContext,
   history: TutorMessage[],
+  ctx: AiContext = {},
 ): Promise<string> {
-  const messages = buildMessages(context, history)
-
-  let lastError: unknown
-  for (const provider of ["xai", "openai"] as Provider[]) {
-    const client = getClient(provider)
-    if (!client) continue
-    try {
-      const completion = await client.chat.completions.create({
-        model: getModel(provider),
-        messages,
-        max_tokens: 400,
-      })
-      const text = completion.choices[0]?.message?.content?.trim()
-      if (text) return text
-    } catch (err) {
-      lastError = err
-    }
-  }
-
-  throw lastError ?? new Error("AI tutor unavailable")
+  return callChat("tutor", ctx, buildMessages(context, history))
 }
 
 /**
  * Streaming variant of `tutorReply`: emits text deltas as they arrive and
- * resolves with the full reply. Falls back to the next provider only if
- * nothing has been emitted yet — a partial reply can't be restarted cleanly.
+ * resolves with the full reply.
  */
 export async function tutorReplyStream(
   context: TutorContext,
   history: TutorMessage[],
   onDelta: (text: string) => void,
+  ctx: AiContext = {},
 ): Promise<string> {
-  const messages = buildMessages(context, history)
-
-  let lastError: unknown
-  for (const provider of ["xai", "openai"] as Provider[]) {
-    const client = getClient(provider)
-    if (!client) continue
-    let emitted = ""
-    try {
-      const stream = await client.chat.completions.create({
-        model: getModel(provider),
-        messages,
-        max_tokens: 400,
-        stream: true,
-      })
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content ?? ""
-        if (delta) {
-          emitted += delta
-          onDelta(delta)
-        }
-      }
-      const text = emitted.trim()
-      if (text) return text
-    } catch (err) {
-      lastError = err
-      if (emitted) throw err
-    }
-  }
-
-  throw lastError ?? new Error("AI tutor unavailable")
+  return streamChat("tutor", ctx, buildMessages(context, history), onDelta)
 }

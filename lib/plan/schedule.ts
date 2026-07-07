@@ -8,7 +8,17 @@
  * spaced-review days, and never schedules more questions than the daily cap.
  */
 
+import { addDays, daysBetween, weekdayOf } from "./dates.ts"
+
 export type StudyTaskType = "practice" | "exam" | "lesson" | "review"
+export type PlanEffort = "light" | "standard" | "intense"
+
+/** Per-day practice question budget for each effort level (capped by dailyLimit). */
+export const EFFORT_QUESTION_BUDGET: Record<PlanEffort, number> = {
+  light: 8,
+  standard: 12,
+  intense: 20,
+}
 
 export interface PlanDomainInput {
   id: string
@@ -32,6 +42,10 @@ export interface BuildPlanInput {
   dailyLimit: number
   /** Question count for a full mock exam (blueprint.questionCount). */
   fullExamQuestionCount: number
+  /** UTC weekdays (0=Sun..6=Sat) with no scheduled tasks. At most 6. */
+  restDays?: number[]
+  /** Daily intensity; maps to a per-day question budget capped by dailyLimit. */
+  effort?: PlanEffort
 }
 
 export interface StudyTask {
@@ -52,12 +66,14 @@ export interface StudyPlan {
   targetDate: string
   targetScore: number
   totalDays: number
+  restDays: number[]
+  effort: PlanEffort
   tasks: StudyTask[]
   /** Naive projection of the weighted score if the plan is completed. */
   projectedScore: number
 }
 
-/** Mock exam roughly once a week. */
+/** Mock exam roughly once a week (counted in study days, not calendar days). */
 const EXAM_INTERVAL_DAYS = 7
 /** Domains below this mastery get a lesson before their first practice. */
 const LESSON_MASTERY_THRESHOLD = 40
@@ -65,26 +81,6 @@ const LESSON_MASTERY_THRESHOLD = 40
 const MAINTENANCE_EPSILON = 0.05
 /** Per-session mastery-gain decay used only for the projection. */
 const PROJECTION_DECAY = 0.6
-
-function parseDate(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(Date.UTC(y, m - 1, d))
-}
-
-function toIso(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function addDays(iso: string, days: number): string {
-  const d = parseDate(iso)
-  d.setUTCDate(d.getUTCDate() + days)
-  return toIso(d)
-}
-
-function daysBetween(startIso: string, endIso: string): number {
-  const ms = parseDate(endIso).getTime() - parseDate(startIso).getTime()
-  return Math.round(ms / 86_400_000)
-}
 
 /** Largest-remainder apportionment of `total` slots across weighted domains. */
 function apportion(
@@ -130,7 +126,12 @@ export function buildStudyPlan(input: BuildPlanInput): StudyPlan {
     throw new RangeError("at least one domain is required")
   }
 
-  const practiceQuestions = Math.max(1, Math.min(input.dailyLimit, 12))
+  const effort = input.effort ?? "standard"
+  const restDays = new Set(input.restDays ?? [])
+  const practiceQuestions = Math.max(
+    1,
+    Math.min(input.dailyLimit, EFFORT_QUESTION_BUDGET[effort]),
+  )
 
   // 1. Focus weight per domain: weighted gap to target (maintenance floor).
   const focus = input.domains.map((d) => {
@@ -140,26 +141,39 @@ export function buildStudyPlan(input: BuildPlanInput): StudyPlan {
     return { id: d.id, weight }
   })
 
-  // 2. Classify each day. Day 0..totalDays-1 are study days; the exam is on the
-  //    final day (dayIndex === totalDays). The day before the exam is a light
-  //    review; a mock exam lands every EXAM_INTERVAL days; the day after each
-  //    mock is a spaced review.
+  // 2. Study days are days 0..totalDays-1 whose weekday isn't a rest day; the
+  //    exam is on the final day (dayIndex === totalDays). Classify each study
+  //    day: a mock exam every EXAM_INTERVAL study days, a spaced review on the
+  //    study day after each mock, and a light review on the last study day.
+  const studyDayIndexes: number[] = []
+  for (let day = 0; day < totalDays; day++) {
+    if (!restDays.has(weekdayOf(addDays(input.startDate, day)))) {
+      studyDayIndexes.push(day)
+    }
+  }
+  if (studyDayIndexes.length === 0) {
+    throw new RangeError("no study days available before the exam")
+  }
+
   type Slot = { dayIndex: number; kind: StudyTaskType }
   const slots: Slot[] = []
-  const examDays = new Set<number>()
-  for (let day = 0; day < totalDays; day++) {
-    const isFinalDay = day === totalDays - 1
+  const lastStudyDay = studyDayIndexes[studyDayIndexes.length - 1]
+  let reviewAfterExam = false
+  for (let i = 0; i < studyDayIndexes.length; i++) {
+    const day = studyDayIndexes[i]
+    const isFinal = day === lastStudyDay
     const isExamDay =
-      !isFinalDay &&
-      day > 0 &&
-      day % EXAM_INTERVAL_DAYS === 0 &&
-      totalDays - day > 2
+      !isFinal &&
+      i > 0 &&
+      i % EXAM_INTERVAL_DAYS === 0 &&
+      studyDayIndexes.length - i > 2
     if (isExamDay) {
-      examDays.add(day)
       slots.push({ dayIndex: day, kind: "exam" })
-    } else if (examDays.has(day - 1)) {
+      reviewAfterExam = true
+    } else if (reviewAfterExam) {
       slots.push({ dayIndex: day, kind: "review" })
-    } else if (isFinalDay) {
+      reviewAfterExam = false
+    } else if (isFinal) {
       slots.push({ dayIndex: day, kind: "review" })
     } else {
       slots.push({ dayIndex: day, kind: "practice" })
@@ -268,6 +282,8 @@ export function buildStudyPlan(input: BuildPlanInput): StudyPlan {
     targetDate: input.targetDate,
     targetScore: input.targetScore,
     totalDays,
+    restDays: [...restDays].sort(),
+    effort,
     tasks,
     projectedScore,
   }

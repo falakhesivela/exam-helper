@@ -1,5 +1,3 @@
-import OpenAI from "openai"
-import { zodResponseFormat } from "openai/helpers/zod"
 import {
   clarifyResponseSchema,
   generatedQuestionsSchema,
@@ -15,165 +13,128 @@ import {
   generateUserPrompt,
 } from "./prompts"
 import { filterValidMcqQuestions } from "./validator"
+import { verifyMcqBatch } from "./accuracy-gate"
 import { topicLessonContentSchema } from "./lesson-schemas"
 import { lessonSystemPrompt, lessonUserPrompt } from "./lesson-prompts"
 import { verifyReferences } from "./verify-references"
+import { callStructured, streamStructured, type AiContext } from "./client"
 import { getExamBlueprint } from "@/lib/exams"
 import type { TopicLessonContent } from "@/types"
 
-const TIMEOUT_MS = 60_000
 const MAX_REGEN_ATTEMPTS = 2
 
-type Provider = "xai" | "openai"
-
-function getXaiClient() {
-  const apiKey = process.env.XAI_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({
-    apiKey,
-    baseURL: "https://api.x.ai/v1",
-    timeout: TIMEOUT_MS,
-  })
+/** Upper bound on output tokens for a question batch (~800 tokens/question). */
+export function questionBatchMaxTokens(count: number): number {
+  return Math.min(16000, 800 * count + 600)
 }
 
-function getOpenAiClient() {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
-  return new OpenAI({ apiKey, timeout: TIMEOUT_MS })
-}
-
-function getModel(provider: Provider) {
-  if (provider === "xai") {
-    return process.env.XAI_MODEL ?? "grok-3-fast"
-  }
-  return process.env.OPENAI_MODEL ?? "gpt-4o-mini"
-}
-
-async function callStructured<T>(
-  provider: Provider,
-  system: string,
-  user: string,
-  schema: Parameters<typeof zodResponseFormat>[0],
-  schemaName: string,
-): Promise<T> {
-  const client = provider === "xai" ? getXaiClient() : getOpenAiClient()
-  if (!client) throw new Error(`Missing API key for ${provider}`)
-
-  const completion = await client.chat.completions.parse({
-    model: getModel(provider),
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    response_format: zodResponseFormat(schema, schemaName),
-  })
-
-  const parsed = completion.choices[0]?.message?.parsed
-  if (!parsed) throw new Error(`Empty ${schemaName} response from ${provider}`)
-  return parsed as T
-}
-
-async function withFailover<T>(
-  fn: (provider: Provider) => Promise<T>,
-): Promise<T> {
-  const providers: Provider[] = ["xai", "openai"]
-  let lastError: unknown
-  for (const provider of providers) {
-    try {
-      return await fn(provider)
-    } catch (err) {
-      lastError = err
-      console.warn(`[ai] ${provider} failed:`, err)
-    }
-  }
-  throw lastError ?? new Error("All AI providers failed")
-}
-
-export async function clarify(description: string) {
-  return withFailover((provider) =>
-    callStructured(
-      provider,
-      clarifySystemPrompt(),
-      clarifyUserPrompt(description),
-      clarifyResponseSchema,
-      "clarify_response",
-    ),
+export async function clarify(description: string, ctx: AiContext = {}) {
+  return callStructured(
+    "clarify",
+    ctx,
+    clarifySystemPrompt(),
+    clarifyUserPrompt(description),
+    clarifyResponseSchema,
+    "clarify_response",
   )
 }
 
 type GeneratedResult = z.infer<typeof generatedQuestionsSchema>
 
-export async function generateQuestions(params: {
-  description: string
-  clarifications?: Record<string, string>
-  count: number
-  groundingText?: string
-}): Promise<{
+export async function generateQuestions(
+  params: {
+    description: string
+    clarifications?: Record<string, string>
+    count: number
+    groundingText?: string
+  },
+  ctx: AiContext = {},
+): Promise<{
   exam: string
   examCode: string
   focusTopics: string[]
   questions: GeneratedQuestion[]
 }> {
-  let lastValid: GeneratedQuestion[] = []
+  let exam = "Certification Exam"
+  let examCode = "CUSTOM"
+  let focusTopics = ["Mixed topics"]
+  const collected: GeneratedQuestion[] = []
 
   for (let attempt = 0; attempt <= MAX_REGEN_ATTEMPTS; attempt++) {
-    const result = await withFailover((provider) =>
-      callStructured<GeneratedResult>(
-        provider,
-        generateSystemPrompt(),
-        generateUserPrompt({
-          ...params,
-          count: params.count,
-        }) + (attempt > 0 ? `\n\nPrevious output had quality issues. Regenerate all ${params.count} questions.` : ""),
-        generatedQuestionsSchema,
-        "generated_questions",
-      ),
+    // Only ask for the shortfall — regenerating the whole batch wastes tokens.
+    const needed = params.count - collected.length
+    if (needed <= 0) break
+
+    const result = await callStructured<GeneratedResult>(
+      "generate",
+      ctx,
+      generateSystemPrompt(),
+      generateUserPrompt({ ...params, count: needed }) +
+        (attempt > 0
+          ? `\n\nGenerate ${needed} more high-quality questions that differ from any prior ones.`
+          : ""),
+      generatedQuestionsSchema,
+      "generated_questions",
+      { maxTokens: questionBatchMaxTokens(needed) },
     )
 
-    const valid = filterValidMcqQuestions(
+    if (attempt === 0) {
+      exam = result.exam
+      examCode = result.examCode
+      focusTopics = result.focusTopics
+    }
+
+    const structurallyValid = filterValidMcqQuestions(
       result.questions.map((q) => ({ ...q, questionType: "mcq" as const })),
     )
-    lastValid = valid
-
-    if (valid.length >= params.count) {
-      return {
-        exam: result.exam,
-        examCode: result.examCode,
-        focusTopics: result.focusTopics,
-        questions: valid.slice(0, params.count),
-      }
-    }
+    // Blind re-answer gate — see lib/ai/accuracy-gate.ts. Rejected questions
+    // count toward the shortfall the next loop iteration regenerates.
+    const { passed } = await verifyMcqBatch(structurallyValid, ctx)
+    collected.push(...passed)
   }
 
-  if (lastValid.length === 0) {
+  if (collected.length === 0) {
     throw new Error("Failed to generate valid questions after retries")
   }
 
   return {
-    exam: "Certification Exam",
-    examCode: "CUSTOM",
-    focusTopics: ["Mixed topics"],
-    questions: lastValid,
+    exam,
+    examCode,
+    focusTopics,
+    questions: collected.slice(0, params.count),
   }
 }
 
-export async function generateTopicLesson(params: {
-  exam: string
-  examCode: string
-  topic: string
-  topicOutline: string[]
-  masteryPercent: number
-  questionsAnswered: number
-  groundingText?: string
-}): Promise<TopicLessonContent> {
-  const result = await withFailover((provider) =>
-    callStructured<TopicLessonContent>(
-      provider,
-      lessonSystemPrompt(),
-      lessonUserPrompt(params),
-      topicLessonContentSchema,
-      "topic_lesson",
-    ),
+/** Deep-partial lesson snapshot emitted while the lesson streams in. */
+export interface StreamingLessonContent {
+  deepDive?: { title?: string; body?: string }[]
+  commonTraps?: string[]
+  recap?: string
+}
+
+export async function generateTopicLesson(
+  params: {
+    exam: string
+    examCode: string
+    topic: string
+    topicOutline: string[]
+    masteryPercent: number
+    questionsAnswered: number
+    groundingText?: string
+  },
+  ctx: AiContext = {},
+  onDelta?: (partial: StreamingLessonContent) => void,
+): Promise<TopicLessonContent> {
+  const result = await streamStructured<TopicLessonContent>(
+    "lesson",
+    ctx,
+    lessonSystemPrompt(),
+    lessonUserPrompt(params),
+    topicLessonContentSchema,
+    "topic_lesson",
+    (partial) => {
+      if (partial) onDelta?.(partial as StreamingLessonContent)
+    },
   )
 
   return {
@@ -199,7 +160,10 @@ export interface PlanCoachParams {
   weakDomains: { name: string; mastery: number }[]
 }
 
-export async function coachPlan(params: PlanCoachParams): Promise<PlanCoach> {
+export async function coachPlan(
+  params: PlanCoachParams,
+  ctx: AiContext = {},
+): Promise<PlanCoach> {
   const system =
     "You are Prepa, a sharp, encouraging certification study coach. Give concrete, exam-specific advice — never generic platitudes. Be concise and motivating. Reference the learner's actual numbers and weakest domains."
   const user = [
@@ -214,13 +178,12 @@ export async function coachPlan(params: PlanCoachParams): Promise<PlanCoach> {
     "Write a one-line headline, a 2-3 sentence coaching message, and up to 3 domain-specific tips.",
   ].join("\n")
 
-  return withFailover((provider) =>
-    callStructured<PlanCoach>(
-      provider,
-      system,
-      user,
-      planCoachSchema,
-      "plan_coach",
-    ),
+  return callStructured<PlanCoach>(
+    "coach",
+    ctx,
+    system,
+    user,
+    planCoachSchema,
+    "plan_coach",
   )
 }

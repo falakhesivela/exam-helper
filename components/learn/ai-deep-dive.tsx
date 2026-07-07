@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import type { TopicLessonContent } from "@/types"
+import type { StreamingLessonContent } from "@/lib/ai/index"
 
 interface AiDeepDiveProps {
   content?: TopicLessonContent
   loading: boolean
+  /** Partial lesson snapshot while generation streams in. */
+  streaming?: StreamingLessonContent | null
   onGenerate: () => void
   onRefresh?: () => void
   canGenerate: boolean
@@ -20,12 +23,16 @@ interface AiDeepDiveProps {
 export function AiDeepDive({
   content,
   loading,
+  streaming,
   onGenerate,
   onRefresh,
   canGenerate,
   limitMessage,
 }: AiDeepDiveProps) {
   if (loading) {
+    // Render sections as the model writes them; skeletons stand in for what
+    // hasn't arrived yet.
+    const sections = (streaming?.deepDive ?? []).filter((s) => s?.title?.trim())
     return (
       <Card>
         <CardHeader>
@@ -36,10 +43,27 @@ export function AiDeepDive({
           <CardDescription>Generating your AI lesson…</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-16 w-full" />
+          {sections.map((section, i) => (
+            <div key={i} className="flex flex-col gap-1.5">
+              <h3 className="text-sm font-semibold">{section.title}</h3>
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {section.body ?? ""}
+                {i === sections.length - 1 && (
+                  <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
+                )}
+              </p>
+            </div>
+          ))}
+          {sections.length === 0 ? (
+            <>
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-16 w-full" />
+            </>
+          ) : (
+            <Skeleton className="h-4 w-1/2" />
+          )}
         </CardContent>
       </Card>
     )

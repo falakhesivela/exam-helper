@@ -20,12 +20,15 @@ import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
 import { useSessionStore } from "@/lib/store/use-session-store"
+import { isPaidTier, TIER_NAMES } from "@/lib/config/tiers"
 import { api } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import { AccountGate } from "@/components/auth/account-gate"
+import { useProCheckout } from "@/components/upgrade/use-pro-checkout"
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { startCheckout, loading: checkoutLoading } = useProCheckout()
   const profile = useSessionStore((s) => s.profile)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const [signingOut, setSigningOut] = useState(false)
@@ -59,8 +62,11 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold tracking-tight">{profile.name}</h1>
           <p className="text-sm text-muted-foreground">{profile.email}</p>
-          <Badge variant={profile.plan === "pro" ? "default" : "secondary"} className="w-fit capitalize">
-            {profile.plan} plan
+          <Badge
+            variant={isPaidTier(profile.plan) ? "default" : "secondary"}
+            className="w-fit"
+          >
+            {TIER_NAMES[profile.plan]} plan
           </Badge>
         </div>
       </header>
@@ -92,9 +98,11 @@ export default function ProfilePage() {
           <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
             <Sparkles className="size-5 text-primary" />
             <span className="text-lg font-semibold">
-              {used}/{limit}
+              {limit === null ? used : `${used}/${limit}`}
             </span>
-            <span className="text-xs text-muted-foreground">today</span>
+            <span className="text-xs text-muted-foreground">
+              {limit === null ? "questions" : "used"}
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -110,12 +118,20 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground">
               Unlimited daily questions, exam simulations, and detailed analytics.
             </p>
-            <Progress value={(used / limit) * 100} className="h-1.5" />
+            <Progress value={(used / (limit ?? 1)) * 100} className="h-1.5" />
             <p className="text-xs text-muted-foreground">
-              {Math.max(0, limit - used)} free questions left today
+              {Math.max(0, (limit ?? 0) - used)} free trial questions left
             </p>
-            <Button className="w-full">
-              <CreditCard data-icon="inline-start" />
+            <Button
+              className="w-full"
+              onClick={startCheckout}
+              disabled={checkoutLoading}
+            >
+              {checkoutLoading ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <CreditCard data-icon="inline-start" />
+              )}
               Upgrade to Pro
             </Button>
           </CardContent>
@@ -137,7 +153,7 @@ export default function ProfilePage() {
           </div>
           <Separator />
           <Link
-            href={profile.plan === "pro" ? "/profile/billing" : "/upgrade"}
+            href={isPaidTier(profile.plan) ? "/profile/billing" : "/upgrade"}
             className="flex items-center justify-between gap-3 px-6 py-3.5 text-left text-sm transition-colors hover:bg-secondary/50"
           >
             <span className="flex items-center gap-3">

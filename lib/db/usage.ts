@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { getFreeDailyQuestionLimit } from "@/lib/config/freemium"
+import { getEntitlements, type Entitlements } from "@/lib/entitlements"
 
 export function getLocalDate(timezone = "UTC"): string {
   try {
@@ -26,6 +26,27 @@ export async function getTodayUsage(
   return data?.questions_used ?? 0
 }
 
+/**
+ * All-time totals from daily_usage. Powers the free tier's lifetime
+ * allowances; free users stop accruing rows quickly, so this stays small.
+ */
+async function getLifetimeUsage(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<{ questions: number; lessons: number }> {
+  const { data } = await admin
+    .from("daily_usage")
+    .select("questions_used, lessons_generated")
+    .eq("user_id", userId)
+  let questions = 0
+  let lessons = 0
+  for (const row of data ?? []) {
+    questions += row.questions_used ?? 0
+    lessons += row.lessons_generated ?? 0
+  }
+  return { questions, lessons }
+}
+
 export async function incrementUsage(
   admin: SupabaseClient,
   userId: string,
@@ -43,29 +64,47 @@ export async function incrementUsage(
   return (data as { questions_used: number }).questions_used
 }
 
+export interface QuestionQuota {
+  allowed: boolean
+  /** null = unlimited. Never Infinity: this crosses the JSON boundary. */
+  remaining: number | null
+  /** The limit for the user's window (daily or lifetime); null = unlimited. */
+  dailyLimit: number | null
+  /** Questions consumed in the user's window. */
+  used: number
+  entitlements: Entitlements
+}
+
 export async function checkFreemiumLimit(
   admin: SupabaseClient,
   userId: string,
   requested: number,
-): Promise<{ allowed: boolean; remaining: number; dailyLimit: number }> {
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("plan, timezone")
-    .eq("id", userId)
-    .single()
+): Promise<QuestionQuota> {
+  const ent = await getEntitlements(admin, userId)
+  const limit = ent.limits.questions
 
-  if (!profile) throw new Error("Profile not found")
-  if (profile.plan === "pro") {
-    return { allowed: true, remaining: Infinity, dailyLimit: Infinity }
+  const used =
+    ent.limits.questionsWindow === "lifetime"
+      ? (await getLifetimeUsage(admin, userId)).questions
+      : await getTodayUsage(admin, userId, ent.timezone)
+
+  if (limit === null) {
+    return {
+      allowed: true,
+      remaining: null,
+      dailyLimit: null,
+      used,
+      entitlements: ent,
+    }
   }
 
-  const dailyLimit = getFreeDailyQuestionLimit()
-  const used = await getTodayUsage(admin, userId, profile.timezone ?? "UTC")
-  const remaining = Math.max(0, dailyLimit - used)
+  const remaining = Math.max(0, limit - used)
   return {
     allowed: requested <= remaining,
     remaining,
-    dailyLimit,
+    dailyLimit: limit,
+    used,
+    entitlements: ent,
   }
 }
 
@@ -73,7 +112,7 @@ export class FreemiumExceededError extends Error {
   code = "FREEMIUM_LIMIT"
   remaining: number
   constructor(remaining: number) {
-    super("Daily question limit reached")
+    super("Question limit reached")
     this.remaining = remaining
   }
 }
@@ -82,12 +121,10 @@ export class LessonLimitExceededError extends Error {
   code = "LESSON_LIMIT"
   remaining: number
   constructor(remaining: number) {
-    super("Daily AI lesson limit reached")
+    super("AI lesson limit reached")
     this.remaining = remaining
   }
 }
-
-export const FREE_DAILY_LESSON_LIMIT = 3
 
 export async function getTodayLessonUsage(
   admin: SupabaseClient,
@@ -120,33 +157,41 @@ export async function incrementLessonUsage(
   return (data as { lessons_generated: number }).lessons_generated
 }
 
+export interface LessonQuota {
+  allowed: boolean
+  remaining: number | null
+  dailyLimit: number | null
+  used: number
+  entitlements: Entitlements
+}
+
 export async function checkLessonLimit(
   admin: SupabaseClient,
   userId: string,
-): Promise<{ allowed: boolean; remaining: number; dailyLimit: number; used: number }> {
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("plan, timezone")
-    .eq("id", userId)
-    .single()
-
-  if (!profile) throw new Error("Profile not found")
-  if (profile.plan === "pro") {
+): Promise<LessonQuota> {
+  const ent = await getEntitlements(admin, userId)
+  const limit = ent.limits.lessons
+  if (limit === null) {
     return {
       allowed: true,
-      remaining: Infinity,
-      dailyLimit: Infinity,
+      remaining: null,
+      dailyLimit: null,
       used: 0,
+      entitlements: ent,
     }
   }
 
-  const used = await getTodayLessonUsage(admin, userId, profile.timezone ?? "UTC")
-  const remaining = Math.max(0, FREE_DAILY_LESSON_LIMIT - used)
+  const used =
+    ent.limits.lessonsWindow === "lifetime"
+      ? (await getLifetimeUsage(admin, userId)).lessons
+      : await getTodayLessonUsage(admin, userId, ent.timezone)
+  const remaining = Math.max(0, limit - used)
   return {
     allowed: remaining > 0,
     remaining,
-    dailyLimit: FREE_DAILY_LESSON_LIMIT,
+    dailyLimit: limit,
     used,
+    entitlements: ent,
   }
 }
 
@@ -156,7 +201,7 @@ export async function enforceLessonLimit(
 ) {
   const check = await checkLessonLimit(admin, userId)
   if (!check.allowed) {
-    throw new LessonLimitExceededError(check.remaining)
+    throw new LessonLimitExceededError(check.remaining ?? 0)
   }
   return check
 }
@@ -168,7 +213,7 @@ export async function enforceFreemium(
 ) {
   const check = await checkFreemiumLimit(admin, userId, count)
   if (!check.allowed) {
-    throw new FreemiumExceededError(check.remaining)
+    throw new FreemiumExceededError(check.remaining ?? 0)
   }
   return check
 }

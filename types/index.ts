@@ -1,5 +1,9 @@
 // Core domain types for Prepa
 
+import type { Tier, TierLimits } from "@/lib/config/tiers"
+
+export type { Tier, TierLimits }
+
 /** A single answer option on a question. */
 export interface QuestionOption {
   id: string // "a" | "b" | "c" | "d"
@@ -189,14 +193,22 @@ export interface UserProfile {
   email: string
   /** True for anonymous sessions (no real account yet) — gates account-only UI. */
   isAnonymous: boolean
-  plan: "free" | "pro"
+  plan: Tier
   /**
    * Raw Paddle subscription status (e.g. "active", "trialing", "past_due",
    * "canceled") when the user has a subscription; null for free users.
    */
   subscriptionStatus: string | null
-  /** Daily free-tier question allowance. */
-  dailyLimit: number
+  /** When Exam Pass access ends (ISO timestamp); null on other tiers. */
+  planExpiresAt: string | null
+  /** Full limits for the user's tier — the client's source of truth. */
+  limits: TierLimits
+  /**
+   * Question allowance in the user's window (daily on paid tiers, lifetime on
+   * free). null = unlimited — never Infinity, this crosses the JSON boundary.
+   */
+  dailyLimit: number | null
+  /** Questions consumed in the same window as dailyLimit. */
   questionsUsedToday: number
   streakDays: number
   longestStreak: number
@@ -260,6 +272,7 @@ export interface LearnTopic {
 
 export type StudyTaskType = "practice" | "exam" | "lesson" | "review"
 export type StudyTaskStatus = "pending" | "done" | "skipped"
+export type PlanEffort = "light" | "standard" | "intense"
 
 export interface StudyPlanTask {
   id: string
@@ -278,9 +291,13 @@ export interface StudyPlan {
   id: string
   examCode: string
   exam: string
+  startDate: string // ISO YYYY-MM-DD
   targetDate: string // ISO YYYY-MM-DD
   targetScore: number
   projectedScore: number
+  /** UTC weekdays with no scheduled tasks (0=Sun..6=Sat). */
+  restDays: number[]
+  effort: PlanEffort
   tasks: StudyPlanTask[]
 }
 
@@ -307,5 +324,6 @@ export interface TopicLesson {
   status: LessonStatus
   bookmarked: boolean
   lessonsUsedToday?: number
-  dailyLessonLimit?: number
+  /** null = unlimited. */
+  dailyLessonLimit?: number | null
 }

@@ -9,12 +9,11 @@ import { getCatalogTopicBySlug, getExamCatalog } from "@/lib/learning/catalog"
 import { inferExamFromSessions, resolveTopicName } from "@/lib/learning/topic-resolver"
 import {
   checkLessonLimit,
-  FREE_DAILY_LESSON_LIMIT,
   getTodayLessonUsage,
   incrementLessonUsage,
   LessonLimitExceededError,
 } from "@/lib/db/usage"
-import { generateTopicLesson } from "@/lib/ai"
+import { generateTopicLesson, type StreamingLessonContent } from "@/lib/ai"
 
 interface TopicLessonRow {
   id: string
@@ -179,16 +178,9 @@ export async function loadTopicLesson(
     progress = data as LessonProgressRow | null
   }
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("plan, timezone")
-    .eq("id", userId)
-    .single()
-
-  const tz = profile?.timezone ?? timezone
-  const lessonsUsedToday = await getTodayLessonUsage(admin, userId, tz)
-  const dailyLessonLimit =
-    profile?.plan === "pro" ? Infinity : FREE_DAILY_LESSON_LIMIT
+  const limitCheck = await checkLessonLimit(admin, userId)
+  const lessonsUsedToday = limitCheck.used
+  const dailyLessonLimit = limitCheck.dailyLimit
 
   const outline = catalogTopic?.outline ?? [
     "Core concepts for this topic",
@@ -229,6 +221,7 @@ export async function generateAndCacheLesson(
   topicSlug: string,
   timezone: string,
   force = false,
+  onDelta?: (partial: StreamingLessonContent) => void,
 ): Promise<TopicLesson> {
   const lesson = await loadTopicLesson(admin, userId, topicSlug, timezone)
 
@@ -248,15 +241,19 @@ export async function generateAndCacheLesson(
     .limit(1)
     .maybeSingle()
 
-  const content = await generateTopicLesson({
-    exam: lesson.exam,
-    examCode: lesson.examCode,
-    topic: lesson.topicName,
-    topicOutline: lesson.outline,
-    masteryPercent: lesson.mastery,
-    questionsAnswered: lesson.questionsAnswered,
-    groundingText: upload?.extracted_text,
-  })
+  const content = await generateTopicLesson(
+    {
+      exam: lesson.exam,
+      examCode: lesson.examCode,
+      topic: lesson.topicName,
+      topicOutline: lesson.outline,
+      masteryPercent: lesson.mastery,
+      questionsAnswered: lesson.questionsAnswered,
+      groundingText: upload?.extracted_text,
+    },
+    { userId },
+    onDelta,
+  )
 
   const { data: profile } = await admin
     .from("profiles")
@@ -364,7 +361,7 @@ async function enforceLessonLimitForGeneration(
 ) {
   const check = await checkLessonLimit(admin, userId)
   if (!check.allowed) {
-    throw new LessonLimitExceededError(check.remaining)
+    throw new LessonLimitExceededError(check.remaining ?? 0)
   }
 }
 

@@ -94,7 +94,7 @@ export function DomainMastery() {
         onError: (err) => {
           toast.error(
             err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Daily question limit reached."
+              ? "Question limit reached on your plan."
               : err.message,
           )
           setDrillingId(null)
@@ -133,7 +133,7 @@ export function DomainMastery() {
         onError: (err) => {
           toast.error(
             err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Daily question limit reached."
+              ? "Question limit reached on your plan."
               : err.message,
           )
           setStartingExam(false)
