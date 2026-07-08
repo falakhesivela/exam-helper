@@ -214,6 +214,25 @@ export interface UserProfile {
   longestStreak: number
   /** Self-set target questions/day for the streak. */
   dailyGoal: number
+  /** When the user completed (or skipped) onboarding; null = show onboarding. */
+  onboardedAt?: string | null
+  /** Server-resolved active exam (last practiced, else onboarding choice). */
+  activeExam?: { examCode: string; exam: string } | null
+}
+
+/** Hand-authored exam-taking tip (static catalog content, zero AI cost). */
+export interface ExamTip {
+  title: string
+  body: string
+}
+
+/** An exam the user is studying (chosen at onboarding or added later). */
+export interface UserExam {
+  examCode: string
+  exam: string
+  examDate: string | null
+  /** False for custom exams without a preset blueprint. */
+  isPreset: boolean
 }
 
 /** Live subscription detail fetched from Paddle for the billing screen. */
@@ -248,11 +267,35 @@ export interface ClarifyingQuestion {
   suggestions: string[]
 }
 
+/** Structured X-vs-Y decision table (e.g. ALB vs NLB). */
+export interface ComparisonTable {
+  title: string
+  columns: string[]
+  rows: string[][]
+}
+
+/** Single-answer MCQ from the end-of-lesson knowledge check. */
+export interface CheckQuestion {
+  prompt: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+/** A memorizable fact plus the recall question used on its flashcard. */
+export interface KeyFact {
+  fact: string
+  question: string
+}
+
 /** AI-generated deep-dive content for a topic lesson. */
 export interface TopicLessonContent {
   deepDive: { title: string; body: string }[]
+  comparisons?: ComparisonTable[]
   commonTraps: string[]
+  keyFacts?: KeyFact[]
   recap: string
+  checkQuestions?: CheckQuestion[]
   references: { label: string; url: string }[]
 }
 
@@ -264,6 +307,8 @@ export interface LearnTopic {
   slug: string
   mastery: number
   questionsAnswered: number
+  /** False for catalog topics the user hasn't practiced yet (mastery unknown). */
+  assessed?: boolean
   /** Exam domain this topic belongs to, when it maps to the catalog. */
   domainName?: string
   /** Domain's share of the exam, e.g. "30%". */
@@ -272,6 +317,17 @@ export interface LearnTopic {
   lessonStatus: LessonStatus
   bookmarked: boolean
   hasAiContent: boolean
+}
+
+/** A key-fact flashcard from a lesson, with its spaced-review state. */
+export interface FactCard {
+  lessonId: string
+  factIndex: number
+  topicName: string
+  question: string
+  fact: string
+  due: boolean
+  nextReviewAt?: string | null
 }
 
 export type StudyTaskType = "practice" | "exam" | "lesson" | "review"
@@ -329,6 +385,9 @@ export interface TopicLesson {
   content?: TopicLessonContent
   status: LessonStatus
   bookmarked: boolean
+  /** Best knowledge-check result, if the user has taken it. */
+  checkScore?: number | null
+  checkTotal?: number | null
   lessonsUsedToday?: number
   /** null = unlimited. */
   dailyLessonLimit?: number | null

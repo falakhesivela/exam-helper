@@ -11,6 +11,7 @@ import type {
   TopicMastery,
   UserProfile,
 } from "@/types"
+import { getAllCatalogTopics } from "@/lib/learning/catalog"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
 import { buildStudyPlan } from "@/lib/plan/schedule"
 import { limitsFor } from "@/lib/config/tiers"
@@ -33,6 +34,11 @@ export const mockProfile: UserProfile = {
   streakDays: 12,
   longestStreak: 21,
   dailyGoal: 10,
+  onboardedAt: "2026-01-01T00:00:00Z",
+  activeExam: {
+    examCode: "SAA-C03",
+    exam: "AWS Certified Solutions Architect – Associate",
+  },
 }
 
 /** Blank profile used before API hydration (never show mock demo data). */
@@ -49,6 +55,42 @@ export const emptyProfile: UserProfile = {
   streakDays: 0,
   longestStreak: 0,
   dailyGoal: 10,
+  onboardedAt: null,
+  activeExam: null,
+}
+
+export function buildMockExamTips(): import("@/types").ExamTip[] {
+  return [
+    {
+      title: "Know the format",
+      body: "65 questions in 130 minutes — exactly 2 minutes each. 50 are scored, 15 are unscored trial questions, and you need roughly 72% to pass.",
+    },
+    {
+      title: "Read the qualifier first",
+      body: "Almost every question ends with MOST cost-effective or MOST operationally efficient. Two answers usually 'work' — the qualifier decides.",
+    },
+    {
+      title: "Prefer managed services",
+      body: "When two options both solve the problem, AWS wants the managed, serverless, or multi-AZ one.",
+    },
+  ]
+}
+
+export function buildMockUserExams(): import("@/types").UserExam[] {
+  return [
+    {
+      examCode: "SAA-C03",
+      exam: "AWS Certified Solutions Architect – Associate",
+      examDate: "2026-09-15",
+      isPreset: true,
+    },
+    {
+      examCode: "DOP-C02",
+      exam: "AWS Certified DevOps Engineer – Professional",
+      examDate: null,
+      isPreset: true,
+    },
+  ]
 }
 
 // Canonical `EXAMCODE::domainId` keys mirror the enriched shape the API
@@ -509,14 +551,109 @@ const MOCK_LESSON_CONTENT: TopicLessonContent = {
         "Security groups are stateful firewalls at the instance/ENI level — return traffic is automatically allowed. Network ACLs are stateless subnet-level filters evaluated in order. Exams often test which layer to use for a given access pattern.",
     },
   ],
+  comparisons: [
+    {
+      title: "Security groups vs Network ACLs",
+      columns: ["Aspect", "Security group", "Network ACL"],
+      rows: [
+        ["Level", "Instance / ENI", "Subnet"],
+        ["State", "Stateful — return traffic allowed", "Stateless — both directions needed"],
+        ["Rules", "Allow only", "Allow and deny"],
+        ["Evaluation", "All rules", "In number order, first match wins"],
+      ],
+    },
+    {
+      title: "NAT gateway vs NAT instance",
+      columns: ["Aspect", "NAT gateway", "NAT instance"],
+      rows: [
+        ["Management", "Fully managed", "You patch and scale it"],
+        ["Availability", "HA within an AZ", "Single EC2 instance"],
+        ["Bandwidth", "Scales to 100 Gbps", "Depends on instance type"],
+      ],
+    },
+  ],
   commonTraps: [
     "Attaching an internet gateway directly to a private subnet route table",
     "Using long-lived IAM user keys on EC2 instead of instance profiles",
     "Confusing security group stateful behavior with NACL stateless rules",
     "Choosing VPC peering when Transit Gateway is better for hub-and-spoke",
   ],
+  keyFacts: [
+    {
+      fact: "Security groups are stateful; NACLs are stateless",
+      question: "Which VPC firewall layer is stateful, and which is stateless?",
+    },
+    {
+      fact: "A NAT gateway lives in a public subnet and scales to 100 Gbps",
+      question: "Where does a NAT gateway live, and how much bandwidth can it scale to?",
+    },
+    {
+      fact: "One NAT gateway per AZ is the HA pattern",
+      question: "What is the high-availability deployment pattern for NAT gateways?",
+    },
+    {
+      fact: "Gateway VPC endpoints (S3, DynamoDB) are free; interface endpoints are billed hourly",
+      question: "Which VPC endpoint type is free, and for which services?",
+    },
+    {
+      fact: "Route 53 private hosted zones resolve only inside associated VPCs",
+      question: "Where do Route 53 private hosted zones resolve?",
+    },
+  ],
   recap:
     "For exam scenarios about private subnet outbound access, NAT gateway in a public subnet is the standard answer. Remember security groups are stateful and operate at the instance level, while NACLs are stateless and subnet-level. Multi-AZ NAT gateways improve availability.",
+  checkQuestions: [
+    {
+      prompt:
+        "Instances in a private subnet need to download OS patches. What provides outbound internet access without allowing inbound connections?",
+      options: [
+        "An internet gateway attached to the private subnet",
+        "A NAT gateway in a public subnet, referenced from the private route table",
+        "A VPC peering connection to a public VPC",
+        "An interface VPC endpoint for the internet",
+      ],
+      correctIndex: 1,
+      explanation:
+        "NAT gateways give private instances outbound-only internet access; internet gateways would allow inbound too.",
+    },
+    {
+      prompt: "Which statement about security groups is true?",
+      options: [
+        "They are stateless and evaluated in rule order",
+        "They support explicit deny rules",
+        "They are stateful — return traffic is automatically allowed",
+        "They apply at the subnet level",
+      ],
+      correctIndex: 2,
+      explanation:
+        "Security groups are stateful, instance-level, allow-only firewalls; NACLs are the stateless subnet-level ones.",
+    },
+    {
+      prompt:
+        "Private EC2 instances need to reach S3 without traversing the internet at no extra cost. Which option fits?",
+      options: [
+        "Gateway VPC endpoint",
+        "Interface VPC endpoint",
+        "NAT gateway",
+        "Transit Gateway",
+      ],
+      correctIndex: 0,
+      explanation:
+        "Gateway endpoints for S3 and DynamoDB are free and keep traffic on the AWS network.",
+    },
+    {
+      prompt: "What is the recommended NAT gateway pattern for high availability?",
+      options: [
+        "One NAT gateway shared by all AZs",
+        "One NAT gateway per Availability Zone",
+        "Two NAT gateways in the same subnet",
+        "A NAT instance with an Auto Scaling group",
+      ],
+      correctIndex: 1,
+      explanation:
+        "A NAT gateway is resilient within a single AZ, so you deploy one per AZ to survive AZ failure.",
+    },
+  ],
   references: [
     {
       label: "AWS VPC User Guide",
@@ -530,7 +667,7 @@ const MOCK_LESSON_CONTENT: TopicLessonContent = {
 }
 
 export function buildMockLearnTopics(): LearnTopic[] {
-  return mockTopicMastery.map((t) => {
+  const assessed: LearnTopic[] = mockTopicMastery.map((t) => {
     const resolved = resolveTopicName(t.displayTopic ?? t.topic, "SAA-C03")
     const hasAi = t.mastery < 70
     return {
@@ -538,6 +675,7 @@ export function buildMockLearnTopics(): LearnTopic[] {
       slug: resolved.slug,
       mastery: t.mastery,
       questionsAnswered: t.questionsAnswered,
+      assessed: true,
       domainName: resolved.catalogTopic?.domainName,
       domainWeight: resolved.catalogTopic?.domainWeight,
       lessonId: hasAi ? `lesson-${resolved.slug}` : undefined,
@@ -550,6 +688,40 @@ export function buildMockLearnTopics(): LearnTopic[] {
       hasAiContent: hasAi && t.mastery < 55,
     }
   })
+
+  const assessedSlugs = new Set(assessed.map((t) => t.slug))
+  const unassessed: LearnTopic[] = getAllCatalogTopics("SAA-C03")
+    .filter((c) => !assessedSlugs.has(c.slug))
+    .map((c) => ({
+      topic: c.name,
+      slug: c.slug,
+      mastery: 0,
+      questionsAnswered: 0,
+      assessed: false,
+      domainName: c.domainName,
+      domainWeight: c.domainWeight,
+      lessonStatus: "not-started",
+      bookmarked: false,
+      hasAiContent: false,
+    }))
+
+  return [...assessed, ...unassessed]
+}
+
+export function buildMockFactCards(): import("@/types").FactCard[] {
+  return buildMockLearnTopics()
+    .filter((t) => t.hasAiContent && t.lessonId)
+    .flatMap((t) =>
+      (MOCK_LESSON_CONTENT.keyFacts ?? []).map((f, i) => ({
+        lessonId: t.lessonId!,
+        factIndex: i,
+        topicName: t.topic,
+        question: f.question,
+        fact: f.fact,
+        due: true,
+        nextReviewAt: null,
+      })),
+    )
 }
 
 export function buildMockTopicLesson(topicSlug: string): TopicLesson {

@@ -25,6 +25,7 @@ import { api } from "@/lib/api/client"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { AccountGate } from "@/components/auth/account-gate"
+import { YourExamsCard } from "@/components/profile/your-exams-card"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -109,6 +110,8 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <YourExamsCard />
 
       {/* Upgrade card for free users */}
       {profile.plan === "free" && (

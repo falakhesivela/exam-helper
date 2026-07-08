@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, ExternalLink, GraduationCap } from "lucide-react"
+import { ArrowLeft, ArrowRight, ExternalLink, GraduationCap } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CuratedOutline } from "@/components/learn/curated-outline"
 import { AiDeepDive } from "@/components/learn/ai-deep-dive"
+import { CHECK_PASS_RATIO, LessonCheck } from "@/components/learn/lesson-check"
+import { LessonTutor } from "@/components/learn/lesson-tutor"
 import { LessonActions } from "@/components/learn/lesson-actions"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useSessionStore } from "@/lib/store/use-session-store"
@@ -22,6 +24,7 @@ interface TopicLessonViewProps {
 
 /** Full lesson page combining curated outline and AI deep-dive. */
 export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
+  const learnTopics = useSessionStore((s) => s.learnTopics)
   const fetchLesson = useSessionStore((s) => s.fetchLesson)
   const generateLesson = useSessionStore((s) => s.generateLesson)
   const ensureLesson = useSessionStore((s) => s.ensureLesson)
@@ -99,6 +102,43 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
     }
   }
 
+  async function handleCheckSubmit(score: number, total: number) {
+    setCompleting(true)
+    try {
+      let current = lesson
+      if (!current?.id) {
+        current = await ensureLesson(topicSlug)
+        setLesson(current)
+      }
+      if (!current?.id) return
+
+      await updateLessonProgress(current.id, {
+        checkScore: score,
+        checkTotal: total,
+      })
+      const passed = score >= total * CHECK_PASS_RATIO
+      setLesson((prev) =>
+        prev
+          ? {
+              ...prev,
+              id: current!.id,
+              checkScore: score,
+              checkTotal: total,
+              status: passed ? "completed" : prev.status,
+            }
+          : prev,
+      )
+      if (passed) {
+        if (planTaskId) void updatePlanTask(planTaskId, { status: "done" })
+        toast.success("Check passed — lesson complete!")
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save your result")
+    } finally {
+      setCompleting(false)
+    }
+  }
+
   async function handleToggleBookmark() {
     setCompleting(true)
     try {
@@ -137,9 +177,24 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
       ? `${remainingLessons} of ${lesson.dailyLessonLimit} AI lessons remaining`
       : undefined
 
-  const readMinutes = Math.max(
-    3,
-    Math.round(lesson.outline.length * 1.5 + (lesson.content ? 5 : 0)),
+  // ~200 wpm over the actual lesson text, not a guess from bullet count.
+  const wordSources: string[] = [...lesson.outline]
+  if (lesson.content) {
+    const c = lesson.content
+    wordSources.push(
+      ...c.deepDive.flatMap((s) => [s.title, s.body]),
+      ...(c.comparisons ?? []).flatMap((t) => [t.title, ...t.columns, ...t.rows.flat()]),
+      ...c.commonTraps,
+      ...(c.keyFacts ?? []).map((f) => f.fact),
+      c.recap,
+    )
+  }
+  const wordCount = wordSources.join(" ").split(/\s+/).filter(Boolean).length
+  const readMinutes = Math.max(2, Math.round(wordCount / 200))
+
+  // Next recommended topic: learnTopics is already in priority order.
+  const nextTopic = learnTopics.find(
+    (t) => t.slug !== topicSlug && t.lessonStatus !== "completed",
   )
 
   const providerNoun =
@@ -176,7 +231,9 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <GraduationCap className="size-4" />
-            {lesson.mastery}% mastery
+            {lesson.questionsAnswered > 0
+              ? `${lesson.mastery}% mastery`
+              : "Not practiced yet"}
           </span>
           <span>~{readMinutes} min read</span>
         </div>
@@ -235,6 +292,18 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         limitMessage={limitMessage}
       />
 
+      <LessonTutor topicSlug={topicSlug} topicName={lesson.topicName} />
+
+      {(lesson.content?.checkQuestions ?? []).length > 0 && (
+        <LessonCheck
+          questions={lesson.content!.checkQuestions!}
+          savedScore={lesson.checkScore}
+          savedTotal={lesson.checkTotal}
+          onSubmit={handleCheckSubmit}
+          submitting={completing}
+        />
+      )}
+
       <LessonActions
         topicName={lesson.topicName}
         status={lesson.status}
@@ -244,6 +313,25 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         onToggleBookmark={handleToggleBookmark}
         completing={completing}
       />
+
+      {nextTopic && (
+        <Link
+          href={`/learn/${nextTopic.slug}`}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted-foreground">Next up</span>
+            <span className="text-sm font-medium">{nextTopic.topic}</span>
+            <span className="text-xs text-muted-foreground">
+              {nextTopic.assessed !== false && nextTopic.questionsAnswered > 0
+                ? `${nextTopic.mastery}% mastery`
+                : "Not practiced yet"}
+              {nextTopic.domainWeight ? ` · ${nextTopic.domainWeight} of exam` : ""}
+            </span>
+          </div>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
     </div>
   )
 }

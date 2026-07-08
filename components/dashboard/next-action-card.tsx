@@ -64,9 +64,10 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
   const { launch, launchingId } = useTaskLauncher(plan)
   const [startingDrill, setStartingDrill] = useState(false)
 
-  const { examCode } = useMemo(
-    () => inferExamFromSessions(sessions),
-    [sessions],
+  const activeExamCode = useSessionStore((s) => s.activeExamCode)
+  const examCode = useMemo(
+    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
+    [activeExamCode, sessions],
   )
   const blueprint = getExamBlueprint(examCode)
 

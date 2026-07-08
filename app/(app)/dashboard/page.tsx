@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
 import { CalendarPlus, Target } from "lucide-react"
 import { ConsistencyHeatmap } from "@/components/dashboard/consistency-heatmap"
@@ -20,10 +22,27 @@ function todayIso(): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const profile = useSessionStore((s) => s.profile)
+  const hydrated = useSessionStore((s) => s.hydrated)
   const sessions = useSessionStore((s) => s.sessions)
   const plan = useSessionStore((s) => s.plan)
   const dueCount = useDueReviewCount()
+
+  // New accounts arriving via OAuth or email confirmation skip the signup
+  // redirect — send them to onboarding once. `=== null` is deliberate: an
+  // older backend that doesn't send the field (undefined) must never trigger
+  // this, and neither may the pre-hydration empty profile.
+  useEffect(() => {
+    if (
+      hydrated &&
+      !profile.isAnonymous &&
+      profile.email &&
+      profile.onboardedAt === null
+    ) {
+      router.replace("/onboarding")
+    }
+  }, [hydrated, profile.isAnonymous, profile.email, profile.onboardedAt, router])
 
   const greeting = (() => {
     const h = new Date().getHours()

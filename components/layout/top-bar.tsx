@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, User, Users } from "lucide-react"
+import { ExamSwitcher } from "@/components/layout/exam-switcher"
 import { Logo } from "@/components/layout/logo"
 import { UsageMeter } from "@/components/layout/usage-meter"
 import { Badge } from "@/components/ui/badge"
@@ -60,6 +61,7 @@ export function TopBar() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-3">
+          <ExamSwitcher />
           <UsageMeter />
           {isAnonymous ? (
             <>

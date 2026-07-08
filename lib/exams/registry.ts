@@ -6,6 +6,7 @@ import { az104Blueprint } from "./blueprints/az-104"
 import { az900Blueprint } from "./blueprints/az-900"
 import { clfC02Blueprint } from "./blueprints/clf-c02"
 import { cisspBlueprint } from "./blueprints/cissp"
+import { dopC02Blueprint } from "./blueprints/dop-c02"
 import { dvaC02Blueprint } from "./blueprints/dva-c02"
 import { gcpAceBlueprint } from "./blueprints/gcp-ace"
 import { n10009Blueprint } from "./blueprints/n10-009"
@@ -27,6 +28,7 @@ const blueprints: Record<string, ExamBlueprint> = {
   "SAA-C03": saaC03Blueprint,
   "CLF-C02": clfC02Blueprint,
   "DVA-C02": dvaC02Blueprint,
+  "DOP-C02": dopC02Blueprint,
   "AZ-900": az900Blueprint,
   "AZ-104": az104Blueprint,
   "GCP-ACE": gcpAceBlueprint,
@@ -42,6 +44,7 @@ export const EXAM_PRESET_CODES = [
   "SAA-C03",
   "CLF-C02",
   "DVA-C02",
+  "DOP-C02",
   "AZ-900",
   "AZ-104",
   "GCP-ACE",

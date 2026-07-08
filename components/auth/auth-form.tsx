@@ -147,9 +147,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         }
 
         if (data.session) {
-          // Confirmation is disabled — signed in immediately.
+          // Confirmation is disabled — signed in immediately. New accounts
+          // start at onboarding (OAuth/confirmed-email signups are caught by
+          // the dashboard's onboarding gate instead).
           toast.success("Account created — welcome to Prepa!")
-          goToApp()
+          window.location.assign("/onboarding")
           return
         }
 

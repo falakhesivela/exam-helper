@@ -64,10 +64,16 @@ function friendlyCreateError(err: unknown): { message: string; toPractice?: bool
 export function PlanSetupWizard() {
   const createPlan = useSessionStore((s) => s.createPlan)
   const profile = useSessionStore((s) => s.profile)
+  const userExams = useSessionStore((s) => s.userExams)
+  const activeExamCode = useSessionStore((s) => s.activeExamCode)
 
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
-  const [targetDate, setTargetDate] = useState(() => addDays(todayIso(), 28))
+  const [targetDate, setTargetDate] = useState(() => {
+    // Prefill from the exam date set at onboarding, if it's still ahead.
+    const saved = userExams.find((e) => e.examCode === activeExamCode)?.examDate
+    return saved && saved > todayIso() ? saved : addDays(todayIso(), 28)
+  })
   const [restDays, setRestDays] = useState<number[]>([])
   const [effort, setEffort] = useState<PlanEffort>("standard")
   const [creating, setCreating] = useState(false)

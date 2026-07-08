@@ -23,6 +23,8 @@ import {
   generateMockTopicLesson,
   emptyProfile,
   buildMockBookmarks,
+  buildMockExamTips,
+  buildMockUserExams,
   buildMockStreak,
   buildMockStudyPlan,
   mockPlanCoaching,
@@ -49,6 +51,16 @@ interface SessionState {
   streak: StreakSummary | null;
   bookmarkedIds: string[];
   learnTopics: LearnTopic[];
+  /** Exams the user is studying (onboarding choices + practiced exams). */
+  userExams: import("@/types").UserExam[];
+  /** Static exam-taking tips for the active exam (catalog content). */
+  examTips: import("@/types").ExamTip[];
+  /**
+   * Exam currently scoping Learn/plan/readiness. Client-side view state:
+   * defaults to the server-resolved active exam (last practiced) and resets
+   * on reload — switching here does not persist anything.
+   */
+  activeExamCode: string | null;
   hydrated: boolean;
 
   getSession: (id: string) => PracticeSession | undefined;
@@ -56,6 +68,9 @@ interface SessionState {
 
   hydrate: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshUserExams: () => Promise<void>;
+  /** Switch the exam scoping Learn/plan/readiness (view-only, not persisted). */
+  setActiveExam: (examCode: string) => Promise<void>;
   refreshTopicMastery: () => Promise<void>;
   refreshExamAccuracy: () => Promise<void>;
   refreshPlan: () => Promise<void>;
@@ -92,7 +107,12 @@ interface SessionState {
   ensureLesson: (topicSlug: string) => Promise<TopicLesson>;
   updateLessonProgress: (
     lessonId: string,
-    updates: { status?: "started" | "completed"; bookmarked?: boolean },
+    updates: {
+      status?: "started" | "completed";
+      bookmarked?: boolean;
+      checkScore?: number;
+      checkTotal?: number;
+    },
   ) => Promise<void>;
 
   startSession: (
@@ -157,6 +177,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   streak: USE_MOCKS ? buildMockStreak() : null,
   bookmarkedIds: USE_MOCKS ? buildMockBookmarks().map((b) => b.questionId) : [],
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
+  userExams: USE_MOCKS ? buildMockUserExams() : [],
+  examTips: USE_MOCKS ? buildMockExamTips() : [],
+  activeExamCode: USE_MOCKS ? "SAA-C03" : null,
   hydrated: false,
 
   getSession: (id) => get().sessions.find((s) => s.id === id),
@@ -171,8 +194,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hydrate: async () => {
     if (USE_MOCKS || get().hydrated) return;
     try {
+      // Stage 1: profile first — it carries the server-resolved active exam,
+      // which scopes the exam-specific fetches below.
+      const [profile, userExamsRes] = await Promise.all([
+        api.me(),
+        api.userExams().catch(() => ({ exams: [] })),
+      ]);
+      const activeExamCode = profile.activeExam?.examCode ?? null;
+
       const [
-        profile,
         sessions,
         topicMastery,
         learnTopics,
@@ -180,17 +210,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         readinessTrend,
         plan,
       ] = await Promise.all([
-        api.me(),
         api.listSessions(),
         api.topicMastery(),
-        api.learnTopics(),
+        api.learnTopics(activeExamCode),
         // Non-fatal: missing readiness/plan data must not blank the dashboard.
         api.examAccuracy().catch(() => ({})),
-        api.readinessTrend().catch(() => []),
-        api.getPlan().catch(() => null),
+        api.readinessTrend(activeExamCode).catch(() => []),
+        api.getPlan(activeExamCode).catch(() => null),
       ]);
       set({
         profile,
+        userExams: userExamsRes.exams,
+        activeExamCode,
         sessions,
         topicMastery,
         learnTopics,
@@ -200,6 +231,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         hydrated: true,
       });
       // Non-critical extras; fetch separately so they never block the shell.
+      void api
+        .examTips(activeExamCode)
+        .then(({ tips }) => set({ examTips: tips }))
+        .catch(() => {});
       void get().refreshStreak();
       void api
         .bookmarkIds()
@@ -215,8 +250,44 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         plan: null,
         streak: null,
         learnTopics: [],
+        userExams: [],
+        activeExamCode: null,
         hydrated: true,
       });
+    }
+  },
+
+  refreshUserExams: async () => {
+    if (USE_MOCKS) return;
+    try {
+      const { exams } = await api.userExams();
+      set({ userExams: exams });
+    } catch {
+      // non-fatal
+    }
+  },
+
+  setActiveExam: async (examCode) => {
+    const previous = get().activeExamCode;
+    if (previous === examCode) return;
+    set({ activeExamCode: examCode });
+    if (USE_MOCKS) return;
+    try {
+      const [learnTopics, readinessTrend, plan, tipsRes] = await Promise.all([
+        api.learnTopics(examCode),
+        api.readinessTrend(examCode).catch(() => []),
+        api.getPlan(examCode).catch(() => null),
+        api.examTips(examCode).catch(() => ({ tips: [] })),
+      ]);
+      set({
+        learnTopics,
+        readinessTrend,
+        plan,
+        examTips: tipsRes.tips,
+        coaching: null,
+      });
+    } catch {
+      set({ activeExamCode: previous });
     }
   },
 
@@ -256,7 +327,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   refreshPlan: async () => {
     if (USE_MOCKS) return;
     try {
-      const plan = await api.getPlan();
+      const plan = await api.getPlan(get().activeExamCode);
       set({ plan });
     } catch {
       // ignore
@@ -269,7 +340,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ plan, coaching: null });
       return plan;
     }
-    const plan = await api.createPlan(input);
+    const plan = await api.createPlan({
+      examCode: get().activeExamCode ?? undefined,
+      ...input,
+    });
     // A new schedule invalidates any coaching fetched for the old one.
     set({ plan, coaching: null });
     return plan;
@@ -281,13 +355,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ plan, coaching: null });
       return plan;
     }
-    const plan = await api.patchPlan(input);
+    const plan = await api.patchPlan(input, get().activeExamCode);
     set({ plan, coaching: null });
     return plan;
   },
 
   deletePlan: async () => {
-    if (!USE_MOCKS) await api.deletePlan();
+    if (!USE_MOCKS) await api.deletePlan(get().activeExamCode);
     set({ plan: null, coaching: null });
   },
 
@@ -382,7 +456,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return;
     }
     try {
-      const learnTopics = await api.learnTopics();
+      const learnTopics = await api.learnTopics(get().activeExamCode);
       set({ learnTopics });
     } catch {
       // ignore
@@ -391,7 +465,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   fetchLesson: async (topicSlug) => {
     if (USE_MOCKS) return buildMockTopicLesson(topicSlug);
-    return api.getLesson(topicSlug);
+    return api.getLesson(topicSlug, get().activeExamCode);
   },
 
   generateLesson: async (topicSlug, force = false, opts) => {
@@ -412,7 +486,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return lesson;
     }
 
-    const lesson = await api.generateLesson(topicSlug, force, opts);
+    const lesson = await api.generateLesson(topicSlug, force, {
+      ...opts,
+      exam: get().activeExamCode,
+    });
     await get().refreshLearnTopics();
     return lesson;
   },
@@ -426,19 +503,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         status: "started",
       };
     }
-    const lesson = await api.startLesson(topicSlug);
+    const lesson = await api.startLesson(topicSlug, get().activeExamCode);
     await get().refreshLearnTopics();
     return lesson;
   },
 
   updateLessonProgress: async (lessonId, updates) => {
     if (USE_MOCKS) {
+      const checkPassed =
+        updates.checkScore !== undefined &&
+        updates.checkTotal &&
+        updates.checkScore >= updates.checkTotal * 0.7;
       set((state) => ({
         learnTopics: state.learnTopics.map((t) =>
           t.lessonId === lessonId
             ? {
                 ...t,
-                lessonStatus: updates.status ?? t.lessonStatus,
+                lessonStatus: checkPassed
+                  ? "completed"
+                  : (updates.status ?? t.lessonStatus),
                 bookmarked:
                   updates.bookmarked !== undefined
                     ? updates.bookmarked

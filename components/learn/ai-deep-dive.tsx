@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, BookOpen, ExternalLink, RefreshCw } from "lucide-react"
+import { AlertTriangle, BookOpen, ExternalLink, Lightbulb, RefreshCw, Scale } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -136,6 +136,62 @@ export function AiDeepDive({
         </CardContent>
       </Card>
 
+      {(content.comparisons ?? []).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Scale className="size-4 text-primary" />
+              Decision tables
+            </CardTitle>
+            <CardDescription>When to choose which — compare at a glance</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            {(content.comparisons ?? []).map((table) => (
+              <div key={table.title} className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">{table.title}</h3>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-max text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        {table.columns.map((col) => (
+                          <th
+                            key={col}
+                            className="px-3 py-2 text-left font-medium"
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {table.rows.map((row, i) => (
+                        <tr
+                          key={i}
+                          className="border-b border-border last:border-b-0"
+                        >
+                          {row.map((cell, j) => (
+                            <td
+                              key={j}
+                              className={
+                                j === 0
+                                  ? "px-3 py-2 font-medium text-foreground/90"
+                                  : "px-3 py-2 text-foreground/80"
+                              }
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -157,6 +213,30 @@ export function AiDeepDive({
           </ul>
         </CardContent>
       </Card>
+
+      {(content.keyFacts ?? []).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Lightbulb className="size-4 text-primary" />
+              Key facts to memorize
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-2">
+              {(content.keyFacts ?? []).map((f) => (
+                <li
+                  key={f.fact}
+                  className="flex items-start gap-2 text-sm leading-relaxed text-foreground/90"
+                >
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                  {f.fact}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -68,9 +68,10 @@ export function ReadinessCard() {
   const readinessTrend = useSessionStore((s) => s.readinessTrend)
   const plan = useSessionStore((s) => s.plan)
 
-  const { examCode } = useMemo(
-    () => inferExamFromSessions(sessions),
-    [sessions],
+  const activeExamCode = useSessionStore((s) => s.activeExamCode)
+  const examCode = useMemo(
+    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
+    [activeExamCode, sessions],
   )
   const blueprint = getExamBlueprint(examCode)
 

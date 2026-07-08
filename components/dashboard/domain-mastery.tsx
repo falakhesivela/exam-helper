@@ -48,9 +48,10 @@ export function DomainMastery() {
   const [drillingId, setDrillingId] = useState<string | null>(null)
   const [startingExam, setStartingExam] = useState(false)
 
-  const { examCode } = useMemo(
-    () => inferExamFromSessions(sessions),
-    [sessions],
+  const activeExamCode = useSessionStore((s) => s.activeExamCode)
+  const examCode = useMemo(
+    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
+    [activeExamCode, sessions],
   )
   const blueprint = getExamBlueprint(examCode)
 

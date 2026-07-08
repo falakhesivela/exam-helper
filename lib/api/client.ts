@@ -12,8 +12,11 @@ import { buildApiFetchInit } from "./fetch-init";
 import { consumeSse } from "./stream";
 import {
   buildMockBookmarks,
+  buildMockExamTips,
+  buildMockFactCards,
   buildMockMissedQuestions,
   buildMockTeam,
+  buildMockUserExams,
 } from "@/lib/mock-data";
 
 export class ApiClientError extends Error {
@@ -48,8 +51,56 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Append an ?exam= scope to a path (works with existing query strings). */
+function withExam(path: string, exam?: string | null): string {
+  if (!exam) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}exam=${encodeURIComponent(exam)}`;
+}
+
 export const api = {
   me: () => request<UserProfile>("/api/me"),
+
+  userExams: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve({ exams: buildMockUserExams() });
+    }
+    return request<{ exams: import("@/types").UserExam[] }>("/api/me/exams");
+  },
+
+  addUserExam: (body: { examCode: string; exam?: string; examDate?: string }) =>
+    request<{ exams: import("@/types").UserExam[] }>("/api/me/exams", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateUserExam: (
+    examCode: string,
+    body: { examDate?: string; clearExamDate?: boolean },
+  ) =>
+    request<{ exams: import("@/types").UserExam[] }>(
+      `/api/me/exams/${encodeURIComponent(examCode)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  removeUserExam: (examCode: string) =>
+    request<{ exams: import("@/types").UserExam[] }>(
+      `/api/me/exams/${encodeURIComponent(examCode)}`,
+      { method: "DELETE" },
+    ),
+
+  completeOnboarding: (body: {
+    exams: { examCode: string; exam?: string; examDate?: string }[];
+    skipped?: boolean;
+  }) => {
+    if (USE_MOCKS) {
+      return Promise.resolve({ ok: true, onboardedAt: new Date().toISOString() });
+    }
+    return request<{ ok: boolean; onboardedAt: string }>("/api/me/onboarding", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
 
   clarify: async (
     description: string,
@@ -287,6 +338,55 @@ export const api = {
     );
   },
 
+  lessonTutor: (
+    topicSlug: string,
+    messages: { role: "user" | "assistant"; content: string }[],
+    opts?: {
+      onDelta?: (text: string) => void;
+      signal?: AbortSignal;
+      exam?: string | null;
+    },
+  ) => {
+    if (USE_MOCKS) {
+      const last =
+        messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+      const reply = mockTutorReply(last);
+      opts?.onDelta?.(reply);
+      return Promise.resolve({ reply });
+    }
+    return consumeSse<{ reply: string }>(
+      withExam(`/api/learn/lessons/${topicSlug}/tutor`, opts?.exam),
+      { messages },
+      {
+        signal: opts?.signal,
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            const text = (data as { text?: string }).text;
+            if (text) opts?.onDelta?.(text);
+          }
+        },
+      },
+    );
+  },
+
+  factCards: (dueOnly = false) => {
+    if (USE_MOCKS) {
+      const items = buildMockFactCards();
+      return Promise.resolve({ items, count: items.length });
+    }
+    return request<{ items: import("@/types").FactCard[]; count: number }>(
+      `/api/learn/facts${dueOnly ? "?due=true" : ""}`,
+    );
+  },
+
+  rateFact: (lessonId: string, factIndex: number, known: boolean) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>("/api/learn/facts/rate", {
+      method: "POST",
+      body: JSON.stringify({ lessonId, factIndex, known }),
+    });
+  },
+
   rateFlashcard: (questionId: string, known: boolean) => {
     if (USE_MOCKS) return Promise.resolve({ ok: true });
     return request<{ ok: boolean }>("/api/flashcards/rate", {
@@ -303,15 +403,17 @@ export const api = {
       "/api/progress/exam-accuracy",
     ),
 
-  readinessTrend: () =>
+  readinessTrend: (exam?: string | null) =>
     request<{ label: string; score: number; date?: string }[]>(
-      "/api/progress/readiness/trend",
+      withExam("/api/progress/readiness/trend", exam),
     ),
 
-  getPlan: () => request<import("@/types").StudyPlan | null>("/api/plan"),
+  getPlan: (exam?: string | null) =>
+    request<import("@/types").StudyPlan | null>(withExam("/api/plan", exam)),
 
   createPlan: (input: {
     targetDate: string;
+    examCode?: string;
     restDays?: number[];
     effort?: import("@/types").PlanEffort;
   }) =>
@@ -320,18 +422,21 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  patchPlan: (input: {
-    targetDate?: string;
-    restDays?: number[];
-    effort?: import("@/types").PlanEffort;
-  }) =>
-    request<import("@/types").StudyPlan>("/api/plan", {
+  patchPlan: (
+    input: {
+      targetDate?: string;
+      restDays?: number[];
+      effort?: import("@/types").PlanEffort;
+    },
+    exam?: string | null,
+  ) =>
+    request<import("@/types").StudyPlan>(withExam("/api/plan", exam), {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
 
-  deletePlan: () =>
-    request<null>("/api/plan", { method: "DELETE" }),
+  deletePlan: (exam?: string | null) =>
+    request<null>(withExam("/api/plan", exam), { method: "DELETE" }),
 
   updatePlanTask: (
     taskId: string,
@@ -365,10 +470,26 @@ export const api = {
       streakDays: number;
     }>("/api/progress/summary"),
 
-  learnTopics: () => request<LearnTopic[]>("/api/learn/topics"),
+  learnTopics: (exam?: string | null) =>
+    request<LearnTopic[]>(withExam("/api/learn/topics", exam)),
 
-  getLesson: (topicSlug: string) =>
-    request<TopicLesson>(`/api/learn/lessons/${topicSlug}`),
+  examTips: (exam?: string | null) => {
+    if (USE_MOCKS) {
+      return Promise.resolve({
+        examCode: "SAA-C03",
+        exam: "AWS Certified Solutions Architect – Associate",
+        tips: buildMockExamTips(),
+      });
+    }
+    return request<{
+      examCode: string;
+      exam: string;
+      tips: import("@/types").ExamTip[];
+    }>(withExam("/api/learn/exam-tips", exam));
+  },
+
+  getLesson: (topicSlug: string, exam?: string | null) =>
+    request<TopicLesson>(withExam(`/api/learn/lessons/${topicSlug}`, exam)),
 
   generateLesson: (
     topicSlug: string,
@@ -378,10 +499,14 @@ export const api = {
       onDelta?: (
         partial: import("@/lib/ai/index").StreamingLessonContent,
       ) => void;
+      exam?: string | null;
     },
   ) =>
     consumeSse<TopicLesson>(
-      `/api/learn/lessons/${topicSlug}/generate${force ? "?force=true" : ""}`,
+      withExam(
+        `/api/learn/lessons/${topicSlug}/generate${force ? "?force=true" : ""}`,
+        opts?.exam,
+      ),
       {},
       {
         onEvent: (event, data) => {
@@ -394,19 +519,29 @@ export const api = {
       },
     ),
 
-  startLesson: (topicSlug: string) =>
-    request<TopicLesson>(`/api/learn/lessons/${topicSlug}/start`, {
+  startLesson: (topicSlug: string, exam?: string | null) =>
+    request<TopicLesson>(withExam(`/api/learn/lessons/${topicSlug}/start`, exam), {
       method: "POST",
     }),
 
   updateLessonProgress: (
     lessonId: string,
-    body: { status?: "started" | "completed"; bookmarked?: boolean },
+    body: {
+      status?: "started" | "completed"
+      bookmarked?: boolean
+      checkScore?: number
+      checkTotal?: number
+    },
   ) =>
-    request<{ status: "started" | "completed"; bookmarked: boolean }>(
-      `/api/learn/progress/${lessonId}`,
-      { method: "PATCH", body: JSON.stringify(body) },
-    ),
+    request<{
+      status: "started" | "completed"
+      bookmarked: boolean
+      checkScore?: number | null
+      checkTotal?: number | null
+    }>(`/api/learn/progress/${lessonId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   signOut: () =>
     request<{ ok: boolean }>("/api/auth/signout", { method: "POST" }),
