@@ -142,6 +142,14 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
     Math.round(lesson.outline.length * 1.5 + (lesson.content ? 5 : 0)),
   )
 
+  const providerNoun =
+    {
+      aws: "AWS service or pattern",
+      azure: "Azure service",
+      gcp: "Google Cloud service",
+    }[lesson.provider ?? ""] ?? "approach or technology"
+  const hasWeight = lesson.domainWeight && lesson.domainWeight !== "—"
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <Link
@@ -156,9 +164,11 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{lesson.examCode}</Badge>
           <Badge variant="outline">{lesson.domainName}</Badge>
-          <span className="text-xs text-muted-foreground">
-            {lesson.domainWeight} of exam
-          </span>
+          {hasWeight && (
+            <span className="text-xs text-muted-foreground">
+              {lesson.domainWeight} of exam
+            </span>
+          )}
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
           {lesson.topicName}
@@ -178,10 +188,16 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
           <CardDescription>{lesson.exam}</CardDescription>
         </CardHeader>
         <CardContent className="text-sm leading-relaxed text-foreground/90">
-          This topic falls under <strong>{lesson.domainName}</strong>, which
-          accounts for approximately <strong>{lesson.domainWeight}</strong> of
-          the {lesson.examCode} exam. Focus on decision criteria — when to choose
-          one AWS service or pattern over another.
+          This topic falls under <strong>{lesson.domainName}</strong>
+          {hasWeight && (
+            <>
+              , which accounts for approximately{" "}
+              <strong>{lesson.domainWeight}</strong> of the {lesson.examCode}{" "}
+              exam
+            </>
+          )}
+          . Focus on decision criteria — when to choose one {providerNoun} over
+          another.
         </CardContent>
       </Card>
 

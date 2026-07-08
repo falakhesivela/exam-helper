@@ -264,6 +264,10 @@ export interface LearnTopic {
   slug: string
   mastery: number
   questionsAnswered: number
+  /** Exam domain this topic belongs to, when it maps to the catalog. */
+  domainName?: string
+  /** Domain's share of the exam, e.g. "30%". */
+  domainWeight?: string
   lessonId?: string
   lessonStatus: LessonStatus
   bookmarked: boolean
@@ -314,6 +318,8 @@ export interface TopicLesson {
   topicName: string
   exam: string
   examCode: string
+  /** Exam vendor (aws, azure, gcp, comptia, cisco, isc2, custom). */
+  provider?: string
   mastery: number
   questionsAnswered: number
   domainName: string

@@ -538,6 +538,8 @@ export function buildMockLearnTopics(): LearnTopic[] {
       slug: resolved.slug,
       mastery: t.mastery,
       questionsAnswered: t.questionsAnswered,
+      domainName: resolved.catalogTopic?.domainName,
+      domainWeight: resolved.catalogTopic?.domainWeight,
       lessonId: hasAi ? `lesson-${resolved.slug}` : undefined,
       lessonStatus: hasAi
         ? t.mastery < 55
@@ -565,6 +567,7 @@ export function buildMockTopicLesson(topicSlug: string): TopicLesson {
     topicName,
     exam: DEFAULT_EXAM.exam,
     examCode: DEFAULT_EXAM.examCode,
+    provider: "aws",
     mastery: topicEntry?.mastery ?? 50,
     questionsAnswered: topicEntry?.questionsAnswered ?? 0,
     domainName: catalogTopic?.domainName ?? "General",
