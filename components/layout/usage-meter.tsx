@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 /**
  * Slim free-tier usage meter for the top bar. Replaces the old full-width
  * dashboard banner — the hard upgrade sell now happens at limit-hit instead.
- * Renders nothing for Pro users.
+ * Renders nothing for paid users.
  */
 export function UsageMeter() {
   const profile = useSessionStore((s) => s.profile)
@@ -26,7 +26,7 @@ export function UsageMeter() {
   return (
     <Link
       href="/upgrade"
-      aria-label={`Free trial: ${remaining} of ${limit} questions left. Upgrade to Pro for more.`}
+      aria-label={`Free trial: ${remaining} of ${limit} questions left. Upgrade for more.`}
       className="group flex w-28 shrink-0 flex-col gap-1 sm:w-32"
     >
       <span className="flex items-baseline justify-between text-[11px] leading-none">
@@ -35,7 +35,7 @@ export function UsageMeter() {
         </span>
         <span className="flex items-center gap-0.5 font-medium text-primary group-hover:underline">
           <Sparkles className="size-3" />
-          Go Pro
+          Upgrade
         </span>
       </span>
       <span className="h-1 overflow-hidden rounded-full bg-muted">

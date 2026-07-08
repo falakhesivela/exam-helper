@@ -10,7 +10,7 @@ import { isPaidTier } from "@/lib/config/tiers"
 
 /**
  * Freemium indicator. Shows the free-tier user's remaining daily questions
- * and an upgrade prompt. Renders nothing for Pro users.
+ * and an upgrade prompt. Renders nothing for paid users.
  */
 export function DailyLimitBanner() {
   const profile = useSessionStore((s) => s.profile)
@@ -36,7 +36,7 @@ export function DailyLimitBanner() {
         <Button size="sm" className="w-full sm:w-auto sm:self-start" asChild>
           <Link href="/upgrade">
             <Sparkles data-icon="inline-start" />
-            Upgrade to Pro for unlimited
+            Upgrade for unlimited
           </Link>
         </Button>
       </AlertDescription>

@@ -25,11 +25,9 @@ import { api } from "@/lib/api/client"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { AccountGate } from "@/components/auth/account-gate"
-import { useProCheckout } from "@/components/upgrade/use-pro-checkout"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { startCheckout, loading: checkoutLoading } = useProCheckout()
   const profile = useSessionStore((s) => s.profile)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const [signingOut, setSigningOut] = useState(false)
@@ -118,26 +116,21 @@ export default function ProfilePage() {
           <CardContent className="flex flex-col gap-3 p-5">
             <div className="flex items-center gap-2 text-primary">
               <Sparkles className="size-4" />
-              <span className="text-sm font-semibold">Prepa Pro</span>
+              <span className="text-sm font-semibold">Upgrade your plan</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Unlimited daily questions, exam simulations, and detailed analytics.
+              Unlimited daily questions, exam simulations, and detailed
+              analytics — monthly Pro or a one-time Exam Pass.
             </p>
             <Progress value={(used / (limit ?? 1)) * 100} className="h-1.5" />
             <p className="text-xs text-muted-foreground">
               {Math.max(0, (limit ?? 0) - used)} free trial questions left
             </p>
-            <Button
-              className="w-full"
-              onClick={startCheckout}
-              disabled={checkoutLoading}
-            >
-              {checkoutLoading ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <CreditCard data-icon="inline-start" />
-              )}
-              Upgrade to Pro
+            <Button className="w-full" asChild>
+              <Link href="/upgrade">
+                <Sparkles data-icon="inline-start" />
+                View plans
+              </Link>
             </Button>
           </CardContent>
         </Card>

@@ -123,7 +123,7 @@ export default function CheckoutPage() {
             <Button asChild className="w-full">
               <Link href="/upgrade">
                 <Sparkles data-icon="inline-start" />
-                Upgrade to Pro
+                View plans
               </Link>
             </Button>
           </>

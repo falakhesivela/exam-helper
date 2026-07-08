@@ -152,13 +152,14 @@ export default function BillingPage() {
               <Sparkles className="size-6 text-primary" />
               <h1 className="text-lg font-semibold">You&apos;re on the Free plan</h1>
               <p className="max-w-sm text-sm text-muted-foreground text-pretty">
-                Upgrade to Prepa Pro for unlimited daily questions, full mock
-                exams, and priority AI generation.
+                Upgrade for unlimited daily questions, full mock exams, and
+                priority AI generation. Choose monthly Pro or a one-time Exam
+                Pass.
               </p>
               <Button asChild className="mt-1">
                 <Link href="/upgrade">
                   <Sparkles data-icon="inline-start" />
-                  Upgrade to Pro
+                  View plans
                 </Link>
               </Button>
             </CardContent>
