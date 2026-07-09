@@ -38,6 +38,13 @@ export function describeCorrectDragAnswer(data: DragQuestionData): string {
           return `${row.statement} → ${col?.label ?? colId}`
         })
         .join("; ")
+    case "command_input": {
+      const accepted = data.acceptedAnswers.filter((a) => a.trim())
+      if (accepted.length === 0) return ""
+      const extra =
+        accepted.length > 1 ? ` (also accepted: ${accepted.slice(1).join(", ")})` : ""
+      return `Correct command: ${accepted[0]}${extra}`
+    }
   }
 }
 
@@ -81,6 +88,11 @@ export function describeUserDragAnswer(
           return `${row.statement} → ${col?.label ?? colId ?? "?"}`
         })
         .join("; ")
+    case "command_input": {
+      if (answer.type !== "command_input") return "(invalid)"
+      const value = answer.value.trim()
+      return value ? `Typed: ${value}` : "(no command entered)"
+    }
   }
 }
 

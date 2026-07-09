@@ -261,7 +261,20 @@ export function gradeDragAnswer(
     )
   }
 
+  if (dragData.type === "command_input" && answer.type === "command_input") {
+    const accepted = (dragData.acceptedAnswers ?? [])
+      .map((a) => normalizeCommand(a))
+      .filter(Boolean)
+    if (accepted.length === 0) return false
+    return accepted.includes(normalizeCommand(answer.value ?? ""))
+  }
+
   return false
+}
+
+/** Tolerant command matching: trim, collapse whitespace, casefold. */
+export function normalizeCommand(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase()
 }
 
 export async function updateStreak(

@@ -98,6 +98,12 @@ export function validateDragQuestion(q: GeneratedDragQuestion): string | null {
     }
   }
 
+  if (q.questionType === "command_input") {
+    const cleaned = q.acceptedAnswers.map((a) => a.trim()).filter(Boolean)
+    if (cleaned.length === 0) return "Need at least one accepted answer"
+    if (cleaned.some((a) => a.length > 200)) return "Accepted answer too long"
+  }
+
   return null
 }
 
@@ -128,6 +134,15 @@ export function assignDragIds(
   questions: GeneratedDragQuestion[],
 ): GeneratedDragQuestion[] {
   return questions.map((q) => {
+    if (q.questionType === "command_input") {
+      // No ids to reassign; strip/dedupe accepted answers.
+      const deduped: string[] = []
+      for (const entry of q.acceptedAnswers) {
+        const text = entry.trim()
+        if (text && !deduped.includes(text)) deduped.push(text)
+      }
+      return { ...q, acceptedAnswers: deduped }
+    }
     if (q.questionType === "drag_match") {
       return {
         ...q,

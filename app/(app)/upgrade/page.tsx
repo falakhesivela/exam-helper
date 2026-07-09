@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Check } from "lucide-react"
 import { SubscribeButton } from "@/components/upgrade/subscribe-button"
-import { PLANS } from "@/lib/config/pricing"
+import { PLANS, PRO_ANNUAL_PRICE_LABEL } from "@/lib/config/pricing"
 import { LEGAL_LINKS } from "@/app/(legal)/legal-config"
 import { cn } from "@/lib/utils"
 
@@ -58,7 +58,16 @@ export default function UpgradePage() {
               ))}
             </ul>
 
-            {plan.tier === "pro" && <SubscribeButton tier="pro" />}
+            {plan.tier === "pro" && (
+              <div className="flex flex-col gap-2">
+                <SubscribeButton tier="pro" />
+                <SubscribeButton
+                  tier="pro_annual"
+                  variant="ghost"
+                  label={`or ${PRO_ANNUAL_PRICE_LABEL}/year — save 45%`}
+                />
+              </div>
+            )}
             {plan.tier === "exam_pass" && (
               <SubscribeButton tier="exam_pass" variant="outline" />
             )}

@@ -5,12 +5,15 @@ import Link from "next/link"
 import { CheckCircle2, ShieldCheck, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { api } from "@/lib/api/client"
 import {
   loadPaddle,
   onPaddleEvent,
   paddleConfigured,
   type PaddleApi,
+  type PaddleEvent,
 } from "@/lib/paddle"
+import { useSessionStore } from "@/lib/store/use-session-store"
 
 type Status = "loading" | "opening" | "no-transaction" | "completed" | "error"
 
@@ -28,6 +31,7 @@ export default function CheckoutPage() {
   const [status, setStatus] = useState<Status>("loading")
   const paddleRef = useRef<PaddleApi | null>(null)
   const txnRef = useRef<string | null>(null)
+  const refreshProfile = useSessionStore((s) => s.refreshProfile)
 
   useEffect(() => {
     if (!paddleConfigured()) {
@@ -38,8 +42,18 @@ export default function CheckoutPage() {
     const txn = new URLSearchParams(window.location.search).get("_ptxn")
     txnRef.current = txn
 
-    onPaddleEvent((event) => {
-      if (event.name === "checkout.completed") setStatus("completed")
+    onPaddleEvent((event: PaddleEvent) => {
+      if (event.name !== "checkout.completed") return
+      setStatus("completed")
+      const transactionId = event.data?.transaction_id
+      if (transactionId) {
+        void api
+          .confirmCheckout(transactionId)
+          .then(() => refreshProfile())
+          .catch(() => {
+            // Webhook may still activate; signed-out visitors can't confirm.
+          })
+      }
     })
 
     let cancelled = false
@@ -59,7 +73,7 @@ export default function CheckoutPage() {
       cancelled = true
       onPaddleEvent(null)
     }
-  }, [])
+  }, [refreshProfile])
 
   const resume = useCallback(() => {
     const txn = txnRef.current

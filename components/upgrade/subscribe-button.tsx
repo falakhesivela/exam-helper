@@ -6,13 +6,20 @@ import { Spinner } from "@/components/ui/spinner"
 import { useCheckout, type CheckoutTier } from "./use-checkout"
 import { TIER_NAMES } from "@/lib/config/tiers"
 
-/** In-app paywall CTA for a paid tier. See useCheckout for the flow. */
+function defaultLabel(sku: CheckoutTier): string {
+  if (sku === "pro_annual") return "Get Pro — annual"
+  return `Get ${TIER_NAMES[sku]}`
+}
+
+/** In-app paywall CTA for a paid checkout SKU. See useCheckout for the flow. */
 export function SubscribeButton({
   tier = "pro",
   variant = "default",
+  label,
 }: {
   tier?: CheckoutTier
-  variant?: "default" | "outline"
+  variant?: "default" | "outline" | "ghost"
+  label?: string
 }) {
   const { startCheckout, loading } = useCheckout(tier)
 
@@ -28,7 +35,7 @@ export function SubscribeButton({
       ) : (
         <Sparkles data-icon="inline-start" />
       )}
-      Get {TIER_NAMES[tier]}
+      {label ?? defaultLabel(tier)}
     </Button>
   )
 }

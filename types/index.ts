@@ -16,6 +16,7 @@ export type QuestionType =
   | "drag_order"
   | "drag_categorize"
   | "select_grid"
+  | "command_input"
 
 export interface DragItem {
   id: string
@@ -68,12 +69,20 @@ export type DragQuestionData =
       /** rowId → correct columnId. */
       correctByRow: Record<string, string>
     }
+  | {
+      type: "command_input"
+      /** CLI prompt shown before the input, e.g. "Router(config)#". */
+      commandContext?: string | null
+      /** Correct commands + accepted abbreviations. Empty when stripped mid-exam. */
+      acceptedAnswers: string[]
+    }
 
 export type DragAnswer =
   | { type: "drag_match"; mapping: Record<string, string> }
   | { type: "drag_order"; order: string[] }
   | { type: "drag_categorize"; buckets: Record<string, string[]> }
   | { type: "select_grid"; selections: Record<string, string> }
+  | { type: "command_input"; value: string }
 
 /** A certification exam question (MCQ or drag-and-drop). */
 export interface Question {
@@ -226,6 +235,65 @@ export interface ExamTip {
   body: string
 }
 
+/** One step of a guided hands-on lab. */
+export interface LabStep {
+  title: string
+  instruction: string
+  hint?: string | null
+}
+
+/** Guided lab content — performed in the user's own free-tier cloud account. */
+export interface LabContent {
+  title: string
+  scenario: string
+  estimatedMinutes: number
+  costWarning: string
+  prerequisites: string[]
+  steps: LabStep[]
+  checkpoints: CheckQuestion[]
+  cleanup: string[]
+  references: { label: string; url: string }[]
+}
+
+/** Lab list entry for the active exam. */
+export interface LabCatalogItem {
+  topicSlug: string
+  topicName: string
+  domainName: string
+  domainWeight: string
+  generated: boolean
+  status: LessonStatus
+  title?: string | null
+  estimatedMinutes?: number | null
+}
+
+/** A topic's lab with the user's progress. Content is present only after start. */
+export interface TopicLab {
+  id?: string
+  topicSlug: string
+  topicName: string
+  exam: string
+  examCode: string
+  status: LessonStatus
+  started: boolean
+  content?: LabContent
+  preview?: {
+    title?: string
+    scenario?: string
+    estimatedMinutes?: number
+    costWarning?: string
+    prerequisites?: string[]
+    stepsCount?: number
+    checkpointCount?: number
+  }
+  stepsDone: number[]
+  checkpointScore?: number | null
+  checkpointTotal?: number | null
+  labsUsed: number
+  /** null = unlimited on the user's tier. */
+  labLimit: number | null
+}
+
 /** An exam the user is studying (chosen at onboarding or added later). */
 export interface UserExam {
   examCode: string
@@ -246,6 +314,10 @@ export interface SubscriptionDetails {
   cancelEffectiveAt: string | null
   /** Paddle-hosted page to update the payment method, if available. */
   updatePaymentUrl: string | null
+  /** Paddle price id of the active subscription item (distinguishes annual). */
+  priceId?: string | null
+  /** Billing interval from Paddle, e.g. "month" or "year". */
+  billingInterval?: string | null
 }
 
 /** Streak + daily-goal snapshot with recent activity, for the streak card. */
@@ -317,6 +389,8 @@ export interface LearnTopic {
   lessonStatus: LessonStatus
   bookmarked: boolean
   hasAiContent: boolean
+  /** This topic has a curated free-tier hands-on lab. */
+  hasLab?: boolean
 }
 
 /** A key-fact flashcard from a lesson, with its spaced-review state. */

@@ -5,7 +5,7 @@ import { Logo } from "@/components/layout/logo"
 import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
-import { PLANS } from "@/lib/config/pricing"
+import { PLANS, PRO_ANNUAL_PRICE_LABEL } from "@/lib/config/pricing"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -116,7 +116,7 @@ const faqs = [
   },
   {
     q: "Is Prepa free to use?",
-    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($9/month) unlocks daily practice, mock exams, and the AI tutor and coach. Exam Pass ($29 one-time) gives you unlimited everything for 90 days — ideal for an exam crunch.",
+    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($12/month, or $79/year) unlocks daily practice, mock exams, hands-on labs, and the AI tutor and coach. Exam Pass ($39 one-time) gives you everything at exam-cram volume — 250 questions and 2 full mock exams every day — for 90 days.",
   },
   {
     q: "How is Prepa different from static question banks?",
@@ -165,14 +165,14 @@ function buildStructuredData() {
         {
           "@type": "Offer",
           name: "Pro",
-          price: "9",
+          price: "12",
           priceCurrency: "USD",
           description: proPlan.tagline,
         },
         {
           "@type": "Offer",
           name: "Exam Pass",
-          price: "29",
+          price: "39",
           priceCurrency: "USD",
           description: examPassPlan.tagline,
         },
@@ -643,7 +643,7 @@ export default async function LandingPage() {
       <section id="pricing" className="wrap" style={{ padding: "50px 24px 30px", scrollMarginTop: "80px" }}>
         <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 40px" }}>
           <div className="kicker" style={{ marginBottom: "14px" }}>Pricing</div>
-          <h2 className="h2" style={{ marginBottom: "12px" }}>Start free. Go unlimited when you&apos;re serious.</h2>
+          <h2 className="h2" style={{ marginBottom: "12px" }}>Start free. Go all-in when you&apos;re serious.</h2>
           <p style={{ fontSize: "16px", color: "var(--muted)", margin: 0 }}>Less than a coffee a month. Cancel anytime.</p>
         </div>
         <div className="lp-pricing">
@@ -672,9 +672,12 @@ export default async function LandingPage() {
               Most popular
             </span>
             <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>{proPlan.name}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "2px" }}>
               <span className="lp-price">{proPlan.price}</span>
               <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{proPlan.cycle}</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "#7A7C72", marginBottom: "6px" }}>
+              or {PRO_ANNUAL_PRICE_LABEL}/year — save 45%
             </div>
             <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
               {proPlan.tagline}

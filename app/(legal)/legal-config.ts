@@ -8,9 +8,9 @@ export const LEGAL = {
   // Your registered legal entity (same entity as Replai).
   companyName: "Replai (Pty) Ltd", // TODO: confirm exact registered name
   // A monitored support/legal contact address.
-  contactEmail: "support@certforge.ai", // TODO: confirm contact email
+  contactEmail: "support@prepa.co.za", // TODO: confirm contact email
   // The public domain you submitted to Paddle (no https://, no www).
-  domain: "certforge.ai", // TODO: confirm production domain
+  domain: "prepa.co.za",
   // Jurisdiction whose law governs the agreement.
   governingLaw: "the Republic of South Africa",
   // Shown on each page; update when you revise the documents.

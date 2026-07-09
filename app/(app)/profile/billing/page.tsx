@@ -28,7 +28,12 @@ import {
 import { AccountGate } from "@/components/auth/account-gate"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { api } from "@/lib/api/client"
-import { PRO_PRICE_LABEL, PRO_PRICE_CYCLE } from "@/lib/config/pricing"
+import {
+  PRO_ANNUAL_PRICE_LABEL,
+  PRO_ANNUAL_PRICE_CYCLE,
+  PRO_PRICE_LABEL,
+  PRO_PRICE_CYCLE,
+} from "@/lib/config/pricing"
 import type { SubscriptionDetails } from "@/types"
 
 function formatDate(iso: string | null): string {
@@ -145,14 +150,29 @@ export default function BillingPage() {
               </p>
             </CardContent>
           </Card>
-        ) : plan !== "pro" || !sub?.hasSubscription ? (
-          // Free users (or anyone without a live Paddle subscription).
+        ) : plan === "pro" && !sub?.hasSubscription ? (
+          // Plan is Pro in our DB, but live Paddle details aren't available yet
+          // (webhook lag, missing paddle_subscription_id, or API key unset).
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <Sparkles className="size-6 text-primary" />
+              <h1 className="text-lg font-semibold">Prepa Pro is active</h1>
+              <p className="max-w-sm text-sm text-muted-foreground text-pretty">
+                Your Pro access is on. Subscription management details will
+                appear here once billing sync finishes — try refreshing in a
+                moment.
+              </p>
+              <Badge variant="default">Active</Badge>
+            </CardContent>
+          </Card>
+        ) : plan !== "pro" ? (
+          // Free users.
           <Card className="border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card">
             <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
               <Sparkles className="size-6 text-primary" />
               <h1 className="text-lg font-semibold">You&apos;re on the Free plan</h1>
               <p className="max-w-sm text-sm text-muted-foreground text-pretty">
-                Upgrade for unlimited daily questions, full mock exams, and
+                Upgrade for daily practice at volume, full mock exams, and
                 priority AI generation. Choose monthly Pro or a one-time Exam
                 Pass.
               </p>
@@ -177,7 +197,9 @@ export default function BillingPage() {
                 <div className="flex items-center justify-between px-6 py-3.5 text-sm">
                   <span className="text-muted-foreground">Price</span>
                   <span className="font-medium">
-                    {PRO_PRICE_LABEL}/{PRO_PRICE_CYCLE}
+                    {sub?.billingInterval === "year"
+                      ? `${PRO_ANNUAL_PRICE_LABEL}/${PRO_ANNUAL_PRICE_CYCLE}`
+                      : `${PRO_PRICE_LABEL}/${PRO_PRICE_CYCLE}`}
                   </span>
                 </div>
                 <Separator />
@@ -188,12 +210,12 @@ export default function BillingPage() {
                   <span className="font-medium">
                     {formatDate(
                       scheduledToCancel
-                        ? sub.cancelEffectiveAt
-                        : sub.nextBilledAt,
+                        ? sub?.cancelEffectiveAt ?? null
+                        : sub?.nextBilledAt ?? null,
                     )}
                   </span>
                 </div>
-                {sub.updatePaymentUrl && (
+                {sub?.updatePaymentUrl && (
                   <>
                     <Separator />
                     <a
@@ -216,7 +238,7 @@ export default function BillingPage() {
             {scheduledToCancel ? (
               <p className="text-center text-sm text-muted-foreground text-pretty">
                 Your Pro plan is set to cancel. You&apos;ll keep access until{" "}
-                {formatDate(sub.cancelEffectiveAt)}.
+                {formatDate(sub?.cancelEffectiveAt ?? null)}.
               </p>
             ) : (
               <AlertDialog>
@@ -230,8 +252,8 @@ export default function BillingPage() {
                     <AlertDialogTitle>Cancel Prepa Pro?</AlertDialogTitle>
                     <AlertDialogDescription>
                       You&apos;ll keep Pro access until{" "}
-                      {formatDate(sub.nextBilledAt)}. After that your account
-                      returns to the Free plan — no further charges.
+                      {formatDate(sub?.nextBilledAt ?? null)}. After that your
+                      account returns to the Free plan — no further charges.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

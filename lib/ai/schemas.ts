@@ -71,11 +71,19 @@ export const generatedSelectGridSchema = z.object({
   correctByRow: z.record(z.string(), z.string()),
 })
 
+export const generatedCommandInputSchema = z.object({
+  questionType: z.literal("command_input"),
+  ...baseQuestionFields,
+  commandContext: z.string().nullable().optional(),
+  acceptedAnswers: z.array(z.string()).min(1).max(6),
+})
+
 export const generatedDragQuestionSchema = z.discriminatedUnion("questionType", [
   generatedDragMatchSchema,
   generatedDragOrderSchema,
   generatedDragCategorizeSchema,
   generatedSelectGridSchema,
+  generatedCommandInputSchema,
 ])
 
 export const questionSchema = z.object({

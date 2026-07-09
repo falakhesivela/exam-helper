@@ -100,6 +100,11 @@ function TopicCard({ topic: t, showDomain }: { topic: LearnTopic; showDomain: bo
                     AI lesson
                   </Badge>
                 )}
+                {t.hasLab && (
+                  <Badge variant="outline" className="text-xs text-primary">
+                    Hands-on
+                  </Badge>
+                )}
               </CardDescription>
             </div>
             <div className="flex shrink-0 items-center gap-2">

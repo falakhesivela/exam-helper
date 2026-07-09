@@ -29,6 +29,7 @@ export interface ExamBlueprint {
     drag_order?: number
     drag_categorize?: number
     select_grid?: number
+    command_input?: number
   }
   styleGuide?: {
     scenarioHeavy?: boolean

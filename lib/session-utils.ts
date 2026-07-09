@@ -59,6 +59,12 @@ export function isQuestionAnswered(
         (r) => dragAnswer.selections[r.id] != null,
       );
     }
+    if (
+      dragAnswer.type === "command_input" &&
+      question.dragData.type === "command_input"
+    ) {
+      return dragAnswer.value.trim().length > 0;
+    }
     return false;
   }
   return selectedIds.length > 0;

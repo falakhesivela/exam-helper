@@ -12,6 +12,7 @@ export const ccna200301Blueprint: ExamBlueprint = {
     drag_match: 0.06,
     drag_order: 0.05,
     drag_categorize: 0.04,
+    command_input: 0.1,
   },
   styleGuide: { scenarioHeavy: true },
   domains: [

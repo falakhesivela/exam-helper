@@ -127,6 +127,13 @@ function generatedToDragData(question: GeneratedQuestion): DragQuestionData | un
       correctByRow: question.correctByRow,
     }
   }
+  if (question.questionType === "command_input") {
+    return {
+      type: "command_input",
+      commandContext: question.commandContext ?? null,
+      acceptedAnswers: question.acceptedAnswers,
+    }
+  }
   return {
     type: "drag_categorize",
     categories: question.categories,
@@ -183,6 +190,8 @@ function stripDragAnswerKey(data: DragQuestionData): DragQuestionData {
       return { ...data, correctBuckets: {} }
     case "select_grid":
       return { ...data, correctByRow: {} }
+    case "command_input":
+      return { ...data, acceptedAnswers: [] }
   }
 }
 

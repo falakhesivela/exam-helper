@@ -6,7 +6,14 @@ type PaddleCheckoutItem = { priceId: string; quantity: number }
 
 export interface PaddleEvent {
   name: string
-  data?: { customer?: { email?: string } }
+  data?: {
+    id?: string
+    transaction_id?: string
+    status?: string
+    customer?: { email?: string }
+    items?: { price_id?: string }[]
+    custom_data?: Record<string, string> | null
+  }
 }
 
 export interface PaddleApi {

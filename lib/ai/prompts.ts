@@ -165,6 +165,7 @@ export function examDragSystemPrompt(blueprint: ExamBlueprint): string {
     "- drag_order: put steps or phases in the correct sequence.",
     "- drag_categorize: sort items into 2-4 category buckets.",
     "- select_grid: 2-6 statements, each answered from shared columns (e.g. Yes/No or True/False). Use for 'For each statement, select Yes or No' style questions.",
+    "- command_input: the candidate types a CLI command or configuration line. acceptedAnswers lists every correct full command PLUS common accepted abbreviations (e.g. both 'configure terminal' and 'conf t'). Put the CLI prompt (e.g. 'Router(config)#') in commandContext, never inside the answers. Grading is case- and whitespace-insensitive exact match, so answers must be complete commands.",
     "",
     "Rules:",
     "- Questions must be original and technically accurate.",
@@ -174,6 +175,7 @@ export function examDragSystemPrompt(blueprint: ExamBlueprint): string {
     "- correctOrder lists item ids in the correct sequence.",
     "- correctBuckets maps each category id to the item ids that belong there.",
     "- For select_grid: rows are statements, columns are the shared choices (e.g. Yes/No), and correctByRow maps each row id to the correct column id.",
+    "- For command_input: the prompt describes the task and current context; acceptedAnswers contains 1-6 complete command variants.",
     "- explanations teach the concept.",
     officialDomainGuidance(blueprint.provider),
   ].join("\n")
@@ -183,7 +185,12 @@ export function examDragBatchPrompt(
   blueprint: ExamBlueprint,
   domain: ExamBlueprintDomain,
   count: number,
-  dragType: "drag_match" | "drag_order" | "drag_categorize" | "select_grid",
+  dragType:
+    | "drag_match"
+    | "drag_order"
+    | "drag_categorize"
+    | "select_grid"
+    | "command_input",
 ): string {
   const typeLabel =
     dragType === "drag_match"
@@ -192,7 +199,9 @@ export function examDragBatchPrompt(
         ? "order steps correctly"
         : dragType === "select_grid"
           ? "answer each statement from shared columns (e.g. Yes/No)"
-          : "categorize items into buckets"
+          : dragType === "command_input"
+            ? "type the exact CLI command or configuration line"
+            : "categorize items into buckets"
 
   return [
     `Generate exactly ${count} ${dragType} questions that ${typeLabel}.`,

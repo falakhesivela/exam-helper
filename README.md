@@ -153,9 +153,11 @@ Paddle-generated payment links (`?_ptxn=…`) auto-open the overlay.
    `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, and an API key into `PADDLE_API_KEY`
    (used for subscription lookups + cancellation).
 3. **Developer tools → Notifications** — add a destination pointing at
-   `https://<your-domain>/api/paddle/webhook`, subscribe to the
-   `subscription.*` events, and copy its signing secret into
-   `PADDLE_WEBHOOK_SECRET`.
+   `https://<your-domain>/api/paddle/webhook`, subscribe to
+   `subscription.*` **and** `transaction.completed` (Exam Pass + first Pro
+   payment), and copy its signing secret into `PADDLE_WEBHOOK_SECRET`.
+   After checkout the app also calls `POST /api/paddle/confirm` so access
+   activates even when webhooks can't reach localhost.
 4. **Checkout → Checkout settings → Default payment link** — set to
    `https://<your-domain>/checkout` (use `http://localhost:3000/checkout` in
    sandbox). Required: Paddle refuses to open any checkout without it

@@ -98,6 +98,11 @@ function isGeneratedDragComplete(
         Object.keys(q.correctByRow).length > 0,
     )
   }
+  if (q.questionType === "command_input") {
+    return Boolean(
+      Array.isArray(q.acceptedAnswers) && q.acceptedAnswers.length >= 1,
+    )
+  }
   return false
 }
 
@@ -270,7 +275,12 @@ export async function streamGenerateDragQuestions(
   params: {
     description: string
     count: number
-    dragType: "drag_match" | "drag_order" | "drag_categorize" | "select_grid"
+    dragType:
+      | "drag_match"
+      | "drag_order"
+      | "drag_categorize"
+      | "select_grid"
+      | "command_input"
     systemPrompt: string
     userPrompt: string
   },

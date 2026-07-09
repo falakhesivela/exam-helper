@@ -94,7 +94,11 @@ export async function getEntitlements(
   }
 }
 
-export type CounterFeature = "tutor_messages" | "mock_exams" | "clarify_requests"
+export type CounterFeature =
+  | "tutor_messages"
+  | "mock_exams"
+  | "clarify_requests"
+  | "coach_messages"
 
 async function readCounter(
   admin: SupabaseClient,
@@ -116,6 +120,7 @@ const COUNTER_MESSAGES: Record<CounterFeature, string> = {
   tutor_messages: "Tutor message limit reached",
   mock_exams: "Mock exam limit reached",
   clarify_requests: "Clarify request limit reached",
+  coach_messages: "Daily coach limit reached",
 }
 
 function counterWindow(limits: TierLimits, feature: CounterFeature): {
@@ -129,6 +134,8 @@ function counterWindow(limits: TierLimits, feature: CounterFeature): {
       return { limit: limits.mockExams, window: limits.mockExamsWindow }
     case "clarify_requests":
       return { limit: limits.clarify, window: limits.clarifyWindow }
+    case "coach_messages":
+      return { limit: limits.coach, window: limits.coachWindow }
   }
 }
 
@@ -204,7 +211,7 @@ export async function refundCounterQuota(
 
 /** Feature-lock gate for the plan coach. */
 export function assertCoachAccess(ent: Entitlements): void {
-  if (!ent.limits.coach) {
+  if (ent.limits.coach === 0) {
     throw new QuotaExceededError(
       "coach",
       0,

@@ -4,25 +4,39 @@
 
 import { TIER_LIMITS, TIER_NAMES, type Tier } from "@/lib/config/tiers"
 
-export const PRO_PRICE_LABEL = "$9"
+export const PRO_PRICE_LABEL = "$12"
 export const PRO_PRICE_CYCLE = "month"
-export const EXAM_PASS_PRICE_LABEL = "$29"
+export const PRO_ANNUAL_PRICE_LABEL = "$79"
+export const PRO_ANNUAL_PRICE_CYCLE = "year"
+export const EXAM_PASS_PRICE_LABEL = "$39"
 export const EXAM_PASS_CYCLE = "90 days"
 
-/** Paddle price id for the Pro ($9/mo) subscription. */
+/**
+ * What the user buys at checkout. pro_annual is a billing variant of the
+ * `pro` tier — it never appears in the plan enum or entitlements.
+ */
+export type CheckoutSku = "pro" | "pro_annual" | "exam_pass"
+
+/** Paddle price id for the Pro ($12/mo) subscription. */
 export function getProPriceId(): string | undefined {
   return process.env.NEXT_PUBLIC_PADDLE_PRO_PRICE_ID
 }
 
-/** Paddle price id for the one-time Exam Pass ($29 / 90 days). */
+/** Paddle price id for the annual Pro ($79/yr) subscription. */
+export function getProAnnualPriceId(): string | undefined {
+  return process.env.NEXT_PUBLIC_PADDLE_PRO_ANNUAL_PRICE_ID
+}
+
+/** Paddle price id for the one-time Exam Pass ($39 / 90 days). */
 export function getExamPassPriceId(): string | undefined {
   return process.env.NEXT_PUBLIC_PADDLE_EXAM_PASS_PRICE_ID
 }
 
-/** Paddle price id for a paid tier (used by the checkout hook). */
-export function priceIdForTier(tier: Tier): string | undefined {
-  if (tier === "pro") return getProPriceId()
-  if (tier === "exam_pass") return getExamPassPriceId()
+/** Paddle price id for a checkout SKU (used by the checkout hook). */
+export function priceIdForSku(sku: CheckoutSku): string | undefined {
+  if (sku === "pro") return getProPriceId()
+  if (sku === "pro_annual") return getProAnnualPriceId()
+  if (sku === "exam_pass") return getExamPassPriceId()
   return undefined
 }
 
@@ -34,6 +48,7 @@ export function priceIdForTier(tier: Tier): string | undefined {
 export function tierForPriceId(priceId: string | null | undefined): Tier | null {
   if (!priceId) return null
   if (priceId === getProPriceId()) return "pro"
+  if (priceId === getProAnnualPriceId()) return "pro"
   if (priceId === getExamPassPriceId()) return "exam_pass"
   return null
 }
@@ -68,8 +83,15 @@ function planFeatures(tier: Tier): string[] {
       ` (up to ${l.maxExamLength} questions)`,
     quotaLabel(l.lessons, "AI lessons", WINDOW_WORD[l.lessonsWindow]),
     quotaLabel(l.tutorMessages, "AI tutor messages", WINDOW_WORD[l.tutorWindow]),
+    quotaLabel(l.labs, "hands-on cloud labs", WINDOW_WORD[l.labsWindow]),
   ]
-  if (l.coach) features.push("AI study-plan coach")
+  if (l.coach !== 0) {
+    features.push(
+      l.coach === null
+        ? "AI study-plan coach"
+        : `AI study-plan coach (${l.coach}/day)`,
+    )
+  }
   return features
 }
 
@@ -97,7 +119,7 @@ export const PLANS: PlanCard[] = [
     name: TIER_NAMES.exam_pass,
     price: EXAM_PASS_PRICE_LABEL,
     cycle: EXAM_PASS_CYCLE,
-    tagline: "Unlimited everything for your exam crunch.",
+    tagline: "Everything, at exam-cram volume, for 90 days.",
     features: [
       ...planFeatures("exam_pass"),
       "One-time payment — no subscription",

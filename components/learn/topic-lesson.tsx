@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, ArrowRight, ExternalLink, GraduationCap } from "lucide-react"
+import { ArrowLeft, ArrowRight, ExternalLink, FlaskConical, GraduationCap } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -196,6 +196,7 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
   const nextTopic = learnTopics.find(
     (t) => t.slug !== topicSlug && t.lessonStatus !== "completed",
   )
+  const hasLab = learnTopics.find((t) => t.slug === topicSlug)?.hasLab
 
   const providerNoun =
     {
@@ -313,6 +314,24 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
         onToggleBookmark={handleToggleBookmark}
         completing={completing}
       />
+
+      {hasLab && (
+        <Link
+          href={`/learn/${topicSlug}/lab`}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary/60"
+        >
+          <div className="flex items-center gap-3">
+            <FlaskConical className="size-5 shrink-0 text-primary" />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">Hands-on lab</span>
+              <span className="text-xs text-muted-foreground">
+                Do it for real in your own free-tier cloud account
+              </span>
+            </div>
+          </div>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+        </Link>
+      )}
 
       {nextTopic && (
         <Link

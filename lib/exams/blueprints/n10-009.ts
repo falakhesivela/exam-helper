@@ -12,6 +12,7 @@ export const n10009Blueprint: ExamBlueprint = {
     drag_match: 0.08,
     drag_order: 0.05,
     drag_categorize: 0.04,
+    command_input: 0.05,
   },
   styleGuide: { scenarioHeavy: true },
   domains: [

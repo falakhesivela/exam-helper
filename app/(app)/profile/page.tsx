@@ -122,7 +122,7 @@ export default function ProfilePage() {
               <span className="text-sm font-semibold">Upgrade your plan</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Unlimited daily questions, exam simulations, and detailed
+              Daily practice at volume, exam simulations, and detailed
               analytics — monthly Pro or a one-time Exam Pass.
             </p>
             <Progress value={(used / (limit ?? 1)) * 100} className="h-1.5" />

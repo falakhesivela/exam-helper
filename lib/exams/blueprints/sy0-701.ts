@@ -8,7 +8,7 @@ export const sy0701Blueprint: ExamBlueprint = {
   durationMin: 90,
   passMark: 75,
   questionMix: { singleChoice: 0.7, multipleResponse: 0.3 },
-  questionTypeMix: { drag_match: 0.07, drag_categorize: 0.05 },
+  questionTypeMix: { drag_match: 0.07, drag_categorize: 0.05, command_input: 0.05 },
   styleGuide: { scenarioHeavy: true },
   domains: [
     {

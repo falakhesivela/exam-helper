@@ -6,6 +6,7 @@ import { DragCategorizePane } from "./drag-categorize-pane"
 import { DragMatchPane } from "./drag-match-pane"
 import { DragOrderPane } from "./drag-order-pane"
 import { SelectGridPane } from "./select-grid-pane"
+import { CommandInputPane } from "./command-input-pane"
 import { ExamOptionRow } from "./exam-option-row"
 import { QuestionStem } from "./question-stem"
 
@@ -79,6 +80,13 @@ export function ExamQuestionPane({
         />
       ) : type === "select_grid" ? (
         <SelectGridPane
+          question={question}
+          answer={dragAnswer}
+          onChange={onDragAnswerChange}
+          revealed={revealed}
+        />
+      ) : type === "command_input" ? (
+        <CommandInputPane
           question={question}
           answer={dragAnswer}
           onChange={onDragAnswerChange}

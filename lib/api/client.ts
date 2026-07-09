@@ -14,8 +14,10 @@ import {
   buildMockBookmarks,
   buildMockExamTips,
   buildMockFactCards,
+  buildMockLabCatalog,
   buildMockMissedQuestions,
   buildMockTeam,
+  buildMockTopicLab,
   buildMockUserExams,
 } from "@/lib/mock-data";
 
@@ -473,6 +475,85 @@ export const api = {
   learnTopics: (exam?: string | null) =>
     request<LearnTopic[]>(withExam("/api/learn/topics", exam)),
 
+  learnLabs: (exam?: string | null) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockLabCatalog());
+    return request<{
+      supported: boolean;
+      examCode: string;
+      exam: string;
+      items: import("@/types").LabCatalogItem[];
+    }>(withExam("/api/learn/labs", exam));
+  },
+
+  getLab: (topicSlug: string, exam?: string | null) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTopicLab(topicSlug));
+    return request<import("@/types").TopicLab>(
+      withExam(`/api/learn/labs/${topicSlug}`, exam),
+    );
+  },
+
+  generateLab: (
+    topicSlug: string,
+    opts?: {
+      onDelta?: (partial: Partial<import("@/types").LabContent>) => void;
+      exam?: string | null;
+      force?: boolean;
+    },
+  ) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTopicLab(topicSlug, true));
+    return consumeSse<import("@/types").TopicLab>(
+      withExam(
+        `/api/learn/labs/${topicSlug}/generate${opts?.force ? "?force=true" : ""}`,
+        opts?.exam,
+      ),
+      {},
+      {
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            opts?.onDelta?.(data as Partial<import("@/types").LabContent>);
+          }
+        },
+      },
+    );
+  },
+
+  startLab: (topicSlug: string, exam?: string | null) => {
+    if (USE_MOCKS) {
+      return Promise.resolve({
+        ...buildMockTopicLab(topicSlug, true),
+        started: true,
+        status: "started" as const,
+      });
+    }
+    return request<import("@/types").TopicLab>(
+      withExam(`/api/learn/labs/${topicSlug}/start`, exam),
+      { method: "POST" },
+    );
+  },
+
+  updateLabProgress: (
+    topicSlug: string,
+    body: {
+      stepsDone?: number[];
+      checkpointScore?: number;
+      checkpointTotal?: number;
+      status?: "started" | "completed";
+    },
+    exam?: string | null,
+  ) => {
+    if (USE_MOCKS) {
+      return Promise.resolve({
+        ...buildMockTopicLab(topicSlug, true),
+        started: true,
+        stepsDone: body.stepsDone ?? [],
+      });
+    }
+    return request<import("@/types").TopicLab>(
+      withExam(`/api/learn/labs/${topicSlug}/progress`, exam),
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
   examTips: (exam?: string | null) => {
     if (USE_MOCKS) {
       return Promise.resolve({
@@ -645,6 +726,16 @@ export const api = {
     request<import("@/types").SubscriptionDetails>("/api/paddle/subscription", {
       method: "POST",
     }),
+
+  /** Activate plan after Paddle checkout.completed (verifies txn via Paddle API). */
+  confirmCheckout: (transactionId: string) =>
+    request<{ ok: boolean; plan: string; alreadyActive?: boolean }>(
+      "/api/paddle/confirm",
+      {
+        method: "POST",
+        body: JSON.stringify({ transaction_id: transactionId }),
+      },
+    ),
 };
 
 export const USE_MOCKS =

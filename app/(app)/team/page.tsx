@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Check, Copy, Trophy, UserPlus, Users, X } from "lucide-react"
@@ -11,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
 import { ApiClientError } from "@/lib/api/client"
+import { isPaidTier } from "@/lib/config/tiers"
+import { useSessionStore } from "@/lib/store/use-session-store"
 import { AccountGate } from "@/components/auth/account-gate"
 import type { Team, TeamMember } from "@/types"
 
@@ -59,6 +62,9 @@ function TeamPageInner() {
       cancelled = true
     }
   }, [])
+
+  const plan = useSessionStore((s) => s.profile.plan)
+  const canCreate = isPaidTier(plan)
 
   async function createTeam() {
     if (!name.trim() || busy) return
@@ -145,19 +151,31 @@ function TeamPageInner() {
         <Card>
           <CardHeader>
             <CardTitle>Create a team</CardTitle>
-            <CardDescription>You&apos;ll be the owner and can invite members.</CardDescription>
+            <CardDescription>
+              {canCreate
+                ? "You'll be the owner and can invite members."
+                : "Creating a team is a Pro feature — teammates join free."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Team name (e.g. Cloud Bootcamp Cohort 7)"
-              className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <Button onClick={() => void createTeam()} disabled={busy || !name.trim()}>
-              {busy ? <Spinner data-icon="inline-start" /> : null}
-              Create team
-            </Button>
+            {canCreate ? (
+              <>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Team name (e.g. Cloud Bootcamp Cohort 7)"
+                  className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+                <Button onClick={() => void createTeam()} disabled={busy || !name.trim()}>
+                  {busy ? <Spinner data-icon="inline-start" /> : null}
+                  Create team
+                </Button>
+              </>
+            ) : (
+              <Button asChild>
+                <Link href="/upgrade">Start a team with Pro</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

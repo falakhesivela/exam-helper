@@ -20,6 +20,7 @@ export function allocateQuestionTypes(
     "drag_order",
     "drag_categorize",
     "select_grid",
+    "command_input",
   ]
 
   const raw = dragTypes.map((type) => ({

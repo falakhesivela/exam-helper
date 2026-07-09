@@ -76,6 +76,124 @@ export function buildMockExamTips(): import("@/types").ExamTip[] {
   ]
 }
 
+const MOCK_LAB_CONTENT: import("@/types").LabContent = {
+  title: "Build a two-tier VPC from scratch",
+  scenario:
+    "The SAA exam tests whether you can design VPCs with public and private subnets. Building one by hand makes route tables, gateways, and security groups stick.",
+  estimatedMinutes: 35,
+  costWarning:
+    "Everything in this lab is free-tier eligible, but a NAT gateway is NOT — this lab deliberately avoids one. Terminate the t3.micro instance and delete the VPC when done.",
+  prerequisites: [
+    "An AWS account with admin access (free tier is enough)",
+    "AWS CLI installed and configured (optional — console steps included)",
+  ],
+  steps: [
+    { title: "Create the VPC", instruction: "Open the VPC console → Create VPC → IPv4 CIDR 10.0.0.0/16, name it saa-lab. CLI: aws ec2 create-vpc --cidr-block 10.0.0.0/16", hint: "If you don't see 'Create VPC only', switch off the 'VPC and more' wizard." },
+    { title: "Create a public subnet", instruction: "Subnets → Create subnet in saa-lab, CIDR 10.0.1.0/24, any AZ. Name it public-a." },
+    { title: "Create a private subnet", instruction: "Create a second subnet, CIDR 10.0.2.0/24, same AZ. Name it private-a." },
+    { title: "Attach an internet gateway", instruction: "Internet gateways → Create → attach it to saa-lab.", hint: "An unattached IGW does nothing — attaching is a separate action." },
+    { title: "Create a public route table", instruction: "Route tables → Create for saa-lab → add route 0.0.0.0/0 → the internet gateway → associate it with public-a." },
+    { title: "Launch a test instance", instruction: "EC2 → Launch t3.micro (or t2.micro) Amazon Linux into public-a with auto-assign public IP enabled. Allow SSH from your IP only." },
+    { title: "Verify connectivity", instruction: "SSH into the instance's public IP and run: curl -s https://checkip.amazonaws.com" },
+    { title: "Prove the private subnet is private", instruction: "Check private-a's route table: it should have only the local 10.0.0.0/16 route — no internet gateway route." },
+  ],
+  checkpoints: [
+    {
+      prompt: "What routes does your PRIVATE subnet's route table contain after this lab?",
+      options: [
+        "Only the local 10.0.0.0/16 route",
+        "A 0.0.0.0/0 route to the internet gateway",
+        "A 0.0.0.0/0 route to a NAT gateway",
+        "No routes at all",
+      ],
+      correctIndex: 0,
+      explanation: "You never associated the private subnet with the public route table, so it keeps only the automatic local route.",
+    },
+    {
+      prompt: "Why could your EC2 instance reach the internet?",
+      options: [
+        "EC2 instances can always reach the internet",
+        "It was in a subnet whose route table sends 0.0.0.0/0 to an attached internet gateway, and it had a public IP",
+        "The default security group allows all inbound traffic",
+        "AWS automatically adds NAT to every VPC",
+      ],
+      correctIndex: 1,
+      explanation: "Internet access needs all three: an attached IGW, a route to it, and a public IP on the instance.",
+    },
+  ],
+  cleanup: [
+    "Terminate the EC2 instance (EC2 → Instances → Terminate).",
+    "Delete the VPC (this removes its subnets, route tables, and detaches the IGW).",
+    "Delete the internet gateway if it wasn't removed with the VPC.",
+    "Open the Billing console → verify no running resources remain.",
+  ],
+  references: [
+    {
+      label: "Amazon VPC User Guide",
+      url: "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+    },
+  ],
+}
+
+export function buildMockLabCatalog(): {
+  supported: boolean
+  examCode: string
+  exam: string
+  items: import("@/types").LabCatalogItem[]
+} {
+  return {
+    supported: true,
+    examCode: "SAA-C03",
+    exam: DEFAULT_EXAM.exam,
+    items: buildMockLearnTopics()
+      .filter((t) => t.domainName)
+      .map((t, i) => ({
+        topicSlug: t.slug,
+        topicName: t.topic,
+        domainName: t.domainName ?? "",
+        domainWeight: t.domainWeight ?? "",
+        generated: i === 0,
+        status: i === 0 ? "started" : "not-started",
+        title: i === 0 ? MOCK_LAB_CONTENT.title : null,
+        estimatedMinutes: i === 0 ? MOCK_LAB_CONTENT.estimatedMinutes : null,
+      })),
+  }
+}
+
+export function buildMockTopicLab(
+  topicSlug: string,
+  started = false,
+): import("@/types").TopicLab {
+  const topicEntry = buildMockLearnTopics().find((t) => t.slug === topicSlug)
+  return {
+    id: `lab-${topicSlug}`,
+    topicSlug,
+    topicName: topicEntry?.topic ?? "Networking",
+    exam: DEFAULT_EXAM.exam,
+    examCode: DEFAULT_EXAM.examCode,
+    status: started ? "started" : "not-started",
+    started,
+    ...(started
+      ? { content: MOCK_LAB_CONTENT }
+      : {
+          preview: {
+            title: MOCK_LAB_CONTENT.title,
+            scenario: MOCK_LAB_CONTENT.scenario,
+            estimatedMinutes: MOCK_LAB_CONTENT.estimatedMinutes,
+            costWarning: MOCK_LAB_CONTENT.costWarning,
+            prerequisites: MOCK_LAB_CONTENT.prerequisites,
+            stepsCount: MOCK_LAB_CONTENT.steps.length,
+            checkpointCount: MOCK_LAB_CONTENT.checkpoints.length,
+          },
+        }),
+    stepsDone: [],
+    checkpointScore: null,
+    checkpointTotal: null,
+    labsUsed: 0,
+    labLimit: 1,
+  }
+}
+
 export function buildMockUserExams(): import("@/types").UserExam[] {
   return [
     {
@@ -343,6 +461,27 @@ export const SAMPLE_QUESTIONS: Question[] = [
       "Standard-IA has lower storage cost but charges per-GB retrieval. Glacier Deep Archive is the lowest-cost class with retrieval times of hours, not milliseconds. Intelligent-Tiering automatically moves objects between access tiers based on usage.",
     references: [
       { label: "AWS Docs — S3 storage classes", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html" },
+    ],
+  },
+  {
+    id: "q7",
+    topic: "Networking",
+    difficulty: "medium",
+    questionType: "command_input",
+    scenario:
+      "You are connected to a Cisco router in privileged EXEC mode and need to make configuration changes.",
+    prompt: "Type the command that enters global configuration mode.",
+    options: [],
+    dragData: {
+      type: "command_input",
+      commandContext: "Router#",
+      acceptedAnswers: ["configure terminal", "conf t", "config t"],
+    },
+    correctOptionIds: [],
+    explanation:
+      "configure terminal (commonly abbreviated conf t) moves from privileged EXEC mode into global configuration mode, where device-wide settings are changed.",
+    references: [
+      { label: "Cisco Learning Network: CCNA exam topics", url: "https://learningnetwork.cisco.com/s/ccna-exam-topics" },
     ],
   },
 ]
@@ -686,6 +825,7 @@ export function buildMockLearnTopics(): LearnTopic[] {
         : "not-started",
       bookmarked: resolved.slug === "networking",
       hasAiContent: hasAi && t.mastery < 55,
+      hasLab: Boolean(resolved.catalogTopic?.domainName),
     }
   })
 
@@ -703,6 +843,7 @@ export function buildMockLearnTopics(): LearnTopic[] {
       lessonStatus: "not-started",
       bookmarked: false,
       hasAiContent: false,
+      hasLab: true,
     }))
 
   return [...assessed, ...unassessed]

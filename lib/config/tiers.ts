@@ -25,11 +25,15 @@ export interface TierLimits {
   /** AI-generated topic lessons. */
   lessons: number | null
   lessonsWindow: LimitWindow
+  /** Guided hands-on labs (content globally cached; gate applies to starting). */
+  labs: number | null
+  labsWindow: LimitWindow
   /** AI tutor chat messages. Capped on every tier — chat is the #1 abuse surface. */
   tutorMessages: number | null
   tutorWindow: LimitWindow
-  /** Plan coach available at all. */
-  coach: boolean
+  /** Plan coach requests. 0 = feature locked; counted per coachWindow. */
+  coach: number | null
+  coachWindow: LimitWindow
   /** Intake clarify requests. */
   clarify: number | null
   clarifyWindow: LimitWindow
@@ -45,39 +49,49 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     maxExamLength: 10,
     lessons: 2,
     lessonsWindow: "lifetime",
+    labs: 1,
+    labsWindow: "lifetime",
     tutorMessages: 10,
     tutorWindow: "lifetime",
-    coach: false,
+    coach: 0,
+    coachWindow: "daily",
     clarify: 3,
     clarifyWindow: "lifetime",
   },
   pro: {
-    questions: 100,
+    questions: 150,
     questionsWindow: "daily",
-    mockExams: 4,
+    mockExams: 6,
     mockExamsWindow: "monthly",
     maxExamLength: 65,
     lessons: 5,
     lessonsWindow: "daily",
+    labs: null,
+    labsWindow: "lifetime",
     tutorMessages: 100,
     tutorWindow: "daily",
-    coach: true,
-    clarify: null,
+    coach: 5,
+    coachWindow: "daily",
+    clarify: 20,
     clarifyWindow: "daily",
   },
-  // 90-day "pass your exam" bundle — the top tier.
+  // 90-day "pass your exam" bundle — the top tier. High daily caps instead of
+  // unlimited: invisible to real users, protects against the abusive tail.
   exam_pass: {
-    questions: null,
+    questions: 250,
     questionsWindow: "daily",
-    mockExams: null,
-    mockExamsWindow: "monthly",
+    mockExams: 2,
+    mockExamsWindow: "daily",
     maxExamLength: 90,
-    lessons: null,
+    lessons: 8,
     lessonsWindow: "daily",
-    tutorMessages: 300,
+    labs: null,
+    labsWindow: "lifetime",
+    tutorMessages: 200,
     tutorWindow: "daily",
-    coach: true,
-    clarify: null,
+    coach: 10,
+    coachWindow: "daily",
+    clarify: 30,
     clarifyWindow: "daily",
   },
 }
