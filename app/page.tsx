@@ -31,20 +31,27 @@ const INK = "#1A1C18"
 
 const coverage = [
   "AWS Solutions Architect",
+  "AWS Cloud Practitioner",
+  "AWS Developer",
+  "AWS DevOps Professional",
   "CompTIA Security+",
-  "Azure Fundamentals",
-  "PMP",
-  "CISSP",
-  "CFA Level I",
-  "ITIL 4",
-  "Kubernetes CKA",
+  "CompTIA Network+",
+  "CompTIA A+",
   "Cisco CCNA",
-  "Google Cloud",
-  "Salesforce Admin",
-  "Scrum PSM I",
+  "Azure Fundamentals",
+  "Azure Administrator",
+  "Google Cloud Engineer",
+  "CISSP",
+  "+ any custom exam",
 ]
 
 const features = [
+  {
+    icon: "book",
+    k: "Learn",
+    h: "A syllabus that actually teaches",
+    p: "Your exam's full syllabus, weighted like the real test, with AI lessons built around decision tables, exam traps, and key facts — then a knowledge check that proves you got it.",
+  },
   {
     icon: "sparkles",
     k: "Adaptive",
@@ -52,60 +59,78 @@ const features = [
     p: "New exam-style questions generated for you each time, tuned to the topics you keep missing. Never the same recycled drill twice.",
   },
   {
+    icon: "flask",
+    k: "Hands-on Labs",
+    h: "Do it for real, not just on paper",
+    p: "Guided labs you run in your own free-tier cloud account — build the VPC, deploy the pipeline — with checkpoints that prove you did it and cleanup steps so you never get billed.",
+  },
+  {
     icon: "chat",
     k: "AI Tutor",
     h: "Ask why — not just what",
-    p: "Every answer comes with an instant explanation, and a built-in AI tutor you can ask follow-up questions until it actually clicks.",
+    p: "Every answer and every lesson comes with a built-in AI tutor. Ask follow-ups, get mnemonics, request a simpler explanation — until it actually clicks.",
   },
   {
     icon: "timer",
     k: "Mock Exams",
     h: "Timed mocks with real exam formats",
-    p: "Multiple choice, drag-to-order, matching, categorising — practise the exact question styles you'll face, under the real clock.",
+    p: "Multiple choice, drag-to-order, matching, Yes/No grids — even typed CLI commands for network exams. The exact question styles you'll face, under the real clock.",
+  },
+  {
+    icon: "shield",
+    k: "Double-checked",
+    h: "Every question verified twice",
+    p: "A second, independent AI blind-answers every generated question before you see it. If the two disagree, the question is thrown out — so you never study a wrong answer key.",
   },
   {
     icon: "gauge",
     k: "Readiness",
     h: "Know when you're ready",
-    p: "A readiness score that climbs as you improve, plus mastery tracking per topic — so exam day is a confirmation, not a gamble.",
+    p: "A readiness score that climbs as you improve, plus mastery tracking per exam domain — so exam day is a confirmation, not a gamble.",
   },
   {
     icon: "calendar",
     k: "Study Plan",
     h: "A plan for today, every day",
-    p: "Prepa builds your daily study plan and keeps your streak alive — open the app and know exactly what to do next.",
+    p: "Set your exam date and Prepa builds a daily plan around your weak areas, rebalances when life happens, and coaches you on pace.",
   },
   {
     icon: "layers",
-    k: "Review",
-    h: "Flashcards & missed-question review",
-    p: "Your mistakes automatically become flashcards and review sessions, so weak spots get drilled until they're strengths.",
+    k: "Retention",
+    h: "Spaced repetition that runs itself",
+    p: "Missed questions and key facts from your lessons automatically become flashcards, scheduled to come back right before you'd forget them.",
   },
 ]
 
 const steps = [
   {
     n: "01",
-    h: "Name your exam — or upload your notes",
-    p: "Tell Prepa what you're studying for, or drop in your own PDF study material. No question banks to buy or import.",
+    h: "Pick your exam — or upload your notes",
+    p: "Choose from 12 major certifications or describe any exam. Thirty seconds later you have a personalized syllabus, weighted like the real test.",
   },
   {
     n: "02",
-    h: "Practise with questions built for you",
-    p: "Answer adaptive, exam-style questions with instant explanations. Ask the AI tutor anything you don't get.",
+    h: "Learn it, then do it for real",
+    p: "AI lessons teach each topic with decision tables and exam traps — then hands-on labs put you in the actual cloud console, in your own free account.",
   },
   {
     n: "03",
-    h: "Watch your readiness climb, then sit a mock",
-    p: "Follow your daily plan, track mastery by topic, and run full timed mocks when your score says you're close.",
+    h: "Drill with questions built for you",
+    p: "Adaptive, exam-style practice tuned to your weak spots, with instant explanations and an AI tutor for follow-ups. Misses come back as flashcards.",
+  },
+  {
+    n: "04",
+    h: "Sit mocks until readiness says go",
+    p: "Full timed simulations in the real exam's format, a readiness score per domain, and a daily plan that paces you to your exam date.",
   },
 ]
 
 const versus = [
   { old: "The same recycled questions, over and over", nu: "Fresh AI-generated questions every single session" },
-  { old: "An answer key and nothing else", nu: "Instant explanations plus an AI tutor for follow-ups" },
-  { old: "One-size-fits-all question dumps", nu: "Difficulty and topics tuned to your weak areas" },
-  { old: "No idea if you're actually ready", nu: "A readiness score and per-topic mastery tracking" },
+  { old: "Reading theory you'll never touch", nu: "Guided hands-on labs in your own cloud account" },
+  { old: "An answer key and nothing else", nu: "Lessons, instant explanations, and an AI tutor for follow-ups" },
+  { old: "Answer keys you just have to trust", nu: "Every question blind-checked by a second AI before you see it" },
+  { old: "No idea if you're actually ready", nu: "A readiness score and mastery tracking per exam domain" },
   { old: "Clunky PDFs chained to your desktop", nu: "Installs on your phone and works offline" },
 ]
 
@@ -120,7 +145,15 @@ const faqs = [
   },
   {
     q: "How is Prepa different from static question banks?",
-    a: "Question banks recycle the same fixed set of questions. Prepa generates new, exam-style questions tuned to your weak areas every session, explains every answer, lets you ask an AI tutor follow-up questions, and tracks your readiness by topic so you know exactly when you're prepared.",
+    a: "Question banks recycle a fixed set of questions and stop there. Prepa covers the whole journey: AI lessons that teach the syllabus, fresh exam-style questions tuned to your weak areas (each one blind-verified by a second AI before you see it), hands-on labs in the real cloud console, spaced-repetition flashcards, and a readiness score that tells you when you're prepared.",
+  },
+  {
+    q: "What are hands-on labs? Do I need a cloud account?",
+    a: "Labs are guided, step-by-step exercises you run in your own free-tier AWS, Azure, or Google Cloud account — build a real VPC, deploy a real pipeline. Each lab names only free-tier-eligible resources, ends with checkpoint questions that prove you did the work, and includes a cleanup checklist so nothing keeps running and nothing gets billed.",
+  },
+  {
+    q: "Can I study for more than one exam at once?",
+    a: "Yes. Add as many certifications as you like — each gets its own syllabus, lessons, practice history, readiness score, and study plan. Prepa follows whichever exam you practised last, and you can switch views anytime.",
   },
   {
     q: "Can I use my own study material?",
@@ -227,6 +260,15 @@ function FeatureIcon({ name }: { name: string }) {
     layers: (
       <path d="M12 3l9 5-9 5-9-5 9-5zm-9 9.5l9 5 9-5M3 17l9 5 9-5" />
     ),
+    book: (
+      <path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5v-15zM4 18.5A2.5 2.5 0 016.5 16H20M8 7.5h8M8 11h5" />
+    ),
+    flask: (
+      <path d="M9.5 3h5M10 3v5.2L4.8 17.5A2 2 0 006.6 20.5h10.8a2 2 0 001.8-3L14 8.2V3M7.5 14.5h9" />
+    ),
+    shield: (
+      <path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6l7-3zM9 12l2.2 2.2L15.5 9.7" />
+    ),
   }
   return (
     <svg
@@ -331,7 +373,9 @@ export default async function LandingPage() {
           animation:lp-float 5s ease-in-out infinite; }
         .lp-chip-readiness { top:-26px; left:-30px; }
         .lp-chip-tutor { bottom:-30px; right:-18px; max-width:250px; animation-delay:2.5s; }
-        @media (max-width:1240px){ .lp-chip-readiness { left:-8px } .lp-chip-tutor { right:-6px } }
+        .lp-chip-lab { bottom:16%; left:-34px; animation-delay:1.2s; }
+        @media (max-width:1240px){ .lp-chip-readiness { left:-8px } .lp-chip-tutor { right:-6px } .lp-chip-lab { left:-10px } }
+        @media (max-width:960px){ .lp-chip-lab { display:none } }
         .lp-mock-label { font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
           color:var(--accent); font-weight:600; background:color-mix(in oklab, var(--accent) 10%, #fff);
           padding:5px 10px; border-radius:7px; }
@@ -455,9 +499,9 @@ export default async function LandingPage() {
             The last study app you&apos;ll need before you <em>pass</em>
           </h1>
           <p className="sub rise rise-3">
-            Prepa generates fresh, exam-style questions tuned to your weak spots, explains
-            every answer, and tracks your readiness — for any certification exam. Even from
-            your own notes.
+            Prepa teaches your exam&apos;s syllabus with AI lessons, drills you with fresh
+            exam-style questions, puts your hands on the real cloud console — and tells
+            you exactly when you&apos;re ready. Any certification, even from your own notes.
           </p>
           <div className="rise rise-4" style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
             <Link href="/signup" className="btn btn-accent" style={{ fontSize: "16px", padding: "15px 26px" }}>
@@ -468,9 +512,9 @@ export default async function LandingPage() {
             </a>
           </div>
           <div className="lp-hero-trust rise rise-4">
-            <span><span className="check">✓</span>10 free questions daily</span>
+            <span><span className="check">✓</span>Free to try — no card required</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
-            <span><span className="check">✓</span>Any exam, any topic</span>
+            <span><span className="check">✓</span>12 major certs + custom exams</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
             <span><span className="check">✓</span>Cancel anytime</span>
           </div>
@@ -501,6 +545,20 @@ export default async function LandingPage() {
             <p style={{ margin: 0, fontSize: "12.5px", lineHeight: 1.5, color: "#42453E" }}>
               &ldquo;Why not RDS?&rdquo; — RDS is relational. The question asks for a <strong>NoSQL</strong> store with millisecond latency, which is DynamoDB&apos;s specialty.
             </p>
+          </div>
+
+          {/* Floating hands-on-lab chip */}
+          <div className="lp-chip lp-chip-lab">
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: ACCENT }} />
+              <span style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600 }}>Hands-on lab</span>
+            </div>
+            <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#2C2E28", marginBottom: "3px" }}>
+              Two-tier VPC — complete <span style={{ color: ACCENT }}>✓</span>
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".02em", color: "#84867B" }}>
+              Cleanup verified · $0.00 billed
+            </div>
           </div>
 
           <div className="lp-mock-card">

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { CalendarDays, GraduationCap, Plus, Trash2, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { CalendarDays, FileText, GraduationCap, Plus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,52 @@ export function YourExamsCard() {
   const setActiveExam = useSessionStore((s) => s.setActiveExam)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [uploads, setUploads] = useState<
+    { id: string; examCode: string | null; fileName: string }[]
+  >([])
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pendingExamRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    api
+      .listUploads()
+      .then(({ uploads }) => setUploads(uploads))
+      .catch(() => {})
+  }, [])
+
+  function uploadFor(examCode: string) {
+    pendingExamRef.current = examCode
+    fileInputRef.current?.click()
+  }
+
+  async function handleSyllabusFile(file: File | undefined) {
+    const examCode = pendingExamRef.current
+    if (!file || !examCode) return
+    setUploadingFor(examCode)
+    try {
+      const { fileId } = await api.uploadPdf(file, examCode)
+      setUploads((prev) => [
+        { id: fileId, examCode, fileName: file.name },
+        ...prev.filter((u) => u.examCode !== examCode),
+      ])
+      toast.success("Syllabus attached — questions and lessons will use it")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploadingFor(null)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  async function removeSyllabus(uploadId: string) {
+    try {
+      await api.deleteUpload(uploadId)
+      setUploads((prev) => prev.filter((u) => u.id !== uploadId))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove syllabus")
+    }
+  }
 
   function setExams(exams: UserExam[]) {
     useSessionStore.setState({ userExams: exams })
@@ -143,8 +189,49 @@ export function YourExamsCard() {
                 <Trash2 className="size-4 text-muted-foreground" />
               </Button>
             </div>
+            {(() => {
+              const syllabus = uploads.find((u) => u.examCode === e.examCode)
+              return (
+                <div className="flex w-full items-center gap-2 border-t border-border/60 pt-2 text-xs">
+                  <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                  {syllabus ? (
+                    <>
+                      <span className="min-w-0 truncate text-muted-foreground">
+                        {syllabus.fileName}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void removeSyllabus(syllabus.id)}
+                        className="ml-auto text-muted-foreground hover:text-destructive"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => uploadFor(e.examCode)}
+                      disabled={uploadingFor !== null}
+                      className="text-primary hover:underline disabled:opacity-50"
+                    >
+                      {uploadingFor === e.examCode
+                        ? "Reading PDF…"
+                        : "Attach syllabus (PDF) — grounds questions & lessons"}
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         ))}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(ev) => void handleSyllabusFile(ev.target.files?.[0])}
+        />
 
         {adding && (
           <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border p-3">

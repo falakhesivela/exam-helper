@@ -10,7 +10,7 @@ export const SITE_NAME = "Prepa"
 export const SITE_TITLE = "Prepa — AI Exam Prep for Certification Exams"
 
 export const SITE_DESCRIPTION =
-  "Practice for AWS, Azure, CompTIA, PMP, CISSP and other certification exams with fresh AI-generated questions, instant explanations, timed mock exams, and progress tracking. Start free — no account needed."
+  "Pass AWS, Azure, Google Cloud, CompTIA, Cisco, and CISSP exams with AI lessons, fresh practice questions, hands-on cloud labs, timed mock exams, and a readiness score that tells you when you're ready. Start free."
 
 export const SITE_KEYWORDS = [
   "certification exam practice",
@@ -19,9 +19,11 @@ export const SITE_KEYWORDS = [
   "AWS certification practice questions",
   "CompTIA Security+ practice test",
   "Azure certification prep",
-  "PMP practice exam",
   "CISSP practice questions",
+  "CCNA practice test",
+  "hands-on cloud labs",
   "mock exam simulator",
+  "spaced repetition flashcards",
   "adaptive learning",
 ]
 

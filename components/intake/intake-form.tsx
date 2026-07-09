@@ -575,7 +575,11 @@ export function IntakeForm({
 
     setUploading(true);
     try {
-      const { fileId: id } = await api.uploadPdf(file);
+      // Scope the syllabus to the chosen exam so it grounds only that exam.
+      const { fileId: id } = await api.uploadPdf(
+        file,
+        selectedPreset?.examCode ?? "CUSTOM",
+      );
       setFileId(id);
       toast.success(`Attached ${file.name}`);
     } catch (err) {

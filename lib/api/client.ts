@@ -140,9 +140,10 @@ export const api = {
     };
   },
 
-  uploadPdf: async (file: File) => {
+  uploadPdf: async (file: File, examCode?: string | null) => {
     const form = new FormData();
     form.append("file", file);
+    if (examCode) form.append("examCode", examCode);
     const { url, init: fetchInit } = await buildApiFetchInit("/api/uploads", {
       method: "POST",
       body: form,
@@ -150,9 +151,31 @@ export const api = {
     const res = await fetch(url, fetchInit);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new ApiClientError(body.error ?? res.statusText, res.status);
+      throw new ApiClientError(body.error ?? res.statusText, res.status, {
+        code: body.code,
+      });
     }
-    return res.json() as Promise<{ fileId: string }>;
+    return res.json() as Promise<{ fileId: string; extractedChars: number }>;
+  },
+
+  listUploads: (exam?: string | null) => {
+    if (USE_MOCKS) return Promise.resolve({ uploads: [] });
+    return request<{
+      uploads: {
+        id: string;
+        examCode: string | null;
+        fileName: string;
+        extractedChars: number;
+        createdAt: string;
+      }[];
+    }>(withExam("/api/uploads", exam));
+  },
+
+  deleteUpload: (uploadId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>(`/api/uploads/${uploadId}`, {
+      method: "DELETE",
+    });
   },
 
   generateSession: async (

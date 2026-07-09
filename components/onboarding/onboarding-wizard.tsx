@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowRight, CalendarDays, Check, GraduationCap, Sparkles } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarDays, Check, FileText, GraduationCap, Sparkles, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
+import { useRef } from "react"
 import { listExamPresetsByProvider } from "@/lib/exams"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
@@ -43,6 +44,9 @@ export function OnboardingWizard() {
   const [step, setStep] = useState<Step>("exams")
   const [selected, setSelected] = useState<SelectedExam[]>([])
   const [customName, setCustomName] = useState("")
+  const [syllabusName, setSyllabusName] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [examDate, setExamDate] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -61,6 +65,23 @@ export function OnboardingWizard() {
         ? prev.filter((s) => s.examCode !== examCode)
         : [...prev, { examCode, exam }],
     )
+  }
+
+  async function handleSyllabus(file: File | undefined) {
+    if (!file) return
+    setUploading(true)
+    try {
+      // Scoped to CUSTOM so it grounds this exam's questions and lessons.
+      await api.uploadPdf(file, "CUSTOM")
+      setSyllabusName(file.name)
+      toast.success(`Syllabus attached — we'll build questions from it`)
+    } catch (err) {
+      setSyllabusName(null)
+      toast.error(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
   }
 
   async function finish(skipped: boolean) {
@@ -178,10 +199,49 @@ export function OnboardingWizard() {
                 className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
               {customSelected && (
-                <p className="text-xs text-muted-foreground">
-                  We&apos;ll build practice and lessons for it from your
-                  description and any syllabus you upload.
-                </p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Attach the official syllabus or your study notes (PDF) and
+                    we&apos;ll build questions and lessons directly from them.
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => void handleSyllabus(e.target.files?.[0])}
+                  />
+                  {syllabusName ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                      <FileText className="size-4 shrink-0 text-primary" />
+                      <span className="min-w-0 truncate">{syllabusName}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSyllabusName(null)}
+                        aria-label="Remove syllabus"
+                        className="ml-auto text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploading ? (
+                        <Spinner data-icon="inline-start" />
+                      ) : (
+                        <FileText data-icon="inline-start" />
+                      )}
+                      {uploading ? "Reading PDF…" : "Attach syllabus (PDF)"}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </CardContent>
