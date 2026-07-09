@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Send, Sparkles } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Markdown } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
 import { useSessionStore } from "@/lib/store/use-session-store"
@@ -85,12 +86,12 @@ export function LessonTutor({ topicSlug, topicName }: LessonTutorProps) {
                     : "self-end bg-primary text-primary-foreground",
                 )}
               >
-                {m.content}
+                {m.role === "assistant" ? <Markdown>{m.content}</Markdown> : m.content}
               </div>
             ))}
             {streamingReply && (
               <div className="max-w-[85%] self-start rounded-xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground/90">
-                {streamingReply}
+                <Markdown>{streamingReply}</Markdown>
                 <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
               </div>
             )}

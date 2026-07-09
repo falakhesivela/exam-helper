@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { MarkdownInline } from "@/components/ui/markdown"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { scoreOf } from "@/lib/session-utils"
 import { QuestionStem } from "@/components/exam/vue/question-stem"
@@ -173,7 +174,7 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
                             LETTERS[oi]
                           )}
                         </span>
-                        <span className="flex-1">{opt.text}</span>
+                        <MarkdownInline className="flex-1">{opt.text}</MarkdownInline>
                       </div>
                     )
                   })}
@@ -186,7 +187,7 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
 
                 <div className="rounded-xl bg-secondary/40 p-3 text-sm leading-relaxed text-foreground/90">
                   <span className="font-medium text-foreground">Explanation: </span>
-                  {q.explanation}
+                  <MarkdownInline>{q.explanation}</MarkdownInline>
                 </div>
               </CardContent>
             </Card>

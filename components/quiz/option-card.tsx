@@ -3,6 +3,7 @@
 import { Ban, Check, Undo2, X } from "lucide-react"
 import { motion } from "motion/react"
 import type { QuestionOption } from "@/types"
+import { MarkdownInline } from "@/components/ui/markdown"
 import { cn } from "@/lib/utils"
 
 interface OptionCardProps {
@@ -95,14 +96,14 @@ export function OptionCard({
             LETTERS[index]
           )}
         </span>
-        <span
+        <MarkdownInline
           className={cn(
             "flex-1 text-[15px] leading-relaxed",
             !revealed && eliminated && "text-muted-foreground line-through",
           )}
         >
           {option.text}
-        </span>
+        </MarkdownInline>
       </motion.button>
 
       {showEliminate && (

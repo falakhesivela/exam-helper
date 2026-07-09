@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react"
 import type { Question } from "@/types"
+import { Markdown } from "@/components/ui/markdown"
 import { api } from "@/lib/api/client"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
@@ -149,9 +150,9 @@ export function ExplanationPanel({ question, isCorrect }: ExplanationPanelProps)
             <BookOpen className="size-3.5" />
             Explanation
           </p>
-          <p className="text-sm leading-relaxed text-foreground/90">
+          <Markdown className="text-sm leading-relaxed text-foreground/90">
             {question.explanation}
-          </p>
+          </Markdown>
         </div>
 
         {question.references.length > 0 && (

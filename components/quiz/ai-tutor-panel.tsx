@@ -5,6 +5,7 @@ import { motion } from "motion/react"
 import { Send, Sparkles } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
+import { Markdown } from "@/components/ui/markdown"
 import { api } from "@/lib/api/client"
 import type { DragAnswer, Question } from "@/types"
 import { cn } from "@/lib/utils"
@@ -131,13 +132,13 @@ export function AiTutorPanel({
                     : "self-end bg-primary text-primary-foreground",
                 )}
               >
-                {m.content}
+                {m.role === "assistant" ? <Markdown>{m.content}</Markdown> : m.content}
               </div>
             ))
           )}
           {streamingReply && (
             <div className="max-w-[85%] self-start rounded-xl bg-card px-3 py-2 text-sm leading-relaxed text-foreground/90">
-              {streamingReply}
+              <Markdown>{streamingReply}</Markdown>
               <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
             </div>
           )}

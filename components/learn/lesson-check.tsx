@@ -4,6 +4,7 @@ import { useState } from "react"
 import { CheckCircle2, ClipboardCheck, RotateCcw, XCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Markdown, MarkdownInline } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import type { CheckQuestion } from "@/types"
 import { cn } from "@/lib/utils"
@@ -101,7 +102,7 @@ export function LessonCheck({
           return (
             <div key={qi} className="flex flex-col gap-2">
               <p className="text-sm font-medium leading-relaxed">
-                {qi + 1}. {q.prompt}
+                {qi + 1}. <MarkdownInline>{q.prompt}</MarkdownInline>
               </p>
               <div className="flex flex-col gap-1.5" role="radiogroup">
                 {q.options.map((option, oi) => {
@@ -139,15 +140,15 @@ export function LessonCheck({
                       {submitted && isSelected && !isCorrect && (
                         <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
                       )}
-                      {option}
+                      <MarkdownInline className="flex-1">{option}</MarkdownInline>
                     </button>
                   )
                 })}
               </div>
               {submitted && selected !== q.correctIndex && (
-                <p className="text-xs leading-relaxed text-muted-foreground">
+                <Markdown className="text-xs leading-relaxed text-muted-foreground">
                   {q.explanation}
-                </p>
+                </Markdown>
               )}
             </div>
           )

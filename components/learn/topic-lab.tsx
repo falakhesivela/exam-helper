@@ -18,6 +18,7 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Markdown, MarkdownInline } from "@/components/ui/markdown"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -65,9 +66,9 @@ function LabStepRow({
           <p className={cn("text-sm font-medium", done && "text-muted-foreground line-through")}>
             {step.title}
           </p>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+          <Markdown className="text-sm leading-relaxed text-foreground/90">
             {step.instruction}
-          </p>
+          </Markdown>
           {step.hint && (
             <button
               type="button"
@@ -79,7 +80,9 @@ function LabStepRow({
             </button>
           )}
           {step.hint && showHint && (
-            <p className="text-xs leading-relaxed text-muted-foreground">{step.hint}</p>
+            <Markdown className="text-xs leading-relaxed text-muted-foreground">
+              {step.hint}
+            </Markdown>
           )}
         </div>
       </div>
@@ -267,7 +270,7 @@ export function TopicLabView({ topicSlug }: TopicLabViewProps) {
               <CardTitle className="text-base">Why this lab</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm leading-relaxed text-foreground/90">
-              <p>{preview.scenario}</p>
+              <Markdown>{preview.scenario ?? ""}</Markdown>
               <p className="text-xs text-muted-foreground">
                 {preview.stepsCount} steps · {preview.checkpointCount} checkpoints
               </p>
@@ -276,7 +279,7 @@ export function TopicLabView({ topicSlug }: TopicLabViewProps) {
                   {(preview.prerequisites ?? []).map((p) => (
                     <li key={p} className="flex items-start gap-2 text-sm">
                       <ListChecks className="mt-0.5 size-4 shrink-0 text-primary" />
-                      {p}
+                      <MarkdownInline className="flex-1">{p}</MarkdownInline>
                     </li>
                   ))}
                 </ul>
@@ -288,7 +291,7 @@ export function TopicLabView({ topicSlug }: TopicLabViewProps) {
             <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="flex items-start gap-2.5 py-4 text-sm leading-relaxed">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                {preview.costWarning}
+                <MarkdownInline className="flex-1">{preview.costWarning}</MarkdownInline>
               </CardContent>
             </Card>
           )}
@@ -334,7 +337,7 @@ export function TopicLabView({ topicSlug }: TopicLabViewProps) {
           <Card className="border-amber-500/40 bg-amber-500/5">
             <CardContent className="flex items-start gap-2.5 py-4 text-sm leading-relaxed">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-              {content.costWarning}
+              <MarkdownInline className="flex-1">{content.costWarning}</MarkdownInline>
             </CardContent>
           </Card>
 
@@ -378,7 +381,7 @@ export function TopicLabView({ topicSlug }: TopicLabViewProps) {
                 {content.cleanup.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm leading-relaxed">
                     <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-destructive" />
-                    {item}
+                    <MarkdownInline className="flex-1">{item}</MarkdownInline>
                   </li>
                 ))}
               </ul>

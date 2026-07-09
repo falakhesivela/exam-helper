@@ -2,6 +2,7 @@
 
 import { ListChecks } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { MarkdownInline } from "@/components/ui/markdown"
 
 interface CuratedOutlineProps {
   outline: string[]
@@ -26,7 +27,7 @@ export function CuratedOutline({ outline }: CuratedOutlineProps) {
               className="flex items-start gap-2.5 text-sm leading-relaxed text-foreground/90"
             >
               <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-              {item}
+              <MarkdownInline className="flex-1">{item}</MarkdownInline>
             </li>
           ))}
         </ul>

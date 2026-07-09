@@ -7,6 +7,7 @@ import { RotateCcw, Shuffle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PracticeHeader } from "@/components/practice/practice-header"
 import { Card, CardContent } from "@/components/ui/card"
+import { Markdown } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import { Progress } from "@/components/ui/progress"
 import { api } from "@/lib/api/client"
@@ -157,9 +158,9 @@ export default function FlashcardsPage() {
                       <span>{current.topic}</span>
                       <span>{flipped ? "Answer" : "Question"}</span>
                     </span>
-                    <p className="flex-1 whitespace-pre-line text-base leading-relaxed">
+                    <Markdown className="flex-1 text-base leading-relaxed">
                       {flipped ? current.back : current.front}
-                    </p>
+                    </Markdown>
                     {!flipped && (
                       <span className="text-center text-xs text-muted-foreground">
                         Tap to reveal answer

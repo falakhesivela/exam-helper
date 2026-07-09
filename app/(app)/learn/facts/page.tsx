@@ -6,6 +6,7 @@ import { motion } from "motion/react"
 import { ArrowLeft, Lightbulb, RotateCcw, Shuffle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Markdown } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import { Progress } from "@/components/ui/progress"
 import { api } from "@/lib/api/client"
@@ -172,9 +173,9 @@ export default function FactCardsPage() {
                       <span>{current.topicName}</span>
                       <span>{flipped ? "Answer" : "Question"}</span>
                     </span>
-                    <p className="flex-1 whitespace-pre-line text-base leading-relaxed">
+                    <Markdown className="flex-1 text-base leading-relaxed">
                       {flipped ? current.fact : current.question}
-                    </p>
+                    </Markdown>
                     {!flipped && (
                       <span className="text-center text-xs text-muted-foreground">
                         Tap to reveal answer

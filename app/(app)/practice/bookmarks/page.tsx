@@ -8,6 +8,7 @@ import { PracticeHeader } from "@/components/practice/practice-header"
 import { BookmarkQuiz } from "@/components/practice/bookmark-quiz"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Markdown, MarkdownInline } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
 import { useSessionStore } from "@/lib/store/use-session-store"
@@ -112,21 +113,23 @@ export default function BookmarksPage() {
                   </Button>
                 </div>
 
-                <p className="text-sm font-medium">{questionStemText(q)}</p>
+                <p className="text-sm font-medium">
+                  <MarkdownInline>{questionStemText(q)}</MarkdownInline>
+                </p>
 
                 {correctTexts.length > 0 && (
                   <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
                     {correctTexts.map((t) => (
                       <p key={t} className="text-primary">
-                        ✓ {t}
+                        ✓ <MarkdownInline>{t}</MarkdownInline>
                       </p>
                     ))}
                   </div>
                 )}
 
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <Markdown className="text-sm leading-relaxed text-muted-foreground">
                   {q.explanation}
-                </p>
+                </Markdown>
 
                 {q.references.length > 0 && (
                   <div className="flex flex-col gap-1.5 border-t border-border pt-3">

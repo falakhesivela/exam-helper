@@ -1,6 +1,7 @@
 "use client"
 
 import type { QuestionOption } from "@/types"
+import { MarkdownInline } from "@/components/ui/markdown"
 import { cn } from "@/lib/utils"
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"]
@@ -52,7 +53,8 @@ export function ExamOptionRow({
         {multiSelect && selected ? "✓" : letter}
       </span>
       <span className="flex-1 text-[15px] leading-relaxed">
-        <span className="font-medium">{letter}.</span> {option.text}
+        <span className="font-medium">{letter}.</span>{" "}
+        <MarkdownInline>{option.text}</MarkdownInline>
       </span>
     </button>
   )

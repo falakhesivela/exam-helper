@@ -3,6 +3,7 @@
 import { AlertTriangle, BookOpen, ExternalLink, Lightbulb, RefreshCw, Scale } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Markdown, MarkdownInline } from "@/components/ui/markdown"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import type { TopicLessonContent } from "@/types"
@@ -46,12 +47,12 @@ export function AiDeepDive({
           {sections.map((section, i) => (
             <div key={i} className="flex flex-col gap-1.5">
               <h3 className="text-sm font-semibold">{section.title}</h3>
-              <p className="text-sm leading-relaxed text-foreground/90">
-                {section.body ?? ""}
+              <div className="text-sm leading-relaxed text-foreground/90">
+                <MarkdownInline className="block">{section.body ?? ""}</MarkdownInline>
                 {i === sections.length - 1 && (
                   <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
                 )}
-              </p>
+              </div>
             </div>
           ))}
           {sections.length === 0 ? (
@@ -128,9 +129,9 @@ export function AiDeepDive({
           {content.deepDive.map((section) => (
             <div key={section.title} className="flex flex-col gap-1.5">
               <h3 className="text-sm font-semibold">{section.title}</h3>
-              <p className="text-sm leading-relaxed text-foreground/90">
+              <Markdown className="text-sm leading-relaxed text-foreground/90">
                 {section.body}
-              </p>
+              </Markdown>
             </div>
           ))}
         </CardContent>
@@ -158,7 +159,7 @@ export function AiDeepDive({
                             key={col}
                             className="px-3 py-2 text-left font-medium"
                           >
-                            {col}
+                            <MarkdownInline>{col}</MarkdownInline>
                           </th>
                         ))}
                       </tr>
@@ -178,7 +179,7 @@ export function AiDeepDive({
                                   : "px-3 py-2 text-foreground/80"
                               }
                             >
-                              {cell}
+                              <MarkdownInline>{cell}</MarkdownInline>
                             </td>
                           ))}
                         </tr>
@@ -207,7 +208,7 @@ export function AiDeepDive({
                 className="flex items-start gap-2 text-sm leading-relaxed text-foreground/90"
               >
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
-                {trap}
+                <MarkdownInline className="flex-1">{trap}</MarkdownInline>
               </li>
             ))}
           </ul>
@@ -230,7 +231,7 @@ export function AiDeepDive({
                   className="flex items-start gap-2 text-sm leading-relaxed text-foreground/90"
                 >
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                  {f.fact}
+                  <MarkdownInline className="flex-1">{f.fact}</MarkdownInline>
                 </li>
               ))}
             </ul>
@@ -243,9 +244,9 @@ export function AiDeepDive({
           <CardTitle className="text-base">Quick recap</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm leading-relaxed text-foreground/90">
+          <Markdown className="text-sm leading-relaxed text-foreground/90">
             {content.recap}
-          </p>
+          </Markdown>
         </CardContent>
       </Card>
 
