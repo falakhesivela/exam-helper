@@ -8,6 +8,7 @@ import type {
   TopicMastery,
   UserProfile,
 } from "@/types";
+import { ApiClientError } from "./error";
 import { buildApiFetchInit } from "./fetch-init";
 import { consumeSse } from "./stream";
 import {
@@ -21,22 +22,7 @@ import {
   buildMockUserExams,
 } from "@/lib/mock-data";
 
-export class ApiClientError extends Error {
-  status: number;
-  code?: string;
-  remaining?: number;
-
-  constructor(
-    message: string,
-    status: number,
-    extra?: { code?: string; remaining?: number },
-  ) {
-    super(message);
-    this.status = status;
-    this.code = extra?.code;
-    this.remaining = extra?.remaining;
-  }
-}
+export { ApiClientError, isUnauthorizedError } from "./error";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { url, init: fetchInit } = await buildApiFetchInit(path, init);

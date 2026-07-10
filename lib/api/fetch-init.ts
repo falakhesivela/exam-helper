@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { apiUrl, isExternalApi } from "./base-url"
+import { ApiClientError } from "./error"
+
+/** Backend routes that work without a session (sign-out is idempotent). */
+function isPublicApiPath(path: string): boolean {
+  return path.startsWith("/api/auth/")
+}
 
 function getTimezone(): string {
   try {
@@ -37,6 +43,11 @@ export async function buildApiFetchInit(
   } = await supabase.auth.getSession()
   if (session?.access_token) {
     headers.set("Authorization", `Bearer ${session.access_token}`)
+  } else if (!isPublicApiPath(path)) {
+    // The backend authenticates by bearer token only — it never reads the
+    // session cookie. Sending the request anyway would return a 401 that is
+    // indistinguishable from a rejected token, so say so up front.
+    throw new ApiClientError("Not authenticated", 401)
   }
 
   const external = isExternalApi()

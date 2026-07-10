@@ -14,7 +14,7 @@ import type {
   TopicLesson,
   UserProfile,
 } from "@/types";
-import { api, USE_MOCKS } from "@/lib/api/client";
+import { api, isUnauthorizedError, USE_MOCKS } from "@/lib/api/client";
 import {
   buildMockLearnTopics,
   buildMockTopicLesson,
@@ -61,12 +61,24 @@ interface SessionState {
    * on reload — switching here does not persist anything.
    */
   activeExamCode: string | null;
+  /** True once the store reflects the server — either loaded, or signed out. */
   hydrated: boolean;
+  /** A hydrate() call is in flight. */
+  hydrating: boolean;
+  /**
+   * Hydration failed for a reason other than being signed out (network, 5xx,
+   * service-worker timeout). The shell must offer a retry rather than render
+   * a signed-out UI over a live session.
+   */
+  hydrationError: boolean;
 
   getSession: (id: string) => PracticeSession | undefined;
   remainingFreeQuestions: () => number;
 
-  hydrate: () => Promise<void>;
+  hydrate: (opts?: { force?: boolean }) => Promise<void>;
+  retryHydration: () => Promise<void>;
+  /** Drop all user data — call when Supabase reports the session is gone. */
+  applySignedOut: () => void;
   refreshProfile: () => Promise<void>;
   refreshUserExams: () => Promise<void>;
   /** Switch the exam scoping Learn/plan/readiness (view-only, not persisted). */
@@ -166,6 +178,50 @@ function mergeUpsertSession(
   return upsertSession(sessions, mergeSessionUpdate(existing, incoming));
 }
 
+/** Backoff between profile fetch retries; length also caps the attempt count. */
+const PROFILE_RETRY_DELAYS_MS = [400, 1200];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Load the profile, retrying transient failures. Only a 401 means "signed
+ * out" — a network blip, a cold backend, or the service worker's 10s timeout
+ * must never be allowed to masquerade as one.
+ */
+async function fetchProfileWithRetry(): Promise<UserProfile> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.me();
+    } catch (err) {
+      if (isUnauthorizedError(err) || attempt >= PROFILE_RETRY_DELAYS_MS.length) {
+        throw err;
+      }
+      await sleep(PROFILE_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+}
+
+function signedOutState(): Partial<SessionState> {
+  return {
+    profile: emptyProfile,
+    sessions: [],
+    topicMastery: [],
+    examAccuracy: {},
+    readinessTrend: [],
+    plan: null,
+    coaching: null,
+    streak: null,
+    bookmarkedIds: [],
+    learnTopics: [],
+    userExams: [],
+    examTips: [],
+    activeExamCode: null,
+    hydrated: true,
+    hydrating: false,
+    hydrationError: false,
+  };
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   profile: USE_MOCKS ? mockProfile : emptyProfile,
   sessions: USE_MOCKS ? mockHistory : [],
@@ -181,6 +237,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   examTips: USE_MOCKS ? buildMockExamTips() : [],
   activeExamCode: USE_MOCKS ? "SAA-C03" : null,
   hydrated: false,
+  hydrating: false,
+  hydrationError: false,
 
   getSession: (id) => get().sessions.find((s) => s.id === id),
 
@@ -191,71 +249,81 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return Math.max(0, profile.dailyLimit - profile.questionsUsedToday);
   },
 
-  hydrate: async () => {
-    if (USE_MOCKS || get().hydrated) return;
-    try {
-      // Stage 1: profile first — it carries the server-resolved active exam,
-      // which scopes the exam-specific fetches below.
-      const [profile, userExamsRes] = await Promise.all([
-        api.me(),
-        api.userExams().catch(() => ({ exams: [] })),
-      ]);
-      const activeExamCode = profile.activeExam?.examCode ?? null;
+  hydrate: async (opts) => {
+    if (USE_MOCKS) return;
+    const { hydrated, hydrating } = get();
+    if (hydrating || (hydrated && !opts?.force)) return;
+    set({ hydrating: true, hydrationError: false });
 
-      const [
-        sessions,
-        topicMastery,
-        learnTopics,
-        examAccuracy,
-        readinessTrend,
-        plan,
-      ] = await Promise.all([
-        api.listSessions(),
-        api.topicMastery(),
-        api.learnTopics(activeExamCode),
-        // Non-fatal: missing readiness/plan data must not blank the dashboard.
-        api.examAccuracy().catch(() => ({})),
-        api.readinessTrend(activeExamCode).catch(() => []),
-        api.getPlan(activeExamCode).catch(() => null),
-      ]);
-      set({
-        profile,
-        userExams: userExamsRes.exams,
-        activeExamCode,
-        sessions,
-        topicMastery,
-        learnTopics,
-        examAccuracy,
-        readinessTrend,
-        plan,
-        hydrated: true,
-      });
-      // Non-critical extras; fetch separately so they never block the shell.
-      void api
-        .examTips(activeExamCode)
-        .then(({ tips }) => set({ examTips: tips }))
-        .catch(() => {});
-      void get().refreshStreak();
-      void api
-        .bookmarkIds()
-        .then(({ ids }) => set({ bookmarkedIds: ids }))
-        .catch(() => {});
-    } catch {
-      set({
-        profile: emptyProfile,
-        sessions: [],
-        topicMastery: [],
-        examAccuracy: {},
-        readinessTrend: [],
-        plan: null,
-        streak: null,
-        learnTopics: [],
-        userExams: [],
-        activeExamCode: null,
-        hydrated: true,
-      });
+    // Stage 1: the profile alone decides whether we are signed in, and it
+    // carries the server-resolved active exam that scopes the fetches below.
+    let profile: UserProfile;
+    try {
+      profile = await fetchProfileWithRetry();
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        set({ ...signedOutState(), hydrating: false });
+      } else {
+        // Leave the existing profile alone — a failed fetch is not a sign-out.
+        set({ hydrating: false, hydrationError: true });
+      }
+      return;
     }
+
+    // Stage 2: every fetch is individually non-fatal. None of them may blank
+    // the shell, let alone reset the identity we just established.
+    const activeExamCode = profile.activeExam?.examCode ?? null;
+    const [
+      userExamsRes,
+      sessions,
+      topicMastery,
+      learnTopics,
+      examAccuracy,
+      readinessTrend,
+      plan,
+    ] = await Promise.all([
+      api.userExams().catch(() => ({ exams: [] })),
+      api.listSessions().catch(() => [] as PracticeSession[]),
+      api.topicMastery().catch(() => [] as TopicMastery[]),
+      api.learnTopics(activeExamCode).catch(() => [] as LearnTopic[]),
+      api.examAccuracy().catch(() => ({})),
+      api.readinessTrend(activeExamCode).catch(() => []),
+      api.getPlan(activeExamCode).catch(() => null),
+    ]);
+
+    set({
+      profile,
+      userExams: userExamsRes.exams,
+      activeExamCode,
+      sessions,
+      topicMastery,
+      learnTopics,
+      examAccuracy,
+      readinessTrend,
+      plan,
+      hydrated: true,
+      hydrating: false,
+      hydrationError: false,
+    });
+
+    // Non-critical extras; fetch separately so they never block the shell.
+    void api
+      .examTips(activeExamCode)
+      .then(({ tips }) => set({ examTips: tips }))
+      .catch(() => {});
+    void get().refreshStreak();
+    void api
+      .bookmarkIds()
+      .then(({ ids }) => set({ bookmarkedIds: ids }))
+      .catch(() => {});
   },
+
+  retryHydration: async () => {
+    set({ hydrationError: false });
+    await get().hydrate({ force: true });
+  },
+
+  applySignedOut: () => set({ ...signedOutState(), hydrating: false }),
 
   refreshUserExams: async () => {
     if (USE_MOCKS) return;

@@ -22,7 +22,16 @@
       "Bash(npm uninstall *)",
       "Bash(env)",
       "Bash(uv run *)",
-      "Bash(timeout 150 uv run python /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/f045e259-d92a-46aa-b53a-c597918a2fd5/scratchpad/repro.py)"
+      "Bash(timeout 150 uv run python /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/f045e259-d92a-46aa-b53a-c597918a2fd5/scratchpad/repro.py)",
+      "Bash(node -e ' *)",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/build.cjs)",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/harness.cjs)",
+      "Bash(node --require module -e 'process.chdir\\('\\\\''/tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad'\\\\''\\)')",
+      "Bash(NODE_PATH=/home/fsivela/my-projects/certforge-ai-exam-app/node_modules node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/build.cjs)",
+      "Bash(NODE_PATH=/home/fsivela/my-projects/certforge-ai-exam-app/node_modules node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/harness.cjs)",
+      "Bash(export NODE_PATH=/home/fsivela/my-projects/certforge-ai-exam-app/node_modules)",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/build-old.cjs)",
+      "Bash(node /tmp/claude-1000/-home-fsivela-my-projects-certforge-ai-exam-app/141d1115-7cf1-4f27-8513-231943f33419/scratchpad/old-harness.cjs)"
     ]
   }
 }
