@@ -1,4 +1,5 @@
 import { HistoryList } from "@/components/history/history-list"
+import { ScoreTrend } from "@/components/history/score-trend"
 
 export default function HistoryPage() {
   return (
@@ -9,6 +10,7 @@ export default function HistoryPage() {
           Review your past sessions, scores, and explanations.
         </p>
       </header>
+      <ScoreTrend />
       <HistoryList />
     </div>
   )

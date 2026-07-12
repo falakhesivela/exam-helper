@@ -3,10 +3,12 @@
 import { motion } from "motion/react"
 import { PlanSetupWizard } from "@/components/plan/plan-setup-wizard"
 import { PlanOverview } from "@/components/plan/plan-overview"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 export default function PlanPage() {
   const plan = useSessionStore((s) => s.plan)
+  const dataReady = useSessionStore((s) => s.dataReady)
 
   return (
     <div className="flex flex-col gap-6">
@@ -22,7 +24,14 @@ export default function PlanPage() {
         </p>
       </motion.div>
 
-      {plan ? <PlanOverview plan={plan} /> : <PlanSetupWizard />}
+      {plan ? (
+        <PlanOverview plan={plan} />
+      ) : dataReady ? (
+        <PlanSetupWizard />
+      ) : (
+        // Plan still streaming in — don't flash the setup wizard.
+        <CardSkeleton rows={5} />
+      )}
     </div>
   )
 }

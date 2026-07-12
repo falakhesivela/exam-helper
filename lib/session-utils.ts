@@ -4,7 +4,6 @@ import type {
   PracticeSession,
   Question,
 } from "@/types";
-import type { ExamBlueprint } from "@/lib/exams/types";
 import { gradeDragAnswer as gradeDrag } from "@/lib/db/sessions";
 import { questionStemText } from "@/lib/question-stem";
 
@@ -202,42 +201,25 @@ export function isAnswerCorrect(
   );
 }
 
-export interface ConfidenceBreakdown {
-  /** Answers that carried a confidence rating. */
-  rated: number;
-  /** Sure + correct. */
-  solid: number;
-  /** Sure + wrong — the dangerous quadrant. */
-  overconfident: number;
-  /** Unsure + correct — knows more than they think. */
-  lucky: number;
-  /** Unsure + wrong — expected gaps. */
-  shaky: number;
-}
+// Pure post-exam analysis helpers live in exam-insights.ts (no runtime
+// imports, so they run under `node --test`); re-exported here for callers.
+export {
+  confidenceBreakdown,
+  domainBreakdown,
+  paceReport,
+  weakestDomains,
+} from "./exam-insights";
+export type {
+  ConfidenceBreakdown,
+  DomainScore,
+  PaceEntry,
+  PaceFlag,
+  PaceReport,
+} from "./exam-insights";
 
-/** Tally the confidence-vs-correctness quadrants for a session. */
-export function confidenceBreakdown(
-  session: PracticeSession,
-): ConfidenceBreakdown {
-  const out: ConfidenceBreakdown = {
-    rated: 0,
-    solid: 0,
-    overconfident: 0,
-    lucky: 0,
-    shaky: 0,
-  };
-  for (const a of Object.values(session.answers)) {
-    if (!a.confidence) continue;
-    out.rated += 1;
-    if (a.confidence === "sure") {
-      if (a.isCorrect) out.solid += 1;
-      else out.overconfident += 1;
-    } else {
-      if (a.isCorrect) out.lucky += 1;
-      else out.shaky += 1;
-    }
-  }
-  return out;
+/** Whether this store entry is a list-view stub without question payloads. */
+export function isSessionSummary(session: PracticeSession): boolean {
+  return session.summary === true;
 }
 
 /** Computes the score for a session with separate skipped count. */
@@ -248,6 +230,13 @@ export function scoreOf(session: PracticeSession): {
   skipped: number;
   pct: number;
 } {
+  // Summary stubs carry server-computed counts instead of question payloads.
+  if (session.summary && session.scoreSummary) {
+    const { correct, answered, skipped, total } = session.scoreSummary;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    return { correct, total, answered, skipped, pct };
+  }
+
   let correct = 0;
   let answered = 0;
   let skipped = 0;
@@ -287,37 +276,3 @@ export function topicBreakdown(session: PracticeSession) {
   }));
 }
 
-/**
- * Domain scorecard for exam sessions.
- * Prefers domainId + blueprint names; falls back to question.topic.
- */
-export function domainBreakdown(
-  session: PracticeSession,
-  blueprint?: ExamBlueprint | null,
-) {
-  const map = new Map<
-    string,
-    { topic: string; correct: number; total: number }
-  >();
-
-  for (const q of session.questions) {
-    const key = q.domainId ?? q.topic;
-    const topic =
-      (q.domainId &&
-        blueprint?.domains.find((d) => d.id === q.domainId)?.name) ||
-      q.topic;
-    const entry = map.get(key) ?? { topic, correct: 0, total: 0 };
-    entry.total += 1;
-    if (session.answers[q.id]?.isCorrect) entry.correct += 1;
-    map.set(key, entry);
-  }
-
-  return [...map.values()]
-    .map((v) => ({
-      topic: v.topic,
-      correct: v.correct,
-      total: v.total,
-      pct: Math.round((v.correct / v.total) * 100),
-    }))
-    .sort((a, b) => a.topic.localeCompare(b.topic));
-}

@@ -15,16 +15,6 @@ import {
 } from "@/lib/db/usage"
 import { generateTopicLesson, type StreamingLessonContent } from "@/lib/ai"
 
-interface TopicLessonRow {
-  id: string
-  user_id: string
-  exam_code: string
-  topic_slug: string
-  topic_name: string
-  content: TopicLessonContent
-  created_at: string
-}
-
 function hasAiContent(content?: TopicLessonContent): boolean {
   return Boolean(content && content.deepDive.length > 0)
 }
@@ -70,9 +60,11 @@ export async function loadLearnTopics(
     getUserExamContext(admin, userId),
   ])
 
+  // Project only the deepDive array instead of the full AI lesson JSON —
+  // this listing only needs to know whether AI content exists.
   const { data: lessons } = await admin
     .from("topic_lessons")
-    .select("id, topic_slug, topic_name, exam_code, content")
+    .select("id, topic_slug, topic_name, exam_code, deep_dive:content->deepDive")
     .eq("user_id", userId)
     .eq("exam_code", examCode)
 
@@ -92,7 +84,10 @@ export async function loadLearnTopics(
   }
 
   const lessonBySlug = new Map(
-    (lessons ?? []).map((l) => [l.topic_slug, l as TopicLessonRow]),
+    (lessons ?? []).map((l) => [
+      l.topic_slug as string,
+      l as { id: string; topic_slug: string; deep_dive: unknown },
+    ]),
   )
 
   const topics = (mastery ?? []) as {
@@ -120,7 +115,7 @@ export async function loadLearnTopics(
       lessonId: lesson?.id,
       lessonStatus,
       bookmarked: progress?.bookmarked ?? false,
-      hasAiContent: hasAiContent(lesson?.content as TopicLessonContent | undefined),
+      hasAiContent: Array.isArray(lesson?.deep_dive) && lesson.deep_dive.length > 0,
     }
   })
 }

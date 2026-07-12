@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button"
 const ACTIONS = [
   { href: "/exam", label: "Timed mock exam", icon: AlarmClock },
   { href: "/intake", label: "Custom practice", icon: Sparkles },
-  { href: "/practice/flashcards", label: "Flashcards", icon: Layers },
-  { href: "/practice/missed", label: "Missed questions", icon: RotateCcw },
-  { href: "/practice/bookmarks", label: "Saved questions", icon: Bookmark },
+  { href: "/study/review", label: "Flashcards", icon: Layers },
+  { href: "/study/review?mode=quiz", label: "Missed questions", icon: RotateCcw },
+  { href: "/study/saved", label: "Saved questions", icon: Bookmark },
 ]
 
 /** Quiet rail of secondary destinations — one tap away without competing with the recommendation. */

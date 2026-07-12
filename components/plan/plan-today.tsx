@@ -79,7 +79,7 @@ export function PlanToday({ plan, launchingId, onStart }: PlanTodayProps) {
               Nothing scheduled today.
             </p>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/practice">
+              <Link href="/study">
                 Study anyway
                 <ArrowRight data-icon="inline-end" />
               </Link>

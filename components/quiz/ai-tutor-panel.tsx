@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import { motion } from "motion/react"
 import { Send, Sparkles } from "lucide-react"
-import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
+import { ThinkingIndicator } from "@/components/ui/thinking-indicator"
 import { api } from "@/lib/api/client"
 import type { DragAnswer, Question } from "@/types"
 import { cn } from "@/lib/utils"
@@ -115,12 +115,12 @@ export function AiTutorPanel({
           AI tutor
         </p>
 
-        <div ref={threadRef} className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+        <div
+          ref={threadRef}
+          className="no-scrollbar flex max-h-72 flex-col gap-2 overflow-y-auto"
+        >
           {initialLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Spinner className="size-4" />
-              Thinking about your answer…
-            </div>
+            <ThinkingIndicator label="Looking at your answer" />
           ) : (
             messages.map((m, i) => (
               <div
@@ -143,10 +143,7 @@ export function AiTutorPanel({
             </div>
           )}
           {sending && !streamingReply && (
-            <div className="flex items-center gap-2 self-start text-sm text-muted-foreground">
-              <Spinner className="size-4" />
-              Typing…
-            </div>
+            <ThinkingIndicator label="The tutor is replying" />
           )}
         </div>
 

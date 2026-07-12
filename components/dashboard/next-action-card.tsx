@@ -129,7 +129,7 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
       title: `Review ${dueCount} missed question${dueCount === 1 ? "" : "s"}`,
       meta: `Due today · ~${mins} min · your fastest readiness gain`,
       cta: "Start review",
-      href: "/practice/missed?due=true",
+      href: "/study/review?due=true",
     })
   }
 

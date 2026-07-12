@@ -83,6 +83,7 @@ function planFeatures(tier: Tier): string[] {
       ` (up to ${l.maxExamLength} questions)`,
     quotaLabel(l.lessons, "AI lessons", WINDOW_WORD[l.lessonsWindow]),
     quotaLabel(l.tutorMessages, "AI tutor messages", WINDOW_WORD[l.tutorWindow]),
+    quotaLabel(l.mentorMessages, "Mentor chat messages", WINDOW_WORD[l.mentorWindow]),
     quotaLabel(l.labs, "hands-on cloud labs", WINDOW_WORD[l.labsWindow]),
   ]
   if (l.coach !== 0) {

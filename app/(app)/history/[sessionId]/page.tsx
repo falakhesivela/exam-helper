@@ -1,4 +1,9 @@
-import { SessionReview } from "@/components/history/session-review"
+import {
+  SessionReview,
+  type ReviewFilter,
+} from "@/components/history/session-review"
+
+const FILTERS: ReviewFilter[] = ["all", "flagged", "incorrect", "unsure"]
 
 export default async function HistoryDetailPage({
   params,
@@ -9,7 +14,9 @@ export default async function HistoryDetailPage({
 }) {
   const { sessionId } = await params
   const { filter } = await searchParams
-  const reviewFilter = filter === "flagged" ? "flagged" : "all"
+  const reviewFilter = FILTERS.includes(filter as ReviewFilter)
+    ? (filter as ReviewFilter)
+    : "all"
 
   return <SessionReview sessionId={sessionId} filter={reviewFilter} />
 }

@@ -1,13 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, ChevronRight, ListChecks } from "lucide-react"
+import { Calendar, ChevronRight, Clock, ListChecks } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Button } from "@/components/ui/button"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { scoreOf } from "@/lib/session-utils"
+import { examDeadlineMs } from "@/hooks/use-exam-state"
+import { formatClock } from "@/hooks/use-countdown"
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -19,6 +22,7 @@ function formatDate(iso: string) {
 }
 
 export function HistoryList() {
+  const dataReady = useSessionStore((s) => s.dataReady)
   const sessions = useSessionStore((s) => s.sessions)
   const inProgress = sessions
     .filter((s) => s.status === "in-progress")
@@ -27,6 +31,17 @@ export function HistoryList() {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
   const completed = sessions.filter((s) => s.status === "completed")
+
+  // Session list still streaming in — don't flash the empty state.
+  if (!dataReady && completed.length === 0 && inProgress.length === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <CardSkeleton rows={2} />
+        <CardSkeleton rows={2} />
+        <CardSkeleton rows={2} />
+      </div>
+    )
+  }
 
   if (completed.length === 0 && inProgress.length === 0) {
     return (
@@ -59,6 +74,12 @@ export function HistoryList() {
                 s.expectedQuestionCount ?? 0,
                 s.questions.length,
               )
+              // Live exam clock: started mocks keep counting down while away.
+              const deadline = s.mode === "exam" ? examDeadlineMs(s) : null
+              const remainingSec =
+                deadline != null
+                  ? Math.max(0, Math.round((deadline - Date.now()) / 1000))
+                  : null
               return (
                 <Link key={s.id} href={href}>
                   <Card className="border-primary/30 transition-colors hover:border-primary/50">
@@ -71,9 +92,25 @@ export function HistoryList() {
                         <p className="truncate text-sm text-muted-foreground">
                           {s.focusTopics.join(", ")}
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Continue · question {s.currentIndex + 1}
-                          {total > 0 ? ` of ${total}` : ""}
+                        <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>
+                            Continue · question {s.currentIndex + 1}
+                            {total > 0 ? ` of ${total}` : ""}
+                          </span>
+                          {remainingSec != null && (
+                            <span
+                              className={
+                                remainingSec <= 300
+                                  ? "flex items-center gap-1 font-medium text-destructive"
+                                  : "flex items-center gap-1"
+                              }
+                            >
+                              <Clock className="size-3" />
+                              {remainingSec > 0
+                                ? `${formatClock(remainingSec)} left`
+                                : "Time expired"}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <Badge variant="outline">Resume</Badge>

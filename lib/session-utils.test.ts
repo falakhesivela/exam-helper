@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { describe, it } from "node:test"
+import assert from "node:assert/strict"
 import type { Question } from "@/types"
 import {
   expectedSelectionCount,
   multiSelectSubmitLabel,
   validMcqSelections,
-} from "./session-utils"
+} from "./session-utils.ts"
 
 function mcq(overrides: Partial<Question> = {}): Question {
   return {
@@ -21,27 +22,26 @@ function mcq(overrides: Partial<Question> = {}): Question {
     ],
     correctOptionIds: ["a", "c"],
     explanation: "…",
+    references: [],
     ...overrides,
-  }
+  } as Question
 }
 
 describe("expectedSelectionCount", () => {
   it("detects explicit select-two phrasing", () => {
-    expect(expectedSelectionCount(mcq())).toBe(2)
-    expect(
-      expectedSelectionCount(
-        mcq({ prompt: "Choose three responses that apply." }),
-      ),
-    ).toBe(3)
-    expect(
-      expectedSelectionCount(
-        mcq({ prompt: "Pick 2 answers from the list below." }),
-      ),
-    ).toBe(2)
+    assert.equal(expectedSelectionCount(mcq()), 2)
+    assert.equal(
+      expectedSelectionCount(mcq({ prompt: "Choose three responses that apply." })),
+      3,
+    )
+    assert.equal(
+      expectedSelectionCount(mcq({ prompt: "Pick 2 answers from the list below." })),
+      2,
+    )
   })
 
   it("ignores incidental 'two' in scenario text", () => {
-    expect(
+    assert.equal(
       expectedSelectionCount(
         mcq({
           prompt:
@@ -49,40 +49,37 @@ describe("expectedSelectionCount", () => {
           multiSelect: false,
         }),
       ),
-    ).toBeNull()
-    expect(
+      null,
+    )
+    assert.equal(
       expectedSelectionCount(
-        mcq({
-          prompt:
-            "Design DR across two Regions. (Select all that apply.)",
-        }),
+        mcq({ prompt: "Design DR across two Regions. (Select all that apply.)" }),
       ),
-    ).toBeNull()
+      null,
+    )
   })
 
   it("returns null for single-select and unknown multi-select stems", () => {
-    expect(expectedSelectionCount(mcq({ multiSelect: false }))).toBeNull()
-    expect(
-      expectedSelectionCount(
-        mcq({ prompt: "Select all strategies that apply." }),
-      ),
-    ).toBeNull()
+    assert.equal(expectedSelectionCount(mcq({ multiSelect: false })), null)
+    assert.equal(
+      expectedSelectionCount(mcq({ prompt: "Select all strategies that apply." })),
+      null,
+    )
   })
 })
 
 describe("validMcqSelections", () => {
   it("drops ids that are not on the question", () => {
-    const q = mcq()
-    expect(validMcqSelections(q, ["a", "stale", "c"])).toEqual(["a", "c"])
+    assert.deepEqual(validMcqSelections(mcq(), ["a", "stale", "c"]), ["a", "c"])
   })
 })
 
 describe("multiSelectSubmitLabel", () => {
   it("shows progress when under-selected", () => {
-    expect(multiSelectSubmitLabel(1, 2)).toBe("Select 1 more (1/2)")
+    assert.equal(multiSelectSubmitLabel(1, 2), "Select 1 more (1/2)")
   })
 
   it("shows over-selection clearly", () => {
-    expect(multiSelectSubmitLabel(3, 2)).toBe("Too many selected (3/2)")
+    assert.equal(multiSelectSubmitLabel(3, 2), "Too many selected (3/2)")
   })
 })

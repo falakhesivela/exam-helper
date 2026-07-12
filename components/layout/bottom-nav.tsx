@@ -3,19 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  AlarmClock,
-  BookOpen,
-  CalendarCheck,
-  Compass,
-  History,
-  LayoutDashboard,
-  LogIn,
-  Menu,
-  User,
-  UserPlus,
-  Users,
-} from "lucide-react"
+import { LogIn, Menu, UserPlus } from "lucide-react"
 import { motion } from "motion/react"
 import {
   Sheet,
@@ -24,34 +12,22 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { isNavItemActive, visibleNavItems } from "@/lib/config/nav"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
-
-// Most-used destinations stay on the bar; the rest live in the "More" drawer.
-const primaryItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/practice", label: "Practice", icon: Compass },
-  { href: "/plan", label: "Plan", icon: CalendarCheck },
-  { href: "/exam", label: "Exam", icon: AlarmClock },
-]
-
-const moreItems = [
-  { href: "/learn", label: "Learn", icon: BookOpen },
-  { href: "/history", label: "History", icon: History },
-  // Account-only — hidden for anonymous (not-signed-in) visitors.
-  { href: "/team", label: "Team", icon: Users, accountOnly: true },
-  { href: "/profile", label: "Profile", icon: User, accountOnly: true },
-]
 
 /** Mobile-first bottom navigation with a "More" drawer for overflow items. */
 export function BottomNav() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const isAnonymous = useSessionStore((s) => s.profile.isAnonymous)
-  const visibleMore = moreItems.filter((i) => !i.accountOnly || !isAnonymous)
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`)
+  // Most-used destinations stay on the bar; the rest live in the "More" drawer.
+  const visible = visibleNavItems(isAnonymous)
+  const primaryItems = visible.filter((i) => i.primary)
+  const visibleMore = visible.filter((i) => !i.primary)
+
+  const isActive = (href: string) => isNavItemActive(pathname, href)
   const moreActive = visibleMore.some((item) => isActive(item.href))
 
   return (
@@ -60,7 +36,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg xl:hidden"
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-around px-2">
-        {primaryItems.map(({ href, label, icon: Icon }) => {
+        {primaryItems.map(({ href, label, shortLabel, icon: Icon }) => {
           const active = isActive(href)
           return (
             <li key={href} className="flex-1">
@@ -80,7 +56,7 @@ export function BottomNav() {
                   />
                 )}
                 <Icon className="size-5" />
-                {label}
+                {shortLabel ?? label}
               </Link>
             </li>
           )

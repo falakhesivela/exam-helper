@@ -54,10 +54,22 @@ async function readSseStream<TDone>(
         } else if (event === "ready") {
           handlers.onReady?.(parsed)
         } else if (event === "error") {
-          const { message, code } = parsed as { message?: string; code?: string }
+          const { message, code, remaining, feature, upgradeTier } = parsed as {
+            message?: string
+            code?: string
+            remaining?: number
+            feature?: string
+            upgradeTier?: string
+          }
           // Mid-stream errors arrive over a 200 response; surface app error
           // codes (quota limits etc.) the same way non-200 JSON errors do.
-          if (code) throw new ApiClientError(message ?? "Stream error", 402, { code })
+          if (code)
+            throw new ApiClientError(message ?? "Stream error", 402, {
+              code,
+              remaining,
+              feature,
+              upgradeTier,
+            })
           throw new Error(message ?? "Stream error")
         } else if (event === "done") {
           doneData = parsed as TDone
@@ -92,11 +104,12 @@ export async function consumeSse<TDone>(
 
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}))
-    throw new ApiClientError(
-      errBody.error ?? res.statusText,
-      res.status,
-      { code: errBody.code, remaining: errBody.remaining },
-    )
+    throw new ApiClientError(errBody.error ?? res.statusText, res.status, {
+      code: errBody.code,
+      remaining: errBody.remaining,
+      feature: errBody.feature,
+      upgradeTier: errBody.upgradeTier,
+    })
   }
 
   return readSseStream(res, handlers)

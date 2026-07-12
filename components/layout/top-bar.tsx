@@ -2,34 +2,23 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { AlarmClock, BookOpen, CalendarCheck, Compass, Flame, History, LayoutDashboard, User, Users } from "lucide-react"
+import { Flame } from "lucide-react"
 import { ExamSwitcher } from "@/components/layout/exam-switcher"
 import { Logo } from "@/components/layout/logo"
 import { UsageMeter } from "@/components/layout/usage-meter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { isNavItemActive, visibleNavItems } from "@/lib/config/nav"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/practice", label: "Practice", icon: Compass },
-  { href: "/learn", label: "Learn", icon: BookOpen },
-  { href: "/plan", label: "Plan", icon: CalendarCheck },
-  { href: "/exam", label: "Exam", icon: AlarmClock },
-  { href: "/history", label: "History", icon: History },
-  // Account-only — hidden for anonymous (not-signed-in) visitors.
-  { href: "/team", label: "Team", icon: Users, accountOnly: true },
-  { href: "/profile", label: "Profile", icon: User, accountOnly: true },
-]
 
 /** Sticky top bar. Shows desktop nav links and the user's streak. */
 export function TopBar() {
   const pathname = usePathname()
   const profile = useSessionStore((s) => s.profile)
   const isAnonymous = profile.isAnonymous
-  const visibleNav = navItems.filter((i) => !i.accountOnly || !isAnonymous)
+  const visibleNav = visibleNavItems(isAnonymous)
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-lg">
@@ -40,7 +29,7 @@ export function TopBar() {
 
         <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 xl:flex">
           {visibleNav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`)
+            const active = isNavItemActive(pathname, href)
             return (
               <Link
                 key={href}

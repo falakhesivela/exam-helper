@@ -13,9 +13,19 @@ export function useCountdown(
   totalSeconds: number,
   running: boolean,
   onExpire?: () => void,
+  /**
+   * Optional absolute deadline (epoch ms). When set — e.g. computed from a
+   * server-anchored exam start — the countdown targets it directly, so the
+   * clock survives reloads and resumes with the real remaining time.
+   */
+  deadlineMs?: number,
 ) {
-  const [remaining, setRemaining] = useState(totalSeconds)
-  const deadlineRef = useRef<number | null>(null)
+  const initialRemaining =
+    deadlineMs != null
+      ? Math.max(0, Math.round((deadlineMs - Date.now()) / 1000))
+      : totalSeconds
+  const [remaining, setRemaining] = useState(initialRemaining)
+  const deadlineRef = useRef<number | null>(deadlineMs ?? null)
   const onExpireRef = useRef(onExpire)
   const firedRef = useRef(false)
 
@@ -23,11 +33,16 @@ export function useCountdown(
     onExpireRef.current = onExpire
   })
 
-  // Until the countdown has started, keep the displayed value tracking
-  // `totalSeconds` (it may arrive asynchronously after mount).
+  // Until the countdown has started, keep the displayed value tracking its
+  // source (`totalSeconds` / the deadline may arrive asynchronously).
   useEffect(() => {
+    if (deadlineMs != null) {
+      deadlineRef.current = deadlineMs
+      setRemaining(Math.max(0, Math.round((deadlineMs - Date.now()) / 1000)))
+      return
+    }
     if (deadlineRef.current === null) setRemaining(totalSeconds)
-  }, [totalSeconds])
+  }, [totalSeconds, deadlineMs])
 
   useEffect(() => {
     if (!running) return
@@ -50,7 +65,7 @@ export function useCountdown(
     tick()
     const id = setInterval(tick, 250)
     return () => clearInterval(id)
-  }, [running, totalSeconds])
+  }, [running, totalSeconds, deadlineMs])
 
   return remaining
 }

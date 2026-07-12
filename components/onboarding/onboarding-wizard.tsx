@@ -29,6 +29,73 @@ interface SelectedExam {
   exam: string
 }
 
+interface AttachedSyllabus {
+  id: string
+  name: string
+}
+
+/**
+ * Attach/remove a syllabus PDF for one exam. Each instance owns its file input
+ * so the CUSTOM field and the done-step row can't clobber each other's picker.
+ */
+function SyllabusAttach({
+  attached,
+  uploading,
+  onFile,
+  onRemove,
+}: {
+  attached: AttachedSyllabus | undefined
+  uploading: boolean
+  onFile: (file: File | undefined) => void
+  onRemove: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  if (attached) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+        <FileText className="size-4 shrink-0 text-primary" />
+        <span className="min-w-0 truncate">{attached.name}</span>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove syllabus"
+          className="ml-auto text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-fit"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <FileText data-icon="inline-start" />
+        )}
+        {uploading ? "Reading PDF…" : "Attach syllabus (PDF)"}
+      </Button>
+    </>
+  )
+}
+
 /**
  * Post-signup setup: pick the exam(s) you're studying and (optionally) an
  * exam date. Zero AI calls — everything renders from static preset data.
@@ -44,9 +111,9 @@ export function OnboardingWizard() {
   const [step, setStep] = useState<Step>("exams")
   const [selected, setSelected] = useState<SelectedExam[]>([])
   const [customName, setCustomName] = useState("")
-  const [syllabusName, setSyllabusName] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  /** Attached syllabi, keyed by the exam code they ground. */
+  const [syllabi, setSyllabi] = useState<Record<string, AttachedSyllabus>>({})
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
   const [examDate, setExamDate] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -67,21 +134,45 @@ export function OnboardingWizard() {
     )
   }
 
-  async function handleSyllabus(file: File | undefined) {
+  async function handleSyllabus(examCode: string, file: File | undefined) {
     if (!file) return
-    setUploading(true)
+    if (file.type !== "application/pdf") {
+      toast.error("Only PDF files are supported")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("PDF must be 5 MB or smaller")
+      return
+    }
+    setUploadingFor(examCode)
     try {
-      // Scoped to CUSTOM so it grounds this exam's questions and lessons.
-      await api.uploadPdf(file, "CUSTOM")
-      setSyllabusName(file.name)
-      toast.success(`Syllabus attached — we'll build questions from it`)
+      // Scoped to the exam it belongs to, so the backend grounds only that
+      // exam's questions and lessons in it.
+      const { fileId } = await api.uploadPdf(file, examCode)
+      setSyllabi((prev) => ({
+        ...prev,
+        [examCode]: { id: fileId, name: file.name },
+      }))
+      toast.success("Syllabus attached — we'll build questions and lessons from it")
     } catch (err) {
-      setSyllabusName(null)
       toast.error(err instanceof Error ? err.message : "Upload failed")
     } finally {
-      setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ""
+      setUploadingFor(null)
     }
+  }
+
+  /** Drops the stored upload too, so a de-selected exam leaves nothing behind. */
+  function removeSyllabus(examCode: string) {
+    const attached = syllabi[examCode]
+    if (!attached) return
+    setSyllabi((prev) => {
+      const next = { ...prev }
+      delete next[examCode]
+      return next
+    })
+    void api.deleteUpload(attached.id).catch(() => {
+      // Best-effort: the row is orphaned at worst, never shown to the user.
+    })
   }
 
   async function finish(skipped: boolean) {
@@ -103,7 +194,7 @@ export function OnboardingWizard() {
       await Promise.all([refreshProfile(), refreshUserExams()])
       if (!skipped && first) {
         await setActiveExam(first.examCode)
-        router.replace("/learn")
+        router.replace("/study")
       } else {
         router.replace("/dashboard")
       }
@@ -187,6 +278,8 @@ export function OnboardingWizard() {
                 onChange={(e) => {
                   const name = e.target.value
                   setCustomName(name)
+                  // Clearing the name de-selects CUSTOM — take its syllabus with it.
+                  if (!name.trim()) removeSyllabus("CUSTOM")
                   setSelected((prev) => {
                     const rest = prev.filter((s) => s.examCode !== "CUSTOM")
                     return name.trim()
@@ -204,43 +297,12 @@ export function OnboardingWizard() {
                     Attach the official syllabus or your study notes (PDF) and
                     we&apos;ll build questions and lessons directly from them.
                   </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={(e) => void handleSyllabus(e.target.files?.[0])}
+                  <SyllabusAttach
+                    attached={syllabi.CUSTOM}
+                    uploading={uploadingFor === "CUSTOM"}
+                    onFile={(file) => void handleSyllabus("CUSTOM", file)}
+                    onRemove={() => removeSyllabus("CUSTOM")}
                   />
-                  {syllabusName ? (
-                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-                      <FileText className="size-4 shrink-0 text-primary" />
-                      <span className="min-w-0 truncate">{syllabusName}</span>
-                      <button
-                        type="button"
-                        onClick={() => setSyllabusName(null)}
-                        aria-label="Remove syllabus"
-                        className="ml-auto text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-fit"
-                      disabled={uploading}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploading ? (
-                        <Spinner data-icon="inline-start" />
-                      ) : (
-                        <FileText data-icon="inline-start" />
-                      )}
-                      {uploading ? "Reading PDF…" : "Attach syllabus (PDF)"}
-                    </Button>
-                  )}
                 </div>
               )}
             </div>
@@ -299,6 +361,24 @@ export function OnboardingWizard() {
                 )}
               </div>
             ))}
+
+            {/* Optional and never a gate: presets already have a blueprint, so a
+                syllabus only sharpens them. CUSTOM attaches on the exams step. */}
+            {first && first.examCode !== "CUSTOM" && (
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground text-pretty">
+                  Have the official {first.examCode} syllabus or your own study
+                  notes? Attach the PDF to ground your questions and lessons in it
+                  {selected.length > 1 ? " — you can add one per exam later in Profile." : " — optional, and you can add it later in Profile."}
+                </p>
+                <SyllabusAttach
+                  attached={syllabi[first.examCode]}
+                  uploading={uploadingFor === first.examCode}
+                  onFile={(file) => void handleSyllabus(first.examCode, file)}
+                  onRemove={() => removeSyllabus(first.examCode)}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -330,7 +410,11 @@ export function OnboardingWizard() {
           </Button>
         )}
         {step === "done" && (
-          <Button onClick={() => void finish(false)} disabled={submitting} size="lg">
+          <Button
+            onClick={() => void finish(false)}
+            disabled={submitting || uploadingFor !== null}
+            size="lg"
+          >
             {submitting ? (
               <Spinner data-icon="inline-start" />
             ) : (

@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { Progress } from "@/components/ui/progress"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -40,6 +41,7 @@ import { cn } from "@/lib/utils"
  */
 export function DomainMastery() {
   const router = useRouter()
+  const dataReady = useSessionStore((s) => s.dataReady)
   const sessions = useSessionStore((s) => s.sessions)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
@@ -143,6 +145,11 @@ export function DomainMastery() {
     )
   }
 
+  // Mastery data still streaming in — don't flash the fallback list.
+  if (!dataReady && (!readiness || readiness.totalAnswered === 0)) {
+    return <CardSkeleton rows={5} />
+  }
+
   // Custom exam (no blueprint) or nothing answered yet → weakest-topics list.
   if (!blueprint || !readiness || readiness.totalAnswered === 0) {
     const weakest = [...topicMastery]
@@ -171,7 +178,7 @@ export function DomainMastery() {
               return (
                 <Link
                   key={`${t.topic}:${label}`}
-                  href={`/learn/${resolved.slug}`}
+                  href={`/study/${resolved.slug}`}
                   className="-mx-2 flex flex-col gap-1.5 rounded-lg px-2 py-1 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center justify-between text-sm">
@@ -184,7 +191,7 @@ export function DomainMastery() {
             })
           )}
           <Button asChild variant="outline" className="w-full">
-            <Link href="/learn">
+            <Link href="/study">
               Go to Learning
               <ArrowRight data-icon="inline-end" />
             </Link>
@@ -218,7 +225,7 @@ export function DomainMastery() {
               <div key={d.id} className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <Link
-                    href={`/learn/${slug}`}
+                    href={`/study/${slug}`}
                     className="min-w-0 truncate font-medium transition-colors hover:text-primary"
                   >
                     {d.name}{" "}

@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { useGenerationStore } from "@/lib/generation/session-generation"
+import { ReadinessRecommendation } from "@/components/exam/readiness-recommendation"
 import { ApiClientError, api } from "@/lib/api/client"
 import {
   getExamBlueprint,
@@ -41,16 +42,20 @@ import { cn } from "@/lib/utils"
 
 const CUSTOM_EXAM_CODE = "__custom"
 
-const QUESTION_PRESETS = [10, 20, 30, 65, 90, 100, 125]
+const QUESTION_PRESETS = [10, 20, 30, 65, 90, 100]
 const TIME_PRESETS = [15, 30, 60, 90, 120, 130, 180]
 
 function PresetChip({
   active,
   onClick,
+  disabled,
+  title,
   children,
 }: {
   active: boolean
   onClick: () => void
+  disabled?: boolean
+  title?: string
   children: React.ReactNode
 }) {
   return (
@@ -58,11 +63,15 @@ function PresetChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      disabled={disabled}
+      title={title}
       className={cn(
         "inline-flex h-control items-center rounded-md border px-3.5 text-sm font-medium transition-colors",
         active
           ? "border-primary bg-primary/15 text-primary"
           : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+        disabled &&
+          "cursor-not-allowed opacity-40 hover:border-border hover:text-muted-foreground",
       )}
     >
       {children}
@@ -233,7 +242,11 @@ export function ExamConfig() {
     }
   }
 
-  async function launch(questionCount: number, durationMin: number) {
+  async function launch(
+    questionCount: number,
+    durationMin: number,
+    focusDomainIds?: string[],
+  ) {
     if (starting) return
     if (!validExam) {
       toast.error("Tell us which exam you want to practice")
@@ -255,6 +268,7 @@ export function ExamConfig() {
           durationSec: durationMin * 60,
           exam: activeExam.exam,
           examCode: activeExam.examCode,
+          focusDomainIds,
           ...(isCustomExam && {
             description: customDescription.trim() || undefined,
             focusTopicsText: customFocusTopics.trim() || undefined,
@@ -292,6 +306,17 @@ export function ExamConfig() {
 
   return (
     <div className="flex flex-col gap-5">
+      {!isCustomExam && selectedBlueprint && (
+        <ReadinessRecommendation
+          examCode={selectedBlueprint.examCode}
+          passMark={selectedBlueprint.passMark}
+          examCap={examCap}
+          starting={starting}
+          onDrill={(questionCount, durationMin, focusDomainIds) =>
+            void launch(questionCount, durationMin, focusDomainIds)
+          }
+        />
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -555,7 +580,17 @@ export function ExamConfig() {
             </FieldLabel>
             <div className="flex flex-wrap items-center gap-2">
               {QUESTION_PRESETS.map((n) => (
-                <PresetChip key={n} active={count === n} onClick={() => setCount(n)}>
+                <PresetChip
+                  key={n}
+                  active={count === n}
+                  disabled={n > examCap}
+                  title={
+                    n > examCap
+                      ? `Above your plan's limit of ${examCap} questions — upgrade for full-length exams`
+                      : undefined
+                  }
+                  onClick={() => setCount(n)}
+                >
                   {n}
                 </PresetChip>
               ))}

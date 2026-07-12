@@ -1,18 +1,21 @@
-"use client"
+"use client";
 
-import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  CircleHelp,
   Clock,
   Flag,
+  Keyboard,
   LayoutGrid,
+  Play,
   Timer,
   X,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,52 +26,59 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet"
-import { ExamSummary } from "@/components/exam/exam-summary"
-import { ExamQuestionPane } from "@/components/exam/vue/exam-question-pane"
-import { AwsServiceHelp } from "@/components/exam/vue/aws-service-help"
-import { ExamRules } from "@/components/exam/vue/exam-rules"
+} from "@/components/ui/sheet";
+import { ExamSummary } from "@/components/exam/exam-summary";
+import { ExamQuestionPane } from "@/components/exam/vue/exam-question-pane";
+import { AwsServiceHelp } from "@/components/exam/vue/aws-service-help";
+import { ExamRules } from "@/components/exam/vue/exam-rules";
 import {
   ExamNavigator,
   ItemReviewScreen,
-} from "@/components/exam/vue/item-review-screen"
-import { LoadingScreen } from "@/components/ui/loading-screen"
-import { Spinner } from "@/components/ui/spinner"
-import { GenerationStatusBanner } from "@/components/generation/generation-tracker"
-import { getExamBlueprint } from "@/lib/exams"
-import { examShowsAwsServiceHelp } from "@/lib/exams/aws-service-abbreviations"
-import { useSessionStore } from "@/lib/store/use-session-store"
-import { api, USE_MOCKS } from "@/lib/api/client"
-import { useSessionSync } from "@/hooks/use-session-sync"
-import { useCountdown, formatClock } from "@/hooks/use-countdown"
-import type { DragAnswer, PracticeSession } from "@/types"
-import { isExamQuestionAnswered } from "@/lib/exam-answer-state"
-import { cn } from "@/lib/utils"
+} from "@/components/exam/vue/item-review-screen";
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import { GenerationStatusBanner } from "@/components/generation/generation-tracker";
+import { getExamBlueprint } from "@/lib/exams";
+import { examShowsAwsServiceHelp } from "@/lib/exams/aws-service-abbreviations";
+import { useSessionStore } from "@/lib/store/use-session-store";
+import { api, USE_MOCKS } from "@/lib/api/client";
+import { useSessionSync } from "@/hooks/use-session-sync";
+import { useCountdown, formatClock } from "@/hooks/use-countdown";
+import {
+  examDeadlineMs,
+  isResumableExam,
+  useExamState,
+} from "@/hooks/use-exam-state";
+import type { Confidence, DragAnswer, PracticeSession } from "@/types";
+import { isExamQuestionAnswered } from "@/lib/exam-answer-state";
+import { cn } from "@/lib/utils";
 
-type ExamPhase = "rules" | "exam" | "review" | "done"
+type ExamPhase = "rules" | "resume" | "exam" | "review" | "done";
 
 interface ExamRunnerProps {
-  sessionId: string
+  sessionId: string;
 }
 
 export function ExamRunner({ sessionId }: ExamRunnerProps) {
-  const router = useRouter()
-  const session = useSessionStore((s) => s.getSession(sessionId))
-  const submitExam = useSessionStore((s) => s.submitExam)
-  const [loading, setLoading] = useState(!session && !USE_MOCKS)
+  const router = useRouter();
+  const session = useSessionStore((s) => s.getSession(sessionId));
+  const submitExam = useSessionStore((s) => s.submitExam);
+  // Hydrate only stocks summary stubs — the full session (questions,
+  // answers) loads here before the exam can render.
+  const needsFetch = (!session || session.summary === true) && !USE_MOCKS;
+  const [loading, setLoading] = useState(needsFetch);
 
   const { expectedTotal, availableCount, generationFailed, isGenerating } =
-    useSessionSync(sessionId, session)
+    useSessionSync(sessionId, needsFetch ? undefined : session);
 
   useEffect(() => {
-    if (session || USE_MOCKS) return
+    if (!needsFetch) return;
     void api
       .getSession(sessionId)
       .then((s) => {
@@ -76,23 +86,23 @@ export function ExamRunner({ sessionId }: ExamRunnerProps) {
           sessions: state.sessions.some((x) => x.id === s.id)
             ? state.sessions.map((x) => (x.id === s.id ? s : x))
             : [s, ...state.sessions],
-        }))
+        }));
       })
       .catch(() => undefined)
-      .finally(() => setLoading(false))
-  }, [session, sessionId])
+      .finally(() => setLoading(false));
+  }, [needsFetch, sessionId]);
 
-  if (loading) {
-    return <LoadingScreen message="Loading exam…" />
+  if (needsFetch && loading) {
+    return <LoadingScreen message="Loading exam…" />;
   }
 
-  if (!session) {
+  if (!session || session.summary === true) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-lg font-medium">Exam not found</p>
         <Button onClick={() => router.push("/exam")}>Set up a new exam</Button>
       </div>
-    )
+    );
   }
 
   if (generationFailed) {
@@ -101,11 +111,11 @@ export function ExamRunner({ sessionId }: ExamRunnerProps) {
         <p className="text-lg font-medium">Exam generation failed</p>
         <Button onClick={() => router.push("/exam")}>Set up a new exam</Button>
       </div>
-    )
+    );
   }
 
   if (session.questions.length === 0 && isGenerating) {
-    return <LoadingScreen message="Preparing first question…" />
+    return <LoadingScreen message="Preparing first question…" />;
   }
 
   return (
@@ -121,22 +131,24 @@ export function ExamRunner({ sessionId }: ExamRunnerProps) {
         onExit={() => router.push("/dashboard")}
       />
     </>
-  )
+  );
 }
 
 interface InnerProps {
-  session: PracticeSession
-  expectedTotal: number
-  availableCount: number
-  isGenerating: boolean
+  session: PracticeSession;
+  expectedTotal: number;
+  availableCount: number;
+  isGenerating: boolean;
   onSubmit: (
     sessionId: string,
     answers: Record<string, string[]>,
     flagged: string[],
     timeUsedSec: number,
     dragAnswers: Record<string, DragAnswer>,
-  ) => Promise<void>
-  onExit: () => void
+    timeSpent: Record<string, number>,
+    confidence: Record<string, Confidence>,
+  ) => Promise<void>;
+  onExit: () => void;
 }
 
 function ExamRunnerInner({
@@ -147,170 +159,339 @@ function ExamRunnerInner({
   onSubmit,
   onExit,
 }: InnerProps) {
-  const blueprint = getExamBlueprint(session.examCode)
-  const total = Math.max(expectedTotal, availableCount, session.questions.length)
-  const durationSec = session.durationSec ?? 30 * 60
-  const canSubmit = !isGenerating && availableCount >= expectedTotal
-  const passMark = session.passMark ?? blueprint?.passMark ?? 72
-  const durationMin = Math.round(durationSec / 60)
+  const blueprint = getExamBlueprint(session.examCode);
+  const total = Math.max(
+    expectedTotal,
+    availableCount,
+    session.questions.length,
+  );
+  const durationSec = session.durationSec ?? 30 * 60;
+  const canSubmit = !isGenerating && availableCount >= expectedTotal;
+  const passMark = session.passMark ?? blueprint?.passMark ?? 72;
+  const durationMin = Math.round(durationSec / 60);
 
-  const [phase, setPhase] = useState<ExamPhase>("rules")
-  const [timerActive, setTimerActive] = useState(false)
-  const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string[]>>({})
-  const [dragAnswers, setDragAnswers] = useState<Record<string, DragAnswer>>({})
-  const [flagged, setFlagged] = useState<Set<string>>(new Set())
-  const [submitting, setSubmitting] = useState(false)
-  const [navOpen, setNavOpen] = useState(false)
+  const [phase, setPhase] = useState<ExamPhase>(() =>
+    isResumableExam(session) ? "resume" : "rules",
+  );
+  const [timerActive, setTimerActive] = useState(false);
+  const {
+    answers,
+    setAnswers,
+    dragAnswers,
+    setDragAnswers,
+    flagged,
+    setFlagged,
+    confidence,
+    setConfidence,
+    timeSpent,
+    setTimeSpent,
+    index,
+    setIndex,
+    markDirty,
+    flush,
+    setAutosaveEnabled,
+  } = useExamState(session);
+  const [submitting, setSubmitting] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  const remaining = useCountdown(durationSec, timerActive && !submitting, () => {
-    void handleSubmit()
-  })
+  // Server-anchored deadline: survives reloads with the true remaining time.
+  const deadlineMs = examDeadlineMs(session) ?? undefined;
+  const remaining = useCountdown(
+    durationSec,
+    timerActive && !submitting,
+    () => {
+      void handleSubmit();
+    },
+    deadlineMs,
+  );
+
+  useEffect(() => {
+    setAutosaveEnabled(phase === "exam" || phase === "review");
+  }, [phase, setAutosaveEnabled]);
 
   // Per-question pace: time spent on the current question vs the exam's average
   // allowance, so the learner feels real exam-day time pressure.
-  const targetPerQuestion = total > 0 ? Math.round(durationSec / total) : 60
-  const [qElapsed, setQElapsed] = useState(0)
+  const targetPerQuestion = total > 0 ? Math.round(durationSec / total) : 60;
+  const [qElapsed, setQElapsed] = useState(0);
   useEffect(() => {
-    setQElapsed(0)
-  }, [index])
+    setQElapsed(0);
+  }, [index]);
   useEffect(() => {
-    if (!timerActive || submitting || phase !== "exam") return
-    const id = setInterval(() => setQElapsed((e) => e + 1), 1000)
-    return () => clearInterval(id)
-  }, [timerActive, submitting, phase])
-  const qOver = qElapsed > targetPerQuestion
-  const qWayOver = qElapsed > targetPerQuestion * 1.6
+    if (!timerActive || submitting || phase !== "exam") return;
+    const id = setInterval(() => setQElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [timerActive, submitting, phase]);
+  const qOver = qElapsed > targetPerQuestion;
+  const qWayOver = qElapsed > targetPerQuestion * 1.6;
 
-  const question = session.questions[index]
-  const selected = answers[question?.id] ?? []
-  const dragAnswer = question ? dragAnswers[question.id] : undefined
+  // Real per-question time, accumulated across visits and folded into
+  // `timeSpent` whenever the learner leaves the current question.
+  const enteredAtRef = useRef(Date.now());
+  function commitElapsed() {
+    const current = session.questions[index];
+    if (!current || phase !== "exam") return;
+    const elapsed = Math.round((Date.now() - enteredAtRef.current) / 1000);
+    enteredAtRef.current = Date.now();
+    if (elapsed <= 0) return;
+    setTimeSpent((prev) => ({
+      ...prev,
+      [current.id]: (prev[current.id] ?? 0) + elapsed,
+    }));
+    markDirty();
+  }
+  /** timeSpent plus the still-uncommitted seconds on the current question. */
+  function finalTimeSpent(): Record<string, number> {
+    const result = { ...timeSpent };
+    const current = session.questions[index];
+    if (current && phase === "exam") {
+      const elapsed = Math.round((Date.now() - enteredAtRef.current) / 1000);
+      if (elapsed > 0) result[current.id] = (result[current.id] ?? 0) + elapsed;
+    }
+    return result;
+  }
+
+  const question = session.questions[index];
+  const selected = answers[question?.id] ?? [];
+  const dragAnswer = question ? dragAnswers[question.id] : undefined;
   const answeredCount = useMemo(
     () =>
       session.questions.filter((q) =>
         isExamQuestionAnswered(q, answers, dragAnswers),
       ).length,
     [answers, dragAnswers, session.questions],
-  )
+  );
+  const unsureSet = useMemo(
+    () =>
+      new Set(
+        Object.entries(confidence)
+          .filter(([, level]) => level === "unsure")
+          .map(([id]) => id),
+      ),
+    [confidence],
+  );
+  const unsureCount = unsureSet.size;
+
+  // Whole-exam pace: with the remaining time and unanswered count, is the
+  // learner on track to see every question?
+  const unansweredCount = total - answeredCount;
+  const neededPerQuestion =
+    unansweredCount > 0 ? Math.floor(remaining / unansweredCount) : null;
+  const behindPace =
+    neededPerQuestion !== null && neededPerQuestion < targetPerQuestion * 0.75;
 
   async function handleSubmit() {
-    if (phase === "done" || submitting || !canSubmit) return
-    setSubmitting(true)
+    if (phase === "done" || submitting || !canSubmit) return;
+    setSubmitting(true);
     try {
-      const timeUsed = Math.min(durationSec, durationSec - remaining)
+      const timeUsed = Math.min(durationSec, durationSec - remaining);
       await onSubmit(
         session.id,
         answers,
         [...flagged],
         Math.max(0, timeUsed),
         dragAnswers,
-      )
-      setPhase("done")
-      setNavOpen(false)
+        finalTimeSpent(),
+        confidence,
+      );
+      setPhase("done");
+      setNavOpen(false);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
-  function startExam() {
-    setPhase("exam")
-    setTimerActive(true)
+  async function startExam() {
+    if (starting) return;
+    setStarting(true);
+    try {
+      if (!USE_MOCKS) {
+        // Anchor the clock server-side so the exam survives reloads.
+        // Idempotent — a resume returns the original start time.
+        const started = await api.startExamSession(session.id);
+        if (started.examStartedAt) {
+          useSessionStore.setState((state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === session.id
+                ? { ...s, examStartedAt: started.examStartedAt }
+                : s,
+            ),
+          }));
+        }
+      }
+    } catch {
+      // Degrade gracefully: run with a client-anchored timer (no resume).
+    } finally {
+      setStarting(false);
+    }
+    enteredAtRef.current = Date.now();
+    setPhase("exam");
+    setTimerActive(true);
   }
 
+  function resumeExam() {
+    enteredAtRef.current = Date.now();
+    setPhase("exam");
+    setTimerActive(true);
+  }
+
+  // A resumed exam whose time already ran out is scored immediately from the
+  // autosaved answers instead of restarting a dead clock.
+  const expired =
+    phase === "resume" && deadlineMs != null && deadlineMs <= Date.now();
+  useEffect(() => {
+    if (expired && canSubmit && !submitting) void handleSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expired, canSubmit, submitting]);
+
   function goTo(i: number) {
-    const maxIndex = Math.max(availableCount - 1, 0)
-    setIndex(Math.min(Math.max(i, 0), maxIndex))
-    setNavOpen(false)
-    if (phase === "review") setPhase("exam")
+    commitElapsed();
+    const maxIndex = Math.max(availableCount - 1, 0);
+    setIndex(Math.min(Math.max(i, 0), maxIndex));
+    setNavOpen(false);
+    markDirty();
+    if (phase === "review") setPhase("exam");
   }
 
   function toggleOption(optionId: string) {
-    if (!question) return
+    if (!question) return;
     setAnswers((prev) => {
-      const current = prev[question.id] ?? []
-      let next: string[]
+      const current = prev[question.id] ?? [];
+      let next: string[];
       if (question.multiSelect) {
         next = current.includes(optionId)
           ? current.filter((id) => id !== optionId)
-          : [...current, optionId]
+          : [...current, optionId];
       } else {
-        next = [optionId]
+        next = [optionId];
       }
-      return { ...prev, [question.id]: next }
-    })
+      return { ...prev, [question.id]: next };
+    });
+    markDirty();
   }
 
   function toggleFlag() {
-    if (!question) return
+    if (!question) return;
     setFlagged((prev) => {
-      const next = new Set(prev)
-      if (next.has(question.id)) next.delete(question.id)
-      else next.add(question.id)
-      return next
-    })
+      const next = new Set(prev);
+      if (next.has(question.id)) next.delete(question.id);
+      else next.add(question.id);
+      return next;
+    });
+    markDirty();
+  }
+
+  function setQuestionConfidence(level: Confidence) {
+    if (!question) return;
+    setConfidence((prev) => {
+      const next = { ...prev };
+      // Tapping the active level clears it back to "no answer".
+      if (next[question.id] === level) delete next[question.id];
+      else next[question.id] = level;
+      return next;
+    });
+    markDirty();
   }
 
   useEffect(() => {
-    if (phase !== "exam" || submitting) return
+    if (phase !== "exam" || submitting) return;
 
     function onKeyDown(event: KeyboardEvent) {
-      if (!event.altKey) return
-      const target = event.target
+      const target = event.target;
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement
       ) {
-        return
+        return;
       }
 
-      const key = event.key.toLowerCase()
+      const key = event.key.toLowerCase();
+
+      if (!event.altKey) {
+        // Plain keys: 1-9 pick an option, "?" shows the shortcut help.
+        if (event.key === "?") {
+          event.preventDefault();
+          setShortcutsOpen((open) => !open);
+          return;
+        }
+        if (
+          question &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          /^[1-9]$/.test(event.key)
+        ) {
+          const option = question.options?.[Number(event.key) - 1];
+          if (option) {
+            event.preventDefault();
+            toggleOption(option.id);
+          }
+        }
+        return;
+      }
+
       if (key === "n" || event.key === "ArrowRight") {
-        event.preventDefault()
-        if (index + 1 < availableCount) goTo(index + 1)
-        else if (canSubmit) setPhase("review")
+        event.preventDefault();
+        if (index + 1 < availableCount) goTo(index + 1);
+        else if (canSubmit) goToReview();
       } else if (key === "p" || event.key === "ArrowLeft") {
-        event.preventDefault()
-        if (index > 0) goTo(index - 1)
+        event.preventDefault();
+        if (index > 0) goTo(index - 1);
       } else if (key === "f") {
-        event.preventDefault()
-        if (!question) return
+        event.preventDefault();
+        if (!question) return;
         setFlagged((prev) => {
-          const next = new Set(prev)
-          if (next.has(question.id)) next.delete(question.id)
-          else next.add(question.id)
-          return next
-        })
+          const next = new Set(prev);
+          if (next.has(question.id)) next.delete(question.id);
+          else next.add(question.id);
+          return next;
+        });
+        markDirty();
+      } else if (key === "u") {
+        event.preventDefault();
+        if (!question) return;
+        setConfidence((prev) => {
+          const next = { ...prev };
+          if (next[question.id] === "unsure") delete next[question.id];
+          else next[question.id] = "unsure";
+          return next;
+        });
+        markDirty();
       }
     }
 
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [
-    phase,
-    submitting,
-    index,
-    availableCount,
-    canSubmit,
-    question?.id,
-  ])
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, submitting, index, availableCount, canSubmit, question?.id]);
 
-  function beginReviewFilter(mode: "all" | "incomplete" | "flagged") {
-    const ids = session.questions.map((q) => q.id)
-    let target = 0
+  function beginReviewFilter(
+    mode: "all" | "incomplete" | "flagged" | "unsure",
+  ) {
+    const ids = session.questions.map((q) => q.id);
+    let target = 0;
     if (mode === "incomplete") {
       target = session.questions.findIndex(
         (q) => !isExamQuestionAnswered(q, answers, dragAnswers),
-      )
+      );
     } else if (mode === "flagged") {
-      target = ids.findIndex((id) => flagged.has(id))
+      target = ids.findIndex((id) => flagged.has(id));
+    } else if (mode === "unsure") {
+      target = ids.findIndex((id) => confidence[id] === "unsure");
     }
-    setIndex(target >= 0 ? target : 0)
-    setPhase("exam")
+    setIndex(target >= 0 ? target : 0);
+    setPhase("exam");
+  }
+
+  function goToReview() {
+    commitElapsed();
+    setNavOpen(false);
+    setPhase("review");
   }
 
   if (submitting) {
-    return <LoadingScreen message="Scoring your exam…" />
+    return <LoadingScreen message="Scoring your exam…" />;
   }
 
   if (phase === "done") {
@@ -318,7 +499,7 @@ function ExamRunnerInner({
       <div className="min-h-dvh px-4 py-8">
         <ExamSummary session={session} timeUsedSec={durationSec - remaining} />
       </div>
-    )
+    );
   }
 
   if (phase === "rules") {
@@ -329,11 +510,50 @@ function ExamRunnerInner({
         questionCount={total}
         durationMin={durationMin}
         passMark={passMark}
-        questionsReady={session.questions.length > 0}
+        questionsReady={session.questions.length > 0 && !starting}
         isGenerating={isGenerating}
-        onStart={startExam}
+        onStart={() => void startExam()}
       />
-    )
+    );
+  }
+
+  if (phase === "resume") {
+    const resumeRemaining =
+      deadlineMs != null
+        ? Math.max(0, Math.round((deadlineMs - Date.now()) / 1000))
+        : durationSec;
+    const savedAnswered = session.questions.filter((q) =>
+      isExamQuestionAnswered(q, answers, dragAnswers),
+    ).length;
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <h1 className="text-xl font-semibold">Resume your exam</h1>
+          <p className="text-sm text-muted-foreground">
+            {session.exam} · {savedAnswered} of {total} answered
+          </p>
+          <p
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold tabular-nums",
+              resumeRemaining <= 300
+                ? "bg-destructive/15 text-destructive"
+                : "bg-secondary text-foreground",
+            )}
+          >
+            <Clock className="size-4" />
+            {formatClock(resumeRemaining)} remaining
+          </p>
+        </div>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Your answers and flags were saved. The clock kept running from when
+          you started — just like the real exam.
+        </p>
+        <Button size="lg" onClick={resumeExam} disabled={expired}>
+          <Play data-icon="inline-start" />
+          {expired ? "Time expired — scoring…" : "Resume exam"}
+        </Button>
+      </div>
+    );
   }
 
   if (phase === "review") {
@@ -342,22 +562,24 @@ function ExamRunnerInner({
         total={total}
         answeredCount={answeredCount}
         flaggedCount={flagged.size}
+        unsureCount={unsureCount}
         canSubmit={canSubmit}
         onReviewAll={() => beginReviewFilter("all")}
         onReviewIncomplete={() => beginReviewFilter("incomplete")}
         onReviewFlagged={() => beginReviewFilter("flagged")}
+        onReviewUnsure={() => beginReviewFilter("unsure")}
         onEndReview={() => void handleSubmit()}
       />
-    )
+    );
   }
 
   if (!question) {
-    return <LoadingScreen message="Preparing question…" />
+    return <LoadingScreen message="Preparing question…" />;
   }
 
-  const isFlagged = flagged.has(question.id)
-  const lowTime = remaining <= 60
-  const warnTime = remaining <= 300 && !lowTime
+  const isFlagged = flagged.has(question.id);
+  const lowTime = remaining <= 60;
+  const warnTime = remaining <= 300 && !lowTime;
 
   return (
     <div className="flex min-h-dvh flex-col bg-muted/20">
@@ -373,20 +595,43 @@ function ExamRunnerInner({
               <AlertDialogHeader>
                 <AlertDialogTitle>Leave the exam?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Your exam won&apos;t be scored and progress will be lost.
+                  {session.examStartedAt
+                    ? "Your progress is saved and the clock keeps running — resume anytime from History before time runs out."
+                    : "Your exam won't be scored and progress will be lost."}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Keep going</AlertDialogCancel>
-                <AlertDialogAction onClick={onExit}>Leave exam</AlertDialogAction>
+                <AlertDialogAction
+                  onClick={() => {
+                    commitElapsed();
+                    flush();
+                    onExit();
+                  }}
+                >
+                  {session.examStartedAt ? "Save & exit" : "Leave exam"}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
 
           <div className="flex flex-1 flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
+              <span className="flex items-center gap-1.5">
                 Question {index + 1} of {total}
+                {/* Mobile pace dot — the full per-question chip is sm+ only. */}
+                <span
+                  className={cn(
+                    "size-2 rounded-full sm:hidden",
+                    qWayOver
+                      ? "bg-destructive"
+                      : qOver
+                        ? "bg-chart-3"
+                        : "bg-success/60",
+                  )}
+                  title={`Time on this question: ${formatClock(qElapsed)} (target ~${formatClock(targetPerQuestion)})`}
+                  aria-hidden
+                />
               </span>
               <span>{answeredCount} answered</span>
             </div>
@@ -394,6 +639,12 @@ function ExamRunnerInner({
             {isGenerating && (
               <p className="text-[11px] text-primary">
                 {availableCount} of {expectedTotal} questions ready
+              </p>
+            )}
+            {!isGenerating && behindPace && neededPerQuestion !== null && (
+              <p className="text-[11px] font-medium text-chart-3">
+                Behind pace — {formatClock(Math.max(0, neededPerQuestion))} per
+                question to finish
               </p>
             )}
           </div>
@@ -429,11 +680,30 @@ function ExamRunnerInner({
             <Clock className="size-4" />
             {formatClock(remaining)}
           </div>
+          {/* Announce only threshold crossings, not every tick. */}
+          <span className="sr-only" aria-live="polite">
+            {lowTime
+              ? "Less than one minute remaining"
+              : warnTime
+                ? "Less than five minutes remaining"
+                : ""}
+          </span>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Keyboard shortcuts"
+            className="hidden sm:inline-flex"
+            onClick={() => setShortcutsOpen(true)}
+          >
+            <Keyboard />
+          </Button>
 
           <Button
             variant="ghost"
             size="icon"
             aria-label="Question navigator"
+            className="xl:hidden"
             onClick={() => setNavOpen(true)}
           >
             <LayoutGrid />
@@ -441,20 +711,82 @@ function ExamRunnerInner({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6">
-        {examShowsAwsServiceHelp(session.examCode) && <AwsServiceHelp />}
-        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <ExamQuestionPane
-            question={question}
-            selected={selected}
-            dragAnswer={dragAnswer}
-            isFlagged={isFlagged}
-            onToggleOption={toggleOption}
-            onDragAnswerChange={(next) =>
-              setDragAnswers((prev) => ({ ...prev, [question.id]: next }))
-            }
-          />
+      <div className="mx-auto flex w-full max-w-2xl flex-1 gap-6 px-4 py-6 xl:max-w-5xl">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {examShowsAwsServiceHelp(session.examCode) && <AwsServiceHelp />}
+          <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <ExamQuestionPane
+              question={question}
+              selected={selected}
+              dragAnswer={dragAnswer}
+              isFlagged={isFlagged}
+              onToggleOption={toggleOption}
+              onDragAnswerChange={(next) => {
+                setDragAnswers((prev) => ({ ...prev, [question.id]: next }));
+                markDirty();
+              }}
+            />
+          </div>
+
+          {/* Confidence self-rating: powers the post-exam "misconception vs
+            lucky guess" analysis, so guessing honestly pays off. */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CircleHelp className="size-3.5" />
+              How sure are you?
+            </span>
+            <div className="flex gap-1.5" role="group" aria-label="Confidence">
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  confidence[question.id] === "sure" ? "secondary" : "outline"
+                }
+                className={cn(
+                  confidence[question.id] === "sure" && "text-success",
+                )}
+                aria-pressed={confidence[question.id] === "sure"}
+                onClick={() => setQuestionConfidence("sure")}
+              >
+                Sure
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  confidence[question.id] === "unsure" ? "secondary" : "outline"
+                }
+                className={cn(
+                  confidence[question.id] === "unsure" && "text-chart-3",
+                )}
+                aria-pressed={confidence[question.id] === "unsure"}
+                onClick={() => setQuestionConfidence("unsure")}
+              >
+                Unsure
+              </Button>
+            </div>
+          </div>
         </div>
+
+        {/* Persistent navigator rail on wide screens; the Sheet covers mobile. */}
+        <aside className="sticky top-20 hidden max-h-[calc(100dvh-8rem)] w-64 shrink-0 self-start overflow-y-auto xl:block">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              {answeredCount} of {total} answered · {flagged.size} flagged
+            </p>
+            <ExamNavigator
+              total={total}
+              currentIndex={index}
+              answers={answers}
+              dragAnswers={dragAnswers}
+              questions={session.questions}
+              flagged={flagged}
+              unsure={unsureSet}
+              questionIds={session.questions.map((q) => q.id)}
+              onGoTo={goTo}
+            />
+          </div>
+        </aside>
       </div>
 
       <footer className="sticky bottom-0 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
@@ -479,7 +811,11 @@ function ExamRunnerInner({
           </Button>
 
           {index + 1 < availableCount ? (
-            <Button size="lg" className="flex-1" onClick={() => goTo(index + 1)}>
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={() => goTo(index + 1)}
+            >
               Next
               <ArrowRight data-icon="inline-end" />
             </Button>
@@ -488,7 +824,7 @@ function ExamRunnerInner({
               size="lg"
               className="flex-1"
               disabled={!canSubmit}
-              onClick={() => setPhase("review")}
+              onClick={goToReview}
             >
               {canSubmit ? "Review & submit" : "Waiting for questions…"}
             </Button>
@@ -513,24 +849,49 @@ function ExamRunnerInner({
               dragAnswers={dragAnswers}
               questions={session.questions}
               flagged={flagged}
+              unsure={unsureSet}
               questionIds={session.questions.map((q) => q.id)}
               onGoTo={goTo}
             />
           </div>
 
           <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
-            <Button
-              disabled={!canSubmit}
-              onClick={() => {
-                setNavOpen(false)
-                setPhase("review")
-              }}
-            >
+            <Button disabled={!canSubmit} onClick={goToReview}>
               Review & submit
             </Button>
           </div>
         </SheetContent>
       </Sheet>
+
+      <Sheet open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-sm">
+          <SheetHeader>
+            <SheetTitle>Keyboard shortcuts</SheetTitle>
+            <SheetDescription>
+              Work the exam without the mouse.
+            </SheetDescription>
+          </SheetHeader>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-4 text-sm">
+            {[
+              ["1–9", "Select answer option"],
+              ["Alt + N / →", "Next question"],
+              ["Alt + P / ←", "Previous question"],
+              ["Alt + F", "Flag question"],
+              ["Alt + U", "Mark unsure"],
+              ["?", "Toggle this help"],
+            ].map(([keys, action]) => (
+              <div key={keys} className="contents">
+                <dt>
+                  <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-xs">
+                    {keys}
+                  </kbd>
+                </dt>
+                <dd className="text-muted-foreground">{action}</dd>
+              </div>
+            ))}
+          </dl>
+        </SheetContent>
+      </Sheet>
     </div>
-  )
+  );
 }

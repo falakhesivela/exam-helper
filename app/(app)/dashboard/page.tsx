@@ -121,11 +121,14 @@ export default function DashboardPage() {
         )}
       </motion.div>
 
+      {/* min-w-0 on every grid item: without it the auto tracks take their
+          min-content floor from truncating text and the readiness chart, which
+          blows the cards past the viewport on phones. */}
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+        <div className="min-w-0 lg:col-span-3">
           <ReadinessCard />
         </div>
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <NextActionCard dueCount={dueCount} />
         </div>
       </div>
@@ -133,11 +136,11 @@ export default function DashboardPage() {
       <MomentumStrip dueCount={dueCount} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <DomainMastery />
           <PlanTodayCard />
         </div>
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <ConsistencyHeatmap />
           <RecentActivity sessions={sessions} />
         </div>

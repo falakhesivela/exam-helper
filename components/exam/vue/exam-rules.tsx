@@ -56,16 +56,20 @@ export function ExamRules({
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p className="flex items-start gap-2">
             <AlarmClock className="mt-0.5 size-4 shrink-0" />
-            The timer starts when you click Start. It auto-submits when time runs
-            out.
+            The timer starts when you click Start and keeps running even if you
+            leave — your progress is saved, so you can resume from History. It
+            auto-submits when time runs out.
           </p>
           <p className="flex items-start gap-2">
             <Flag className="mt-0.5 size-4 shrink-0" />
-            Use Flag for review on questions you want to revisit before submitting.
+            Use Flag for review on questions you want to revisit, and rate how
+            sure you are — your debrief uses it to separate misconceptions from
+            lucky guesses.
           </p>
           <p>
-            Keyboard shortcuts: Alt+N or Alt+Right (next), Alt+P or Alt+Left
-            (previous), Alt+F (flag).
+            Keyboard shortcuts: 1–9 (pick option), Alt+N/→ (next), Alt+P/←
+            (previous), Alt+F (flag), Alt+U (unsure) — press ? during the exam
+            for the full list.
           </p>
           <p>
             Questions are AI-generated practice items — not official exam

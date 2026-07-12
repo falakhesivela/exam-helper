@@ -61,8 +61,14 @@ interface SessionState {
    * on reload — switching here does not persist anything.
    */
   activeExamCode: string | null;
-  /** True once the store reflects the server — either loaded, or signed out. */
+  /**
+   * True once identity is known — the profile loaded, or we're signed out.
+   * The app shell renders as soon as this flips; page data may still be
+   * streaming in (see dataReady).
+   */
   hydrated: boolean;
+  /** True once the bulk data fetches (sessions, mastery, plan…) landed. */
+  dataReady: boolean;
   /** A hydrate() call is in flight. */
   hydrating: boolean;
   /**
@@ -73,7 +79,19 @@ interface SessionState {
   hydrationError: boolean;
 
   getSession: (id: string) => PracticeSession | undefined;
+  /**
+   * Full session with questions/answers, fetching from the server when the
+   * store only holds a summary stub (or nothing). Returns null on 404/error.
+   */
+  ensureFullSession: (id: string) => Promise<PracticeSession | null>;
   remainingFreeQuestions: () => number;
+  /** Mentor messages left in the user's window. null = unlimited. */
+  mentorMessagesLeft: () => number | null;
+  /**
+   * Apply the `remaining` the chat stream reports on `done`, so the counter
+   * ticks down without re-fetching /api/me.
+   */
+  applyMentorUsage: (remaining: number | null) => void;
 
   hydrate: (opts?: { force?: boolean }) => Promise<void>;
   retryHydration: () => Promise<void>;
@@ -139,6 +157,8 @@ interface SessionState {
     flagged: string[],
     timeUsedSec: number,
     dragAnswers?: Record<string, DragAnswer>,
+    timeSpent?: Record<string, number>,
+    confidence?: Record<string, import("@/types").Confidence>,
   ) => Promise<void>;
   answerQuestion: (
     sessionId: string,
@@ -217,9 +237,27 @@ function signedOutState(): Partial<SessionState> {
     examTips: [],
     activeExamCode: null,
     hydrated: true,
+    dataReady: true,
     hydrating: false,
     hydrationError: false,
   };
+}
+
+/**
+ * Apply a fresh summary listing without downgrading sessions that already
+ * hold full question payloads (e.g. the exam being taken right now): a full
+ * copy always beats a stub for the same id.
+ */
+function reconcileSummaries(
+  existing: PracticeSession[],
+  summaries: PracticeSession[],
+): PracticeSession[] {
+  const fullById = new Map(
+    existing
+      .filter((s) => !s.summary && s.questions.length > 0)
+      .map((s) => [s.id, s]),
+  );
+  return summaries.map((s) => fullById.get(s.id) ?? s);
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -237,16 +275,61 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   examTips: USE_MOCKS ? buildMockExamTips() : [],
   activeExamCode: USE_MOCKS ? "SAA-C03" : null,
   hydrated: false,
+  dataReady: USE_MOCKS,
   hydrating: false,
   hydrationError: false,
 
   getSession: (id) => get().sessions.find((s) => s.id === id),
+
+  ensureFullSession: async (id) => {
+    const existing = get().sessions.find((s) => s.id === id);
+    if (existing && !existing.summary) return existing;
+    if (USE_MOCKS) return existing ?? null;
+    try {
+      const fresh = await api.getSession(id);
+      set((state) => ({
+        sessions: mergeUpsertSession(state.sessions, fresh),
+      }));
+      return get().sessions.find((s) => s.id === id) ?? fresh;
+    } catch {
+      return null;
+    }
+  },
 
   remainingFreeQuestions: () => {
     const { profile } = get();
     // null limit = unlimited; Infinity is fine in memory (never serialized).
     if (profile.dailyLimit === null) return Infinity;
     return Math.max(0, profile.dailyLimit - profile.questionsUsedToday);
+  },
+
+  mentorMessagesLeft: () => {
+    const { profile } = get();
+    const usage = profile.usage?.mentor_messages;
+    if (usage) return usage.remaining;
+    // Unknown is intentionally displayed as no counter. Showing the plan limit
+    // here would claim it is the *remaining* allowance after usage has failed
+    // to load, which can be materially wrong.
+    return null;
+  },
+
+  applyMentorUsage: (remaining) => {
+    set((state) => {
+      const limit = state.profile.limits?.mentorMessages ?? null;
+      return {
+        profile: {
+          ...state.profile,
+          usage: {
+            ...state.profile.usage,
+            mentor_messages: {
+              limit,
+              used: limit === null || remaining === null ? 0 : limit - remaining,
+              remaining,
+            },
+          },
+        },
+      };
+    });
   },
 
   hydrate: async (opts) => {
@@ -270,9 +353,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return;
     }
 
+    // Identity is known — unblock the shell now. Page data streams in below
+    // and components show skeletons until dataReady flips.
+    const activeExamCode = profile.activeExam?.examCode ?? null;
+    set({
+      profile,
+      activeExamCode,
+      hydrated: true,
+      hydrationError: false,
+      dataReady: false,
+    });
+
     // Stage 2: every fetch is individually non-fatal. None of them may blank
     // the shell, let alone reset the identity we just established.
-    const activeExamCode = profile.activeExam?.examCode ?? null;
     const [
       userExamsRes,
       sessions,
@@ -283,7 +376,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       plan,
     ] = await Promise.all([
       api.userExams().catch(() => ({ exams: [] })),
-      api.listSessions().catch(() => [] as PracticeSession[]),
+      // Summary listing: metadata + score counts only. Full sessions load
+      // lazily via ensureFullSession when a quiz/exam/review page opens.
+      api.listSessions({ summary: true }).catch(() => [] as PracticeSession[]),
       api.topicMastery().catch(() => [] as TopicMastery[]),
       api.learnTopics(activeExamCode).catch(() => [] as LearnTopic[]),
       api.examAccuracy().catch(() => ({})),
@@ -291,20 +386,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       api.getPlan(activeExamCode).catch(() => null),
     ]);
 
-    set({
-      profile,
+    set((state) => ({
       userExams: userExamsRes.exams,
-      activeExamCode,
-      sessions,
+      sessions: reconcileSummaries(state.sessions, sessions),
       topicMastery,
       learnTopics,
       examAccuracy,
       readinessTrend,
       plan,
-      hydrated: true,
+      dataReady: true,
       hydrating: false,
-      hydrationError: false,
-    });
+    }));
 
     // Non-critical extras; fetch separately so they never block the shell.
     void api
@@ -639,6 +731,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     flagged,
     timeUsedSec,
     dragAnswers = {},
+    timeSpent = {},
+    confidence = {},
   ) => {
     const flaggedSet = new Set(flagged);
     if (USE_MOCKS) {
@@ -661,7 +755,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                 : false,
               markedForReview: flaggedSet.has(q.id),
               skipped: !answered,
-              timeSpentSec: 0,
+              timeSpentSec: timeSpent[q.id] ?? 0,
+              confidence: confidence[q.id],
             };
           }
           return {
@@ -690,6 +785,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       flagged,
       timeUsedSec,
       dragAnswers,
+      timeSpent,
+      confidence,
     );
     set((state) => ({
       sessions: mergeUpsertSession(state.sessions, session),

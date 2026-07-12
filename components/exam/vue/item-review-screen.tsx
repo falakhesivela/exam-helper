@@ -13,6 +13,8 @@ interface ExamNavigatorProps {
   dragAnswers: Record<string, DragAnswer>
   questions: Question[]
   flagged: Set<string>
+  /** Questions the learner rated "unsure" — shown as an amber dot. */
+  unsure?: Set<string>
   questionIds: string[]
   onGoTo: (index: number) => void
 }
@@ -24,45 +26,72 @@ export function ExamNavigator({
   dragAnswers,
   questions,
   flagged,
+  unsure,
   questionIds,
   onGoTo,
 }: ExamNavigatorProps) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {questionIds.map((id, i) => {
-        const question = questions[i]
-        const isAnswered = question
-          ? isExamQuestionAnswered(question, answers, dragAnswers)
-          : (answers[id] ?? []).length > 0
-        const isFlagged = flagged.has(id)
-        const isCurrent = i === currentIndex
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onGoTo(i)}
-            aria-label={`Go to question ${i + 1}`}
-            aria-current={isCurrent ? "true" : undefined}
-            className={cn(
-              "relative flex size-10 items-center justify-center rounded-md border text-sm font-medium transition-colors",
-              isCurrent && "ring-2 ring-ring ring-offset-1",
-              isAnswered
-                ? "border-primary/60 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:border-primary/40",
-            )}
-          >
-            {i + 1}
-            {isFlagged && (
-              <Flag className="absolute -right-1 -top-1 size-3 text-chart-3" />
-            )}
-          </button>
-        )
-      })}
-      {total > questionIds.length && (
-        <span className="self-center text-xs text-muted-foreground">
-          +{total - questionIds.length} loading…
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        {questionIds.map((id, i) => {
+          const question = questions[i]
+          const isAnswered = question
+            ? isExamQuestionAnswered(question, answers, dragAnswers)
+            : (answers[id] ?? []).length > 0
+          const isFlagged = flagged.has(id)
+          const isUnsure = unsure?.has(id) ?? false
+          const isCurrent = i === currentIndex
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onGoTo(i)}
+              aria-label={`Go to question ${i + 1}${isFlagged ? ", flagged" : ""}${isUnsure ? ", unsure" : ""}`}
+              aria-current={isCurrent ? "true" : undefined}
+              className={cn(
+                "relative flex size-10 items-center justify-center rounded-md border text-sm font-medium transition-colors",
+                isCurrent && "ring-2 ring-ring ring-offset-1",
+                isAnswered
+                  ? "border-primary/60 bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/40",
+              )}
+            >
+              {i + 1}
+              {isFlagged && (
+                <Flag className="absolute -right-1 -top-1 size-3 text-chart-3" />
+              )}
+              {isUnsure && (
+                <span
+                  className="absolute -bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-chart-3"
+                  aria-hidden
+                />
+              )}
+            </button>
+          )
+        })}
+        {total > questionIds.length && (
+          <span className="self-center text-xs text-muted-foreground">
+            +{total - questionIds.length} loading…
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span
+            className="size-3 rounded-sm border border-primary/60 bg-primary/10"
+            aria-hidden
+          />
+          Answered
         </span>
-      )}
+        <span className="flex items-center gap-1.5">
+          <Flag className="size-3 text-chart-3" />
+          Flagged
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-chart-3" aria-hidden />
+          Unsure
+        </span>
+      </div>
     </div>
   )
 }
@@ -71,10 +100,12 @@ interface ItemReviewScreenProps {
   total: number
   answeredCount: number
   flaggedCount: number
+  unsureCount?: number
   canSubmit: boolean
   onReviewAll: () => void
   onReviewIncomplete: () => void
   onReviewFlagged: () => void
+  onReviewUnsure?: () => void
   onEndReview: () => void
 }
 
@@ -82,10 +113,12 @@ export function ItemReviewScreen({
   total,
   answeredCount,
   flaggedCount,
+  unsureCount = 0,
   canSubmit,
   onReviewAll,
   onReviewIncomplete,
   onReviewFlagged,
+  onReviewUnsure,
   onEndReview,
 }: ItemReviewScreenProps) {
   const incomplete = total - answeredCount
@@ -134,6 +167,15 @@ export function ItemReviewScreen({
         >
           Review flagged ({flaggedCount})
         </Button>
+        {onReviewUnsure && (
+          <Button
+            variant="secondary"
+            disabled={unsureCount === 0}
+            onClick={onReviewUnsure}
+          >
+            Review unsure ({unsureCount})
+          </Button>
+        )}
         <Button
           size="lg"
           disabled={!canSubmit}

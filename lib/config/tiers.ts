@@ -31,6 +31,10 @@ export interface TierLimits {
   /** AI tutor chat messages. Capped on every tier — chat is the #1 abuse surface. */
   tutorMessages: number | null
   tutorWindow: LimitWindow
+  /** Mentor chat messages. Priciest per-message feature: it re-sends the exam
+   *  blueprint, syllabus excerpt and mastery context on every turn. */
+  mentorMessages: number | null
+  mentorWindow: LimitWindow
   /** Plan coach requests. 0 = feature locked; counted per coachWindow. */
   coach: number | null
   coachWindow: LimitWindow
@@ -53,6 +57,8 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     labsWindow: "lifetime",
     tutorMessages: 10,
     tutorWindow: "lifetime",
+    mentorMessages: 15,
+    mentorWindow: "lifetime",
     coach: 0,
     coachWindow: "daily",
     clarify: 3,
@@ -70,6 +76,8 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     labsWindow: "lifetime",
     tutorMessages: 100,
     tutorWindow: "daily",
+    mentorMessages: 50,
+    mentorWindow: "daily",
     coach: 5,
     coachWindow: "daily",
     clarify: 20,
@@ -89,6 +97,8 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     labsWindow: "lifetime",
     tutorMessages: 200,
     tutorWindow: "daily",
+    mentorMessages: 150,
+    mentorWindow: "daily",
     coach: 10,
     coachWindow: "daily",
     clarify: 30,

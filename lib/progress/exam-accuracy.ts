@@ -40,19 +40,41 @@ export async function computeRecentExamAccuracy(
   }
 
   const result: ExamAccuracy = {}
+  const allSessionIds = [...perCode.values()].flat()
+  if (allSessionIds.length === 0) return result
+
+  // Two batched queries for all recent exam sessions instead of two per session.
+  const [{ data: allQuestions }, { data: allAnswers }] = await Promise.all([
+    admin
+      .from("questions")
+      .select("id, session_id, correct_option_ids")
+      .in("session_id", allSessionIds),
+    admin
+      .from("answers")
+      .select("question_id, selected_option_ids")
+      .in("session_id", allSessionIds),
+  ])
+
+  const questionsBySession = new Map<
+    string,
+    Pick<DbQuestion, "id" | "session_id" | "correct_option_ids">[]
+  >()
+  for (const q of allQuestions ?? []) {
+    const list = questionsBySession.get(q.session_id) ?? []
+    list.push(q)
+    questionsBySession.set(q.session_id, list)
+  }
+  const answersByQuestionId = new Map(
+    (allAnswers ?? []).map((a) => [a.question_id as string, a]),
+  )
 
   for (const [examCode, sessionIds] of perCode) {
     let correct = 0
     let total = 0
 
     for (const sessionId of sessionIds) {
-      const [{ data: questions }, { data: answers }] = await Promise.all([
-        admin.from("questions").select("*").eq("session_id", sessionId),
-        admin.from("answers").select("*").eq("session_id", sessionId),
-      ])
-
-      for (const q of (questions ?? []) as DbQuestion[]) {
-        const a = answers?.find((ans) => ans.question_id === q.id)
+      for (const q of questionsBySession.get(sessionId) ?? []) {
+        const a = answersByQuestionId.get(q.id)
         if (a && a.selected_option_ids.length > 0) {
           total += 1
           if (gradeAnswer(q.correct_option_ids, a.selected_option_ids)) {

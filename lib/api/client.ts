@@ -3,6 +3,8 @@
 import type {
   ClarifyingQuestion,
   LearnTopic,
+  MentorConversation,
+  MentorMessage,
   PracticeSession,
   TopicLesson,
   TopicMastery,
@@ -33,6 +35,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiClientError(body.error ?? res.statusText, res.status, {
       code: body.code,
       remaining: body.remaining,
+      feature: body.feature,
+      upgradeTier: body.upgradeTier,
     });
   }
 
@@ -223,7 +227,10 @@ export const api = {
       params,
     ),
 
-  listSessions: () => request<PracticeSession[]>("/api/sessions"),
+  listSessions: (opts?: { summary?: boolean }) =>
+    request<PracticeSession[]>(
+      opts?.summary ? "/api/sessions?summary=true" : "/api/sessions",
+    ),
 
   getSession: (id: string) => request<PracticeSession>(`/api/sessions/${id}`),
 
@@ -272,16 +279,65 @@ export const api = {
     flagged: string[],
     timeUsedSec: number,
     dragAnswers: Record<string, import("@/types").DragAnswer> = {},
+    timeSpent: Record<string, number> = {},
+    confidence: Record<string, import("@/types").Confidence> = {},
   ) =>
     request<PracticeSession>(`/api/sessions/${sessionId}/submit`, {
       method: "POST",
-      body: JSON.stringify({ answers, dragAnswers, flagged, timeUsedSec }),
+      body: JSON.stringify({
+        answers,
+        dragAnswers,
+        flagged,
+        timeUsedSec,
+        timeSpent,
+        confidence,
+      }),
+    }),
+
+  /** Anchors the exam clock server-side; idempotent, safe to call on resume. */
+  startExamSession: (sessionId: string) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/start`, {
+      method: "POST",
+    }),
+
+  /**
+   * Mid-exam autosave of the full raw state (no grading). `keepalive` lets
+   * the final flush survive tab close / navigation.
+   */
+  saveExamState: (
+    sessionId: string,
+    state: {
+      answers: Record<string, string[]>;
+      dragAnswers: Record<string, import("@/types").DragAnswer>;
+      flagged: string[];
+      currentIndex: number;
+      timeSpent: Record<string, number>;
+      confidence: Record<string, import("@/types").Confidence>;
+    },
+  ) =>
+    request<{ saved: number }>(`/api/sessions/${sessionId}/exam-state`, {
+      method: "PATCH",
+      body: JSON.stringify(state),
+      keepalive: true,
     }),
 
   completeSession: (sessionId: string) =>
     request<PracticeSession>(`/api/sessions/${sessionId}/complete`, {
       method: "POST",
     }),
+
+  /** Clone missed questions from a completed exam into a fresh timed mock (paid). */
+  retakeMissed: (sessionId: string) =>
+    request<PracticeSession>(`/api/sessions/${sessionId}/retake-missed`, {
+      method: "POST",
+    }),
+
+  /** AI examiner debrief for a completed exam (paid tiers; cached server-side). */
+  examDebrief: (sessionId: string) =>
+    request<{ debrief: import("@/types").ExamDebrief; cached: boolean }>(
+      `/api/sessions/${sessionId}/debrief`,
+      { method: "POST" },
+    ),
 
   topicMastery: () => request<TopicMastery[]>("/api/progress/mastery"),
 
@@ -380,6 +436,112 @@ export const api = {
     );
   },
 
+  mentorConversations: (exam?: string | null) => {
+    if (USE_MOCKS) return Promise.resolve({ conversations: [] });
+    return request<{ conversations: MentorConversation[] }>(
+      withExam("/api/mentor/conversations", exam),
+    );
+  },
+
+  mentorConversation: (conversationId: string) => {
+    if (USE_MOCKS)
+      return Promise.resolve({
+        conversation: {
+          id: conversationId,
+          title: "New conversation",
+          examCode: null,
+          messageCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } satisfies MentorConversation,
+        messages: [] as MentorMessage[],
+      });
+    return request<{
+      conversation: MentorConversation;
+      messages: MentorMessage[];
+    }>(`/api/mentor/conversations/${conversationId}`);
+  },
+
+  renameMentorConversation: (conversationId: string, title: string) => {
+    if (USE_MOCKS)
+      return Promise.resolve({
+        conversation: {
+          id: conversationId,
+          title,
+          examCode: null,
+          messageCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } satisfies MentorConversation,
+      });
+    return request<{ conversation: MentorConversation }>(
+      `/api/mentor/conversations/${conversationId}`,
+      { method: "PATCH", body: JSON.stringify({ title }) },
+    );
+  },
+
+  deleteMentorConversation: (conversationId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>(
+      `/api/mentor/conversations/${conversationId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  /**
+   * Send one Mentor message. History is NOT sent — the server reads it from the
+   * conversation, so the context window (and the token bill) can't be inflated
+   * by the client. `onReady` fires with the conversation id before the first
+   * token, which is how a brand-new thread learns its own URL.
+   */
+  mentorChat: (
+    content: string,
+    opts?: {
+      conversationId?: string;
+      examCode?: string | null;
+      clientMessageId?: string;
+      onDelta?: (text: string) => void;
+      onReady?: (data: { conversationId: string; title: string }) => void;
+      signal?: AbortSignal;
+    },
+  ) => {
+    if (USE_MOCKS) {
+      const reply = mockTutorReply(content);
+      opts?.onDelta?.(reply);
+      return Promise.resolve({
+        reply,
+        conversationId: opts?.conversationId ?? "mock-conversation",
+        title: content.slice(0, 60),
+        remaining: null,
+      });
+    }
+    return consumeSse<{
+      reply: string;
+      conversationId: string;
+      title: string;
+      remaining: number | null;
+    }>(
+      "/api/mentor/chat",
+      {
+        content,
+        conversationId: opts?.conversationId,
+        examCode: opts?.examCode,
+        clientMessageId: opts?.clientMessageId,
+      },
+      {
+        signal: opts?.signal,
+        onReady: (data) =>
+          opts?.onReady?.(data as { conversationId: string; title: string }),
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            const text = (data as { text?: string }).text;
+            if (text) opts?.onDelta?.(text);
+          }
+        },
+      },
+    );
+  },
+
   factCards: (dueOnly = false) => {
     if (USE_MOCKS) {
       const items = buildMockFactCards();
@@ -403,6 +565,53 @@ export const api = {
     return request<{ ok: boolean }>("/api/flashcards/rate", {
       method: "POST",
       body: JSON.stringify({ questionId, known }),
+    });
+  },
+
+  /** The unified review queue over both missed questions and lesson key facts. */
+  reviewQueue: (
+    opts: {
+      dueOnly?: boolean;
+      source?: import("@/types").ReviewSource;
+      domainId?: string;
+      topicSlug?: string;
+      includeRetired?: boolean;
+      limit?: number;
+    } = {},
+  ) => {
+    if (USE_MOCKS) {
+      const questions = buildMockMissedQuestions();
+      const facts = buildMockFactCards();
+      return Promise.resolve({
+        questions,
+        facts,
+        count: questions.length + facts.length,
+        dueCount: facts.filter((f) => f.due).length,
+      } as import("@/types").ReviewQueue);
+    }
+    const params = new URLSearchParams();
+    if (opts.dueOnly) params.set("due", "true");
+    if (opts.source && opts.source !== "all") params.set("source", opts.source);
+    if (opts.domainId) params.set("domainId", opts.domainId);
+    if (opts.topicSlug) params.set("topicSlug", opts.topicSlug);
+    if (opts.includeRetired === false) params.set("includeRetired", "false");
+    if (opts.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<import("@/types").ReviewQueue>(
+      `/api/review/queue${qs ? `?${qs}` : ""}`,
+    );
+  },
+
+  rateReviewCard: (
+    card:
+      | { kind: "question"; questionId: string }
+      | { kind: "fact"; lessonId: string; factIndex: number },
+    known: boolean,
+  ) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>("/api/review/rate", {
+      method: "POST",
+      body: JSON.stringify({ ...card, known }),
     });
   },
 

@@ -1,36 +1,114 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
-import { ArrowLeft, Check, Flag, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Check, CircleHelp, Clock, Flag, X, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { MarkdownInline } from "@/components/ui/markdown"
 import { useSessionStore } from "@/lib/store/use-session-store"
-import { scoreOf } from "@/lib/session-utils"
+import { isSessionSummary, questionTypeOf, scoreOf } from "@/lib/session-utils"
+import { formatClock } from "@/hooks/use-countdown"
 import { QuestionStem } from "@/components/exam/vue/question-stem"
+import { DragMatchPane } from "@/components/exam/vue/drag-match-pane"
+import { DragOrderPane } from "@/components/exam/vue/drag-order-pane"
+import { DragCategorizePane } from "@/components/exam/vue/drag-categorize-pane"
+import { SelectGridPane } from "@/components/exam/vue/select-grid-pane"
+import { CommandInputPane } from "@/components/exam/vue/command-input-pane"
+import type { AnswerRecord, Question } from "@/types"
 import { cn } from "@/lib/utils"
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"]
 
+export type ReviewFilter = "all" | "flagged" | "incorrect" | "unsure"
+
 interface SessionReviewProps {
   sessionId: string
-  filter?: "all" | "flagged"
+  filter?: ReviewFilter
+}
+
+const FILTER_LABELS: Record<Exclude<ReviewFilter, "all">, string> = {
+  flagged: "flagged",
+  incorrect: "incorrect",
+  unsure: "unsure",
+}
+
+function matchesFilter(record: AnswerRecord | undefined, filter: ReviewFilter) {
+  switch (filter) {
+    case "all":
+      return true
+    case "flagged":
+      return record?.markedForReview ?? false
+    case "incorrect":
+      return !record?.isCorrect
+    case "unsure":
+      return record?.confidence === "unsure"
+  }
+}
+
+/** Read-only replay of a non-MCQ answer using the exam panes in reveal mode. */
+function DragAnswerReplay({
+  question,
+  record,
+}: {
+  question: Question
+  record?: AnswerRecord
+}) {
+  const noop = () => undefined
+  const shared = {
+    question,
+    answer: record?.dragAnswer,
+    onChange: noop,
+    revealed: true,
+  }
+  switch (questionTypeOf(question)) {
+    case "drag_match":
+      return <DragMatchPane {...shared} />
+    case "drag_order":
+      return <DragOrderPane {...shared} />
+    case "select_grid":
+      return <SelectGridPane {...shared} />
+    case "command_input":
+      return <CommandInputPane {...shared} />
+    default:
+      return <DragCategorizePane {...shared} />
+  }
 }
 
 export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps) {
   const session = useSessionStore((s) => s.getSession(sessionId))
+  const ensureFullSession = useSessionStore((s) => s.ensureFullSession)
+  const needsFetch = !session || isSessionSummary(session)
+  const [loading, setLoading] = useState(needsFetch)
+
+  // The store holds summary stubs after hydrate; question payloads load here.
+  useEffect(() => {
+    if (!needsFetch) return
+    let cancelled = false
+    void ensureFullSession(sessionId).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [needsFetch, sessionId, ensureFullSession])
 
   const questions = useMemo(() => {
     if (!session) return []
-    if (filter !== "flagged") return session.questions
-    return session.questions.filter((q) => session.answers[q.id]?.markedForReview)
+    return session.questions.filter((q) =>
+      matchesFilter(session.answers[q.id], filter),
+    )
   }, [session, filter])
 
-  if (!session) {
+  if (needsFetch && loading) {
+    return <LoadingScreen message="Loading session…" />
+  }
+
+  if (!session || isSessionSummary(session)) {
     return (
       <Empty className="py-16">
         <EmptyHeader>
@@ -45,9 +123,16 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
   }
 
   const { correct, total, pct } = scoreOf(session)
-  const flaggedTotal = session.questions.filter(
-    (q) => session.answers[q.id]?.markedForReview,
-  ).length
+  const counts = {
+    flagged: session.questions.filter(
+      (q) => session.answers[q.id]?.markedForReview,
+    ).length,
+    incorrect: session.questions.filter((q) => !session.answers[q.id]?.isCorrect)
+      .length,
+    unsure: session.questions.filter(
+      (q) => session.answers[q.id]?.confidence === "unsure",
+    ).length,
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -60,22 +145,34 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold tracking-tight">{session.examCode}</h1>
           <p className="text-sm text-muted-foreground">
-            {filter === "flagged"
-              ? `Flagged questions (${questions.length})`
+            {filter !== "all"
+              ? `${questions.length} ${FILTER_LABELS[filter]} ${questions.length === 1 ? "question" : "questions"}`
               : session.focusTopics.join(", ")}
           </p>
         </div>
       </div>
 
-      {flaggedTotal > 0 && (
-        <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          asChild
+          size="sm"
+          variant={filter === "all" ? "default" : "outline"}
+        >
+          <Link href={`/history/${sessionId}`}>All questions</Link>
+        </Button>
+        {counts.incorrect > 0 && (
           <Button
             asChild
             size="sm"
-            variant={filter === "all" ? "default" : "outline"}
+            variant={filter === "incorrect" ? "default" : "outline"}
           >
-            <Link href={`/history/${sessionId}`}>All questions</Link>
+            <Link href={`/history/${sessionId}?filter=incorrect`}>
+              <XCircle data-icon="inline-start" />
+              Incorrect ({counts.incorrect})
+            </Link>
           </Button>
+        )}
+        {counts.flagged > 0 && (
           <Button
             asChild
             size="sm"
@@ -83,18 +180,30 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
           >
             <Link href={`/history/${sessionId}?filter=flagged`}>
               <Flag data-icon="inline-start" />
-              Flagged ({flaggedTotal})
+              Flagged ({counts.flagged})
             </Link>
           </Button>
-        </div>
-      )}
+        )}
+        {counts.unsure > 0 && (
+          <Button
+            asChild
+            size="sm"
+            variant={filter === "unsure" ? "default" : "outline"}
+          >
+            <Link href={`/history/${sessionId}?filter=unsure`}>
+              <CircleHelp data-icon="inline-start" />
+              Unsure ({counts.unsure})
+            </Link>
+          </Button>
+        )}
+      </div>
 
-      {filter === "flagged" && questions.length === 0 && (
+      {filter !== "all" && questions.length === 0 && (
         <Empty className="rounded-xl border border-border py-10">
           <EmptyHeader>
-            <EmptyTitle>No flagged questions</EmptyTitle>
+            <EmptyTitle>Nothing here</EmptyTitle>
             <EmptyDescription>
-              You did not flag any questions in this session.
+              No {FILTER_LABELS[filter]} questions in this session.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -129,7 +238,24 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
                   <Badge variant="secondary">
                     {qi + 1}. {q.topic}
                   </Badge>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {record?.timeSpentSec ? (
+                      <Badge variant="outline">
+                        <Clock className="size-3" />
+                        {formatClock(record.timeSpentSec)}
+                      </Badge>
+                    ) : null}
+                    {record?.confidence && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          record.confidence === "unsure" && "text-chart-3",
+                        )}
+                      >
+                        <CircleHelp className="size-3" />
+                        {record.confidence === "sure" ? "Sure" : "Unsure"}
+                      </Badge>
+                    )}
                     {record?.markedForReview && (
                       <Badge variant="outline">
                         <Flag className="size-3" />
@@ -180,9 +306,7 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
                   })}
                 </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Drag-and-drop question — review your assigned matches in the exam summary.
-                  </p>
+                  <DragAnswerReplay question={q} record={record} />
                 )}
 
                 <div className="rounded-xl bg-secondary/40 p-3 text-sm leading-relaxed text-foreground/90">

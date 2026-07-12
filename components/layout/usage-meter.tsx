@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils"
 /**
  * Slim free-tier usage meter for the top bar. Replaces the old full-width
  * dashboard banner — the hard upgrade sell now happens at limit-hit instead.
- * Renders nothing for paid users.
+ * Renders nothing for paid users, and nothing below sm: the top bar's other
+ * items are unshrinkable and phones have no room for it.
  */
 export function UsageMeter() {
   const profile = useSessionStore((s) => s.profile)
@@ -27,7 +28,7 @@ export function UsageMeter() {
     <Link
       href="/upgrade"
       aria-label={`Free trial: ${remaining} of ${limit} questions left. Upgrade for more.`}
-      className="group flex w-28 shrink-0 flex-col gap-1 sm:w-32"
+      className="group hidden w-28 shrink-0 flex-col gap-1 sm:flex sm:w-32"
     >
       <span className="flex items-baseline justify-between text-[11px] leading-none">
         <span className={cn("tabular-nums", exhausted ? "font-medium text-warning" : "text-muted-foreground")}>

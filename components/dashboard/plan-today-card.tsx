@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { useTaskLauncher } from "@/components/plan/use-task-launcher"
 import { TASK_ICON, todayIso } from "@/components/plan/task-meta"
@@ -26,6 +27,12 @@ const PACE_LABEL: Record<PlanPaceStatus, { text: string; className: string }> = 
 /** Dashboard card: today's plan tasks with one-tap start, or a build-plan CTA. */
 export function PlanTodayCard() {
   const plan = useSessionStore((s) => s.plan)
+  const dataReady = useSessionStore((s) => s.dataReady)
+
+  // Plan still streaming in — don't flash the build-plan CTA.
+  if (!plan && !dataReady) {
+    return <CardSkeleton rows={3} />
+  }
 
   if (!plan) {
     return (

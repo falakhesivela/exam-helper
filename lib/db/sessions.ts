@@ -87,6 +87,39 @@ export async function finalizeSessionGeneration(
   if (error) throw error
 }
 
+function buildSession(
+  session: DbSession,
+  questions: DbQuestion[],
+  answers: DbAnswer[],
+) {
+  const answerMap: Record<string, ReturnType<typeof toAnswerRecord>> = {}
+  for (const a of answers) {
+    answerMap[a.question_id] = toAnswerRecord(a)
+  }
+
+  const answeredIds = new Set(
+    Object.entries(answerMap)
+      .filter(
+        ([, a]) =>
+          a.selectedOptionIds.length > 0 ||
+          a.dragAnswer != null ||
+          a.skipped,
+      )
+      .map(([id]) => id),
+  )
+
+  const mappedQuestions = questions.map((q) => toQuestion(q))
+
+  const visible = stripAnswersForExam(
+    mappedQuestions,
+    session.mode,
+    session.status,
+    answeredIds,
+  )
+
+  return toPracticeSession(session, visible, answerMap)
+}
+
 export async function loadSession(
   admin: SupabaseClient,
   sessionId: string,
@@ -101,45 +134,41 @@ export async function loadSession(
 
   if (error || !session) return null
 
-  const { data: questions } = await admin
-    .from("questions")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("position")
+  const [{ data: questions }, { data: answers }] = await Promise.all([
+    admin
+      .from("questions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("position"),
+    admin.from("answers").select("*").eq("session_id", sessionId),
+  ])
 
-  const { data: answers } = await admin
-    .from("answers")
-    .select("*")
-    .eq("session_id", sessionId)
+  return buildSession(
+    session as DbSession,
+    (questions ?? []) as DbQuestion[],
+    (answers ?? []) as DbAnswer[],
+  )
+}
 
-  const answerMap: Record<string, ReturnType<typeof toAnswerRecord>> = {}
-  for (const a of answers ?? []) {
-    answerMap[a.question_id] = toAnswerRecord(a as DbAnswer)
+// PostgREST "in" filters travel in the URL; keep chunks small enough to stay
+// well under URL-length limits even with UUID keys.
+const IN_CHUNK_SIZE = 50
+
+async function fetchBySessionIds<T>(
+  admin: SupabaseClient,
+  table: "questions" | "answers",
+  sessionIds: string[],
+): Promise<T[]> {
+  const chunks: string[][] = []
+  for (let i = 0; i < sessionIds.length; i += IN_CHUNK_SIZE) {
+    chunks.push(sessionIds.slice(i, i + IN_CHUNK_SIZE))
   }
-
-  const answeredIds = new Set(
-    Object.entries(answerMap)
-      .filter(
-        ([, a]) =>
-          a.selectedOptionIds.length > 0 ||
-          a.dragAnswer != null ||
-          a.skipped,
-      )
-      .map(([id]) => id),
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      admin.from(table).select("*").in("session_id", chunk),
+    ),
   )
-
-  const mappedQuestions = (questions ?? []).map((q) =>
-    toQuestion(q as DbQuestion),
-  )
-
-  const visible = stripAnswersForExam(
-    mappedQuestions,
-    session.mode,
-    session.status,
-    answeredIds,
-  )
-
-  return toPracticeSession(session as DbSession, visible, answerMap)
+  return results.flatMap((r) => (r.data ?? []) as T[])
 }
 
 export async function loadSessions(
@@ -152,12 +181,38 @@ export async function loadSessions(
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
-  const result = []
-  for (const s of sessions ?? []) {
-    const loaded = await loadSession(admin, s.id, userId)
-    if (loaded) result.push(loaded)
+  if (!sessions?.length) return []
+
+  const sessionIds = sessions.map((s) => s.id as string)
+  const [allQuestions, allAnswers] = await Promise.all([
+    fetchBySessionIds<DbQuestion>(admin, "questions", sessionIds),
+    fetchBySessionIds<DbAnswer>(admin, "answers", sessionIds),
+  ])
+
+  const questionsBySession = new Map<string, DbQuestion[]>()
+  for (const q of allQuestions) {
+    const list = questionsBySession.get(q.session_id) ?? []
+    list.push(q)
+    questionsBySession.set(q.session_id, list)
   }
-  return result
+  for (const list of questionsBySession.values()) {
+    list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+  }
+
+  const answersBySession = new Map<string, DbAnswer[]>()
+  for (const a of allAnswers) {
+    const list = answersBySession.get(a.session_id) ?? []
+    list.push(a)
+    answersBySession.set(a.session_id, list)
+  }
+
+  return sessions.map((s) =>
+    buildSession(
+      s as DbSession,
+      questionsBySession.get(s.id) ?? [],
+      answersBySession.get(s.id) ?? [],
+    ),
+  )
 }
 
 export async function persistSession(

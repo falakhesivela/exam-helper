@@ -159,6 +159,14 @@ export type GenerationStatus = "generating" | "complete" | "failed"
 /** Whether a session is open practice (instant feedback) or a timed exam. */
 export type SessionMode = "practice" | "exam"
 
+/** Server-computed score counts shipped with summary session listings. */
+export interface SessionScoreSummary {
+  correct: number
+  answered: number
+  skipped: number
+  total: number
+}
+
 /** A practice session generated from an intake request. */
 export interface PracticeSession {
   id: string
@@ -183,6 +191,26 @@ export interface PracticeSession {
   expectedQuestionCount?: number
   /** Whether questions are still being generated in the background. */
   generationStatus?: GenerationStatus
+  /**
+   * Server-anchored moment the exam clock started (set when the learner
+   * leaves the rules screen). Present = the exam can be resumed with its
+   * real remaining time.
+   */
+  examStartedAt?: string // ISO
+  /**
+   * True for list-view stubs: `questions`/`answers` are empty and score data
+   * lives in `scoreSummary`. The full session loads lazily when opened.
+   */
+  summary?: boolean
+  /** Precomputed score counts; present on summary stubs. */
+  scoreSummary?: SessionScoreSummary
+}
+
+/** AI examiner debrief generated once per completed exam (Pro+). */
+export interface ExamDebrief {
+  summary: string
+  topPriorities: string[]
+  examDayTip: string
 }
 
 /** Per-topic mastery used across the dashboard and history. */
@@ -227,6 +255,43 @@ export interface UserProfile {
   onboardedAt?: string | null
   /** Server-resolved active exam (last practiced, else onboarding choice). */
   activeExam?: { examCode: string; exam: string } | null
+  /**
+   * Used/remaining for counter-quota features. `limits` alone says what the cap
+   * is, not how much of it is left — this is what lets the UI show "N left".
+   */
+  usage?: Partial<Record<CounterFeature, CounterUsage>>
+}
+
+/** Features metered by the usage_counters table (see backend entitlements.py). */
+export type CounterFeature = "mentor_messages" | "tutor_messages"
+
+export interface CounterUsage {
+  /** null = unlimited on this tier. */
+  limit: number | null
+  used: number
+  remaining: number | null
+}
+
+/** One turn of a chat thread — shared by the tutors and Mentor. */
+export interface ChatMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
+/** A saved Mentor thread. */
+export interface MentorConversation {
+  id: string
+  title: string
+  /** Exam pinned at creation, so grounding doesn't shift mid-thread. */
+  examCode: string | null
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MentorMessage extends ChatMessage {
+  id: number
+  createdAt: string
 }
 
 /** Hand-authored exam-taking tip (static catalog content, zero AI cost). */
@@ -398,10 +463,39 @@ export interface FactCard {
   lessonId: string
   factIndex: number
   topicName: string
+  /** Set the lesson's topic, so a topic-scoped review can filter on it. */
+  topicSlug?: string
   question: string
   fact: string
   due: boolean
   nextReviewAt?: string | null
+}
+
+export interface MissedQuestionItem {
+  questionId: string
+  sessionId: string
+  exam: string
+  examCode: string
+  answeredAt: string
+  lastSelectedOptionIds?: string[]
+  lastDragAnswer?: DragAnswer
+  question: Question
+  nextReviewAt?: string
+  intervalDays?: number
+  due?: boolean
+  /** Answered right enough times to leave the backlog; shown as "Mastered". */
+  retired?: boolean
+}
+
+/** Which of the two spaced-repetition sources a review draws from. */
+export type ReviewSource = "all" | "questions" | "facts"
+
+export interface ReviewQueue {
+  questions: MissedQuestionItem[]
+  facts: FactCard[]
+  count: number
+  /** Spans both sources, whichever source was requested. */
+  dueCount: number
 }
 
 export type StudyTaskType = "practice" | "exam" | "lesson" | "review"

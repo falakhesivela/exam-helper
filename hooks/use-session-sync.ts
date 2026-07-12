@@ -1,61 +1,68 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef } from "react"
-import { toast } from "sonner"
-import type { PracticeSession } from "@/types"
-import { api } from "@/lib/api/client"
-import { mergeSessionUpdate } from "@/lib/session-utils"
-import { useSessionStore } from "@/lib/store/use-session-store"
+import { useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
+import type { PracticeSession } from "@/types";
+import { api } from "@/lib/api/client";
+import { mergeSessionUpdate } from "@/lib/session-utils";
+import { useSessionStore } from "@/lib/store/use-session-store";
 
-export function useSessionSync(sessionId: string, session: PracticeSession | undefined) {
-  const mergeIntoStore = useCallback((incoming: PracticeSession) => {
-    useSessionStore.setState((state) => {
-      const existing = state.sessions.find((s) => s.id === sessionId)
-      const merged = mergeSessionUpdate(existing, incoming)
-      const idx = state.sessions.findIndex((s) => s.id === sessionId)
-      const sessions =
-        idx === -1
-          ? [merged, ...state.sessions]
-          : state.sessions.map((s) => (s.id === sessionId ? merged : s))
-      return { sessions }
-    })
-  }, [sessionId])
+export function useSessionSync(
+  sessionId: string,
+  session: PracticeSession | undefined,
+) {
+  const mergeIntoStore = useCallback(
+    (incoming: PracticeSession) => {
+      useSessionStore.setState((state) => {
+        const existing = state.sessions.find((s) => s.id === sessionId);
+        const merged = mergeSessionUpdate(existing, incoming);
+        const idx = state.sessions.findIndex((s) => s.id === sessionId);
+        const sessions =
+          idx === -1
+            ? [merged, ...state.sessions]
+            : state.sessions.map((s) => (s.id === sessionId ? merged : s));
+        return { sessions };
+      });
+    },
+    [sessionId],
+  );
 
   const pollNow = useCallback(async () => {
     try {
-      const fresh = await api.getSession(sessionId)
-      mergeIntoStore(fresh)
-      return fresh
+      const fresh = await api.getSession(sessionId);
+      mergeIntoStore(fresh);
+      return fresh;
     } catch {
-      return undefined
+      return undefined;
     }
-  }, [sessionId, mergeIntoStore])
+  }, [sessionId, mergeIntoStore]);
 
-  const pollRef = useRef(pollNow)
-  pollRef.current = pollNow
+  const pollRef = useRef(pollNow);
+  pollRef.current = pollNow;
 
   useEffect(() => {
-    if (!session) return
+    if (!session) return;
 
     if (session.generationStatus === "failed") {
-      toast.error("Question generation failed. Please start a new session.")
-      return
+      toast.error("Question generation failed. Please start a new session.");
+      return;
     }
 
-    if (session.generationStatus !== "generating") return
+    if (session.generationStatus !== "generating") return;
 
     const id = window.setInterval(() => {
-      void pollRef.current()
-    }, 1500)
+      void pollRef.current();
+    }, 1500);
 
-    return () => window.clearInterval(id)
-  }, [session?.generationStatus, session?.id])
+    return () => window.clearInterval(id);
+  }, [session?.generationStatus, session?.id]);
 
   return {
     pollNow,
     isGenerating: session?.generationStatus === "generating",
-    expectedTotal: session?.expectedQuestionCount ?? session?.questions.length ?? 0,
+    expectedTotal:
+      session?.expectedQuestionCount ?? session?.questions.length ?? 0,
     availableCount: session?.questions.length ?? 0,
     generationFailed: session?.generationStatus === "failed",
-  }
+  };
 }

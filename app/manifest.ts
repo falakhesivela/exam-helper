@@ -47,7 +47,7 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: "Missed review",
         short_name: "Review",
-        url: "/practice/missed",
+        url: "/study/review?mode=quiz",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
       {

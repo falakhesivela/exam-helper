@@ -124,3 +124,53 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Hide the scrollbar without disabling scrolling — the element still scrolls by
+ * wheel, touch, and keyboard. Only for containers whose scrollability is obvious
+ * from the content itself (chat threads); never for one where the bar is the
+ * only cue that there is more to see.
+ */
+@utility no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Chat "typing" dots. Each dot runs the same loop offset by a delay, so the
+ * wave reads as someone composing a reply rather than as a page loading.
+ */
+@keyframes thinking-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@utility animate-thinking-dot {
+  animation: thinking-dot 1.3s ease-in-out infinite;
+
+  /* Keep the pulse (it still signals "working"), drop the motion. */
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: thinking-dot-static;
+  }
+}
+
+@keyframes thinking-dot-static {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}

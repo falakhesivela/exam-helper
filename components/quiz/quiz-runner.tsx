@@ -72,13 +72,16 @@ export function QuizRunner({ sessionId }: QuizRunnerProps) {
   const skipQuestion = useSessionStore((s) => s.skipQuestion);
   const goToIndex = useSessionStore((s) => s.goToIndex);
   const completeSession = useSessionStore((s) => s.completeSession);
-  const [loading, setLoading] = useState(!session && !USE_MOCKS);
+  // Hydrate only stocks summary stubs — the full session (questions,
+  // answers) loads here before the quiz can render.
+  const needsFetch = (!session || session.summary === true) && !USE_MOCKS;
+  const [loading, setLoading] = useState(needsFetch);
 
   const { pollNow, expectedTotal, availableCount, generationFailed } =
-    useSessionSync(sessionId, session);
+    useSessionSync(sessionId, needsFetch ? undefined : session);
 
   useEffect(() => {
-    if (session || USE_MOCKS) return;
+    if (!needsFetch) return;
     void api
       .getSession(sessionId)
       .then((s) => {
@@ -95,13 +98,13 @@ export function QuizRunner({ sessionId }: QuizRunnerProps) {
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, [session, sessionId]);
+  }, [needsFetch, sessionId]);
 
-  if (loading) {
+  if (needsFetch && loading) {
     return <LoadingScreen message="Loading session…" />;
   }
 
-  if (!session) {
+  if (!session || session.summary === true) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-lg font-medium">Session not found</p>

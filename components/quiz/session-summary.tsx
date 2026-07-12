@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
@@ -55,6 +55,7 @@ function sessionDurationSec(session: PracticeSession): number {
 export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps) {
   const router = useRouter()
   const [repeating, setRepeating] = useState(false)
+  const [mentorReturn, setMentorReturn] = useState<string | null>(null)
   const { correct, total, skipped, pct } = scoreOf(session)
   const breakdown = topicBreakdown(session)
   const confidence = confidenceBreakdown(session)
@@ -71,6 +72,10 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
   const avgSec =
     answeredCount > 0 ? Math.round(durationSec / answeredCount) : 0
   const showConfetti = pct >= 80
+
+  useEffect(() => {
+    setMentorReturn(sessionStorage.getItem("mentor:return"))
+  }, [])
 
   /** Regenerate a fresh session with the same exam and setup, one tap. */
   async function handlePracticeAgain() {
@@ -187,7 +192,7 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
               </div>
               {learnSlug && (
                 <Button asChild variant="outline" size="lg" className="w-full">
-                  <Link href={`/learn/${learnSlug}`}>
+                  <Link href={`/study/${learnSlug}`}>
                     <BookOpen data-icon="inline-start" />
                     Study {weakest.topic}
                   </Link>
@@ -283,6 +288,20 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
       )}
 
       <div className="flex flex-col gap-2.5">
+        {mentorReturn && (
+          <Button asChild size="lg" variant="secondary" className="w-full">
+            <Link
+              href={mentorReturn}
+              onClick={() => {
+                sessionStorage.removeItem("mentor:return")
+                setMentorReturn(null)
+              }}
+            >
+              <Sparkles data-icon="inline-start" />
+              Return to Mentor
+            </Link>
+          </Button>
+        )}
         <Button
           size="lg"
           className="w-full"
@@ -318,7 +337,7 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
           </Link>
         </Button>
         <Button asChild size="lg" variant="ghost" className="w-full">
-          <Link href="/practice">
+          <Link href="/study">
             <Home data-icon="inline-start" />
             Practice hub
           </Link>

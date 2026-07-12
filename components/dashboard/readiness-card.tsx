@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
-import { Area, AreaChart, ResponsiveContainer } from "recharts"
+import dynamic from "next/dynamic"
 import { ArrowRight, Gauge, Sparkles } from "lucide-react"
 import {
   Card,
@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { ProgressRing } from "@/components/ui/progress-ring"
 import { getExamBlueprint } from "@/lib/exams"
 import { inferExamFromSessions } from "@/lib/learning/topic-resolver"
@@ -21,6 +22,16 @@ import {
 } from "@/lib/progress/readiness"
 import { projectReadiness } from "@/lib/progress/projection"
 import { useSessionStore } from "@/lib/store/use-session-store"
+
+// Lazy-load recharts (~100KB gz) so it doesn't ship in the dashboard's
+// initial bundle just for this sparkline.
+const ReadinessSparkline = dynamic(
+  () =>
+    import("@/components/dashboard/readiness-sparkline").then(
+      (m) => m.ReadinessSparkline,
+    ),
+  { ssr: false, loading: () => <div className="h-full w-full" /> },
+)
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -62,6 +73,7 @@ const CONFIDENCE_LABEL = {
 
 /** Hero card: a single "are you ready to pass?" score for the target exam. */
 export function ReadinessCard() {
+  const dataReady = useSessionStore((s) => s.dataReady)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const sessions = useSessionStore((s) => s.sessions)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
@@ -86,6 +98,11 @@ export function ReadinessCard() {
         : null,
     [blueprint, topicMastery, examAccuracy],
   )
+
+  // Mastery/accuracy data still streaming in — don't flash the invite state.
+  if (!dataReady && (!readiness || readiness.totalAnswered === 0)) {
+    return <CardSkeleton rows={4} className="overflow-hidden" />
+  }
 
   // No blueprint (custom exam) or no answered questions yet → invite to start.
   if (!readiness || readiness.totalAnswered === 0) {
@@ -202,45 +219,7 @@ export function ReadinessCard() {
             <div>
               <p className="mb-1 text-sm font-medium">Readiness trend</p>
               <div className="h-16 w-full">
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                  minWidth={0}
-                  initialDimension={{ width: 320, height: 64 }}
-                >
-                  <AreaChart
-                    data={readinessTrend}
-                    margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="readinessFill"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="var(--primary)"
-                          stopOpacity={0.4}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="var(--primary)"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="score"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#readinessFill)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <ReadinessSparkline data={readinessTrend} />
               </div>
             </div>
           )}
