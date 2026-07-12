@@ -192,6 +192,9 @@ export function ReviewDeck({ topicSlug, domainId, scopeNote }: ReviewDeckProps) 
           key={`${source}-${dueOnly}-${topicSlug ?? ""}`}
           cards={cards}
           onRate={onRate}
+          onComplete={() => {
+            if (planTaskId) void updatePlanTask(planTaskId, { status: "done" })
+          }}
         />
       )}
     </div>

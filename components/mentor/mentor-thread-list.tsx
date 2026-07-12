@@ -135,7 +135,12 @@ export function MentorThreadList({
   const isSidebar = variant === "sidebar"
 
   return (
-    <div className={cn("flex min-h-0 flex-col", isSidebar ? "h-full" : "gap-5")}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-col",
+        isSidebar ? "h-full min-w-0 flex-1" : "gap-5",
+      )}
+    >
       <div className={cn("flex flex-col gap-3", isSidebar && "border-b p-4")}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

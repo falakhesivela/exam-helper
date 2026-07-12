@@ -339,7 +339,7 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
         <Button asChild size="lg" variant="ghost" className="w-full">
           <Link href="/study">
             <Home data-icon="inline-start" />
-            Practice hub
+            Back to Study
           </Link>
         </Button>
       </div>

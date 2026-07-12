@@ -13,6 +13,7 @@ import type { ReviewCard } from "@/lib/study/review-deck"
 interface FlashcardRoundProps {
   cards: ReviewCard[]
   onRate: (card: ReviewCard, known: boolean) => void
+  onComplete?: () => void
 }
 
 /**
@@ -21,7 +22,11 @@ interface FlashcardRoundProps {
  * it's flipped, and what to repeat. Loading, empty states and source/mode
  * chrome belong to the caller.
  */
-export function FlashcardRound({ cards, onRate }: FlashcardRoundProps) {
+export function FlashcardRound({
+  cards,
+  onRate,
+  onComplete,
+}: FlashcardRoundProps) {
   const [queue, setQueue] = useState<ReviewCard[]>(() => cards)
   const [pos, setPos] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -45,6 +50,7 @@ export function FlashcardRound({ cards, onRate }: FlashcardRoundProps) {
     if (!current) return
     if (!known) setAgain((a) => [...a, current])
     onRate(current, known)
+    if (pos + 1 >= queue.length) onComplete?.()
     setFlipped(false)
     setPos((p) => p + 1)
   }

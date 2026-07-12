@@ -69,7 +69,7 @@ const nextConfig = {
       { source: "/learn", destination: "/study", permanent: false },
 
       { source: "/practice/missed", destination: "/study/review?mode=quiz", permanent: false },
-      { source: "/practice/flashcards", destination: "/study/review", permanent: false },
+      { source: "/practice/flashcards", destination: "/study/review?source=questions", permanent: false },
       { source: "/practice/bookmarks", destination: "/study/saved", permanent: false },
       { source: "/practice", destination: "/study", permanent: false },
     ]

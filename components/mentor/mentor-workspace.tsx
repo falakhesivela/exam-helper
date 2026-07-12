@@ -17,7 +17,7 @@ export function MentorWorkspace({ children }: { children: ReactNode }) {
     <div className="h-[calc(100dvh-10rem-env(safe-area-inset-bottom))] min-h-[30rem] overflow-hidden rounded-2xl border bg-background xl:h-[calc(100dvh-8rem)] xl:max-h-[56rem]">
       <div className="grid h-full min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <aside
-          className="hidden min-h-0 border-r bg-card/35 xl:flex"
+          className="hidden min-h-0 min-w-0 overflow-hidden border-r bg-card/35 xl:flex"
           aria-label="Mentor conversations"
         >
           <MentorThreadList variant="sidebar" />

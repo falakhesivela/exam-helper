@@ -277,10 +277,9 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
       )}
 
       <LessonActions
-        topicName={lesson.topicName}
+        topicSlug={topicSlug}
         status={lesson.status}
         bookmarked={lesson.bookmarked}
-        lessonId={lesson.id}
         onMarkComplete={handleMarkComplete}
         onToggleBookmark={handleToggleBookmark}
         completing={completing}

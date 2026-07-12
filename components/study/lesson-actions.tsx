@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
 interface LessonActionsProps {
-  topicName: string
+  topicSlug: string
   status: "not-started" | "started" | "completed"
   bookmarked: boolean
-  lessonId?: string
   onMarkComplete: () => void
   onToggleBookmark: () => void
   completing: boolean
@@ -17,15 +16,13 @@ interface LessonActionsProps {
 
 /** Lesson footer actions: complete, bookmark, practice CTA. */
 export function LessonActions({
-  topicName,
+  topicSlug,
   status,
   bookmarked,
   onMarkComplete,
   onToggleBookmark,
   completing,
 }: LessonActionsProps) {
-  const practiceHref = `/intake?topic=${encodeURIComponent(topicName)}`
-
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap gap-2">
@@ -55,7 +52,7 @@ export function LessonActions({
         </Button>
       </div>
       <Button asChild size="lg" className="w-full">
-        <Link href={practiceHref}>
+        <Link href={`/study/${topicSlug}/drill`}>
           Practice this topic
           <ArrowRight data-icon="inline-end" />
         </Link>

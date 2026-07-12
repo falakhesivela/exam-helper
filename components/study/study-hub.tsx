@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { motion } from "motion/react"
-import { Bookmark, RotateCcw, Sparkles } from "lucide-react"
+import { Lightbulb, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
@@ -36,13 +36,40 @@ export function StudyHub() {
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Study</h1>
           <p className="text-sm text-muted-foreground text-pretty">
-            Work through your exam syllabus — read the lesson, run the lab, drill
-            the questions, review what you missed.
+            Learn the material, practice exam-style questions, and review what
+            needs another pass.
           </p>
+        </div>
+      </motion.header>
+
+      <StudyMomentum />
+      <StudyFastPath />
+
+      <section
+        aria-labelledby="learn-heading"
+        className="flex flex-col gap-4 border-t border-border pt-6"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 id="learn-heading" className="text-lg font-semibold">
+              Learn the syllabus
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Read the lesson, try the lab, then drill each topic.
+            </p>
+          </div>
+          {topics.some((topic) => topic.hasAiContent) && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/study/review?source=facts">
+                <Lightbulb data-icon="inline-start" />
+                Key-fact cards
+              </Link>
+            </Button>
+          )}
         </div>
 
         {topics.length > 0 && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-medium">
                 {studied} of {topics.length} topics studied
@@ -60,56 +87,36 @@ export function StudyHub() {
             />
           </div>
         )}
-      </motion.header>
 
-      <StudyFastPath />
-      <StudyMomentum />
+        {topics.length === 0 && !dataReady ? (
+          // Syllabus still streaming in — don't flash the empty state.
+          <div className="flex flex-col gap-3">
+            <CardSkeleton rows={2} />
+            <CardSkeleton rows={2} />
+            <CardSkeleton rows={2} />
+          </div>
+        ) : topics.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+              <Sparkles className="size-10 text-muted-foreground" />
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">No topics yet</p>
+                <p className="text-sm text-muted-foreground text-pretty">
+                  Start a quick practice session to unlock your personalized
+                  syllabus.
+                </p>
+              </div>
+              <Button asChild>
+                <Link href="/intake">Start practicing</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <StudySyllabus topics={topics} />
+        )}
 
-      {topics.length === 0 && !dataReady ? (
-        // Syllabus still streaming in — don't flash the empty state.
-        <div className="flex flex-col gap-3">
-          <CardSkeleton rows={2} />
-          <CardSkeleton rows={2} />
-          <CardSkeleton rows={2} />
-        </div>
-      ) : topics.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-            <Sparkles className="size-10 text-muted-foreground" />
-            <div className="flex flex-col gap-1">
-              <p className="font-medium">No topics yet</p>
-              <p className="text-sm text-muted-foreground text-pretty">
-                Set up your exam with a quick practice session to unlock your
-                personalized syllabus.
-              </p>
-            </div>
-            <Button asChild>
-              <Link href="/intake">Start practicing</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <StudySyllabus topics={topics} />
-      )}
-
-      <ExamTipsCard />
-
-      {/* Secondary decks. Deliberately quiet: they are places you end up, not
-          places you plan your session around. */}
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/study/saved">
-            <Bookmark data-icon="inline-start" />
-            Saved questions
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/study/review?mode=quiz">
-            <RotateCcw data-icon="inline-start" />
-            All misses
-          </Link>
-        </Button>
-      </div>
+        <ExamTipsCard />
+      </section>
     </div>
   )
 }

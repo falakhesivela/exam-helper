@@ -192,7 +192,7 @@ export function DomainMastery() {
           )}
           <Button asChild variant="outline" className="w-full">
             <Link href="/study">
-              Go to Learning
+              Open Study
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
