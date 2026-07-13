@@ -20,6 +20,17 @@ const PUBLIC_PATHS = new Set([
   "/refund",
 ])
 
+// Whole public sections, matched with their children (/exams/saa-c03, /blog/x).
+// Crawlers must get the prerendered guide, not a loading spinner.
+const PUBLIC_PREFIXES = ["/exams", "/blog"]
+
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PATHS.has(pathname)) return true
+  return PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
 function HydrationErrorScreen({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
@@ -75,7 +86,7 @@ export function StoreHydrator({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [hydrate, applySignedOut])
 
-  if (USE_MOCKS || PUBLIC_PATHS.has(pathname)) return children
+  if (USE_MOCKS || isPublicPath(pathname)) return children
 
   if (hydrationError) {
     return <HydrationErrorScreen onRetry={() => void retryHydration()} />

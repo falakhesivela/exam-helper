@@ -10,10 +10,22 @@ export interface ExamHubDoc {
   examCode: string
   /** ISO date string used for sitemap lastModified + visible "Updated" line. */
   updated: string
+  /** Hand-written Q&As appended to the ones derived from the exam blueprint. */
+  faqs: Array<{ q: string; a: string }>
   body: string
 }
 
 const CONTENT_DIR = path.join(process.cwd(), "content", "exams")
+
+function parseFaqs(value: unknown): Array<{ q: string; a: string }> {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (entry): entry is { q: unknown; a: unknown } =>
+        typeof entry === "object" && entry !== null && "q" in entry && "a" in entry,
+    )
+    .map((entry) => ({ q: String(entry.q), a: String(entry.a) }))
+}
 
 function parseFile(filePath: string): ExamHubDoc {
   const raw = fs.readFileSync(filePath, "utf8")
@@ -24,6 +36,7 @@ function parseFile(filePath: string): ExamHubDoc {
     description: String(data.description),
     examCode: String(data.examCode),
     updated: String(data.updated),
+    faqs: parseFaqs(data.faqs),
     body: content.trim(),
   }
 }

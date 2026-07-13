@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { LEGAL_THEME, MONO, SERIF } from "@/app/(legal)/legal-theme"
 import { getAllExamHubs, getExamHubBySlug } from "@/lib/content/exams"
+import { buildExamFaqs, examFaqJsonLd } from "@/lib/content/exam-faqs"
 import { getBlogPostsForExam } from "@/lib/content/blog"
 import { getExamBlueprint } from "@/lib/exams/registry"
 import { getSiteUrl } from "@/lib/config/site"
@@ -70,6 +71,7 @@ export default async function ExamHubPage({
 
   const blueprint = getExamBlueprint(doc.examCode)
   const relatedPosts = getBlogPostsForExam(doc.examCode)
+  const faqs = buildExamFaqs(doc, blueprint)
   const siteUrl = getSiteUrl()
   const pageUrl = `${siteUrl}/exams/${doc.slug}`
 
@@ -80,6 +82,11 @@ export default async function ExamHubPage({
       name: doc.title,
       description: doc.description,
       url: pageUrl,
+      dateModified: doc.updated,
+      inLanguage: "en",
+      about: blueprint?.exam ?? doc.examCode,
+      educationalCredentialAwarded: blueprint?.exam ?? doc.examCode,
+      teaches: blueprint?.domains.map((domain) => domain.name),
       provider: { "@type": "Organization", name: "Prepa", url: siteUrl },
       offers: {
         "@type": "Offer",
@@ -101,7 +108,8 @@ export default async function ExamHubPage({
         { "@type": "ListItem", position: 2, name: doc.title, item: pageUrl },
       ],
     },
-  ]
+    examFaqJsonLd(faqs),
+  ].filter(Boolean)
 
   return (
     <article>
@@ -166,6 +174,26 @@ export default async function ExamHubPage({
       ) : null}
 
       <MarketingProse>{doc.body}</MarketingProse>
+
+      {faqs.length > 0 ? (
+        <section style={{ marginTop: "40px" }}>
+          <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "24px", letterSpacing: "-0.015em", color: ink, margin: "0 0 12px" }}>
+            {doc.examCode} frequently asked questions
+          </h2>
+          <dl style={{ margin: 0 }}>
+            {faqs.map((faq) => (
+              <div key={faq.q} style={{ borderTop: `1px solid ${border}`, padding: "16px 0" }}>
+                <dt style={{ fontSize: "16.5px", fontWeight: 600, letterSpacing: "-0.01em", color: ink, marginBottom: "6px" }}>
+                  {faq.q}
+                </dt>
+                <dd style={{ margin: 0, fontSize: "15px", lineHeight: 1.65, color: body }}>
+                  {faq.a}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       {relatedPosts.length > 0 ? (
         <section style={{ marginTop: "40px" }}>

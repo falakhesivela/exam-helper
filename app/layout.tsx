@@ -36,6 +36,9 @@ export const metadata: Metadata = {
   category: 'education',
   alternates: {
     canonical: '/',
+    types: {
+      'application/rss+xml': [{ url: '/blog/rss.xml', title: `${APP_NAME} blog` }],
+    },
   },
   robots: {
     index: true,

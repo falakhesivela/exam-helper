@@ -11,6 +11,8 @@ export interface BlogPostDoc {
   examCode: string | null
   /** ISO publish date, used for sorting, metadata, and JSON-LD. */
   date: string
+  /** ISO date of the last substantive edit. Falls back to `date`. */
+  updated: string
   body: string
 }
 
@@ -25,6 +27,7 @@ function parseFile(filePath: string): BlogPostDoc {
     description: String(data.description),
     examCode: data.examCode ? String(data.examCode) : null,
     date: String(data.date),
+    updated: data.updated ? String(data.updated) : String(data.date),
     body: content.trim(),
   }
 }

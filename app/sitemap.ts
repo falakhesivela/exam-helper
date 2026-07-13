@@ -5,69 +5,77 @@ import { getAllBlogPosts } from "@/lib/content/blog"
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = getSiteUrl()
-  const lastModified = new Date()
+  const exams = getAllExamHubs()
+  const posts = getAllBlogPosts()
+
+  const toDate = (iso: string) => new Date(`${iso}T00:00:00Z`)
+
+  // Crawlers distrust a lastmod that moves on every deploy, so index pages
+  // inherit the freshest date of the content they list rather than "now".
+  const newest = (dates: string[]) =>
+    dates.length > 0 ? toDate(dates.slice().sort().reverse()[0]) : new Date()
+
+  const examsUpdated = newest(exams.map((doc) => doc.updated))
+  const blogUpdated = newest(posts.map((post) => post.updated))
+  const siteUpdated = new Date(
+    Math.max(examsUpdated.getTime(), blogUpdated.getTime()),
+  )
 
   const staticEntries: MetadataRoute.Sitemap = [
     {
       url: siteUrl,
-      lastModified,
+      lastModified: siteUpdated,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
       url: `${siteUrl}/exams`,
-      lastModified,
+      lastModified: examsUpdated,
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${siteUrl}/blog`,
-      lastModified,
+      lastModified: blogUpdated,
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
       url: `${siteUrl}/signup`,
-      lastModified,
+      lastModified: siteUpdated,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: `${siteUrl}/login`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
       url: `${siteUrl}/terms`,
-      lastModified,
+      lastModified: siteUpdated,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     {
       url: `${siteUrl}/privacy`,
-      lastModified,
+      lastModified: siteUpdated,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     {
       url: `${siteUrl}/refund`,
-      lastModified,
+      lastModified: siteUpdated,
       changeFrequency: "yearly",
       priority: 0.2,
     },
   ]
 
-  const examEntries: MetadataRoute.Sitemap = getAllExamHubs().map((doc) => ({
+  const examEntries: MetadataRoute.Sitemap = exams.map((doc) => ({
     url: `${siteUrl}/exams/${doc.slug}`,
-    lastModified: new Date(`${doc.updated}T00:00:00Z`),
+    lastModified: toDate(doc.updated),
     changeFrequency: "monthly",
     priority: 0.8,
   }))
 
-  const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
+  const blogEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${siteUrl}/blog/${post.slug}`,
-    lastModified: new Date(`${post.date}T00:00:00Z`),
+    lastModified: toDate(post.updated),
     changeFrequency: "monthly",
     priority: 0.6,
   }))

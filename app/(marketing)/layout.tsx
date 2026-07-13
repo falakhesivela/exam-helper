@@ -2,6 +2,8 @@ import Link from "next/link"
 import { Newsreader, Public_Sans, Spline_Sans_Mono } from "next/font/google"
 import { Logo } from "@/components/layout/logo"
 import { LEGAL_THEME, MONO, SERIF } from "@/app/(legal)/legal-theme"
+import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
+import { JsonLd } from "./marketing-ui"
 
 const serif = Newsreader({ subsets: ["latin"], weight: ["400", "500", "600"], style: ["normal", "italic"], variable: "--lp-serif" })
 const sans = Public_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--lp-sans" })
@@ -22,6 +24,32 @@ const FOOTER_LINKS = [
   { href: "/refund", label: "Refund" },
 ] as const
 
+/** Publisher identity, so every guide and post ties back to one entity. */
+function siteJsonLd() {
+  const siteUrl = getSiteUrl()
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: SITE_NAME,
+    url: siteUrl,
+    description: SITE_DESCRIPTION,
+    logo: `${siteUrl}/icons/icon-512.png`,
+  }
+  return [
+    organization,
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: SITE_NAME,
+      url: siteUrl,
+      inLanguage: "en",
+      publisher: { "@id": `${siteUrl}/#organization` },
+    },
+  ]
+}
+
 /** Shared shell for the public SEO pages (/exams, /blog). */
 export default function MarketingLayout({
   children,
@@ -40,6 +68,7 @@ export default function MarketingLayout({
         WebkitFontSmoothing: "antialiased",
       }}
     >
+      <JsonLd data={siteJsonLd()} />
       <style>{`
         .mkt ::selection { background:${accent}; color:#fff; }
         .mkt a { text-decoration:none; }
