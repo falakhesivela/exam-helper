@@ -618,6 +618,11 @@ export default async function LandingPage() {
             ))}
           </div>
         </div>
+        <div className="wrap" style={{ paddingTop: "14px" }}>
+          <Link href="/exams" style={{ fontSize: "14px", fontWeight: 500, color: ACCENT, textDecoration: "underline", textUnderlineOffset: "3px" }}>
+            Browse all exam study guides
+          </Link>
+        </div>
       </section>
 
       {/* FEATURES */}
@@ -806,6 +811,8 @@ export default async function LandingPage() {
             <span style={{ fontSize: "14px", color: "#6B6D64" }}>© {new Date().getFullYear()} Prepa</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "22px", fontSize: "14px" }}>
+            <Link href="/exams" style={{ color: "#6B6D64" }}>Exam Guides</Link>
+            <Link href="/blog" style={{ color: "#6B6D64" }}>Blog</Link>
             <Link href="/terms" style={{ color: "#6B6D64" }}>Terms</Link>
             <Link href="/privacy" style={{ color: "#6B6D64" }}>Privacy</Link>
             <Link href="/refund" style={{ color: "#6B6D64" }}>Refund</Link>
