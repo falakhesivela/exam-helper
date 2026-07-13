@@ -3,12 +3,15 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { LEGAL_THEME, MONO, SERIF } from "@/app/(legal)/legal-theme"
 import { getAllExamHubs, getExamHubBySlug } from "@/lib/content/exams"
+import { getDomainPagesForExam } from "@/lib/content/domains"
 import { buildExamFaqs, examFaqJsonLd } from "@/lib/content/exam-faqs"
 import { getBlogPostsForExam } from "@/lib/content/blog"
 import { getExamBlueprint } from "@/lib/exams/registry"
-import { getSiteUrl } from "@/lib/config/site"
+import { SITE_AUTHOR, getSiteUrl } from "@/lib/config/site"
 import {
+  AuthorCard,
   Breadcrumb,
+  Byline,
   CtaPanel,
   JsonLd,
   MarketingProse,
@@ -71,6 +74,7 @@ export default async function ExamHubPage({
 
   const blueprint = getExamBlueprint(doc.examCode)
   const relatedPosts = getBlogPostsForExam(doc.examCode)
+  const domainPages = getDomainPagesForExam(doc.slug)
   const faqs = buildExamFaqs(doc, blueprint)
   const siteUrl = getSiteUrl()
   const pageUrl = `${siteUrl}/exams/${doc.slug}`
@@ -84,6 +88,13 @@ export default async function ExamHubPage({
       url: pageUrl,
       dateModified: doc.updated,
       inLanguage: "en",
+      author: {
+        "@type": "Person",
+        "@id": `${siteUrl}/about#author`,
+        name: SITE_AUTHOR.name,
+        url: `${siteUrl}/about`,
+        jobTitle: SITE_AUTHOR.role,
+      },
       about: blueprint?.exam ?? doc.examCode,
       educationalCredentialAwarded: blueprint?.exam ?? doc.examCode,
       teaches: blueprint?.domains.map((domain) => domain.name),
@@ -129,6 +140,8 @@ export default async function ExamHubPage({
         }
       />
 
+      <Byline date={`Updated ${doc.updated}`} />
+
       {blueprint ? (
         <>
           <section
@@ -157,18 +170,31 @@ export default async function ExamHubPage({
                 </tr>
               </thead>
               <tbody>
-                {blueprint.domains.map((domain) => (
-                  <tr key={domain.id}>
-                    <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${border}`, color: body }}>
-                      {domain.name}
-                    </td>
-                    <td style={{ padding: "10px 0", borderBottom: `1px solid ${border}`, textAlign: "right", fontFamily: MONO, color: ink }}>
-                      {domain.weightPercent}%
-                    </td>
-                  </tr>
-                ))}
+                {blueprint.domains.map((domain) => {
+                  const page = domainPages.find((d) => d.domain.id === domain.id)
+                  return (
+                    <tr key={domain.id}>
+                      <td style={{ padding: "10px 12px 10px 0", borderBottom: `1px solid ${border}`, color: body }}>
+                        {page ? (
+                          <Link href={`/exams/${doc.slug}/domains/${page.slug}`} className="mkt-link">
+                            {domain.name}
+                          </Link>
+                        ) : (
+                          domain.name
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 0", borderBottom: `1px solid ${border}`, textAlign: "right", fontFamily: MONO, color: ink }}>
+                        {domain.weightPercent}%
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
+            <p style={{ fontSize: "14px", color: muted, marginTop: "12px" }}>
+              Each domain has its own guide covering what it tests, its full
+              topic list, and the traps it is built around.
+            </p>
           </section>
         </>
       ) : null}
@@ -217,6 +243,7 @@ export default async function ExamHubPage({
         </section>
       ) : null}
 
+      <AuthorCard />
       <CtaPanel examName={blueprint?.exam} />
     </article>
   )

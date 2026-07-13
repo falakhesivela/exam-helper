@@ -6,9 +6,11 @@ import { getAllBlogPosts, getBlogPostBySlug } from "@/lib/content/blog"
 import { getExamHubBySlug } from "@/lib/content/exams"
 import { slugForExamCode } from "@/lib/content/exam-slugs"
 import { getExamBlueprint } from "@/lib/exams/registry"
-import { getSiteUrl, SITE_NAME } from "@/lib/config/site"
+import { getSiteUrl, SITE_AUTHOR, SITE_NAME } from "@/lib/config/site"
 import {
+  AuthorCard,
   Breadcrumb,
+  Byline,
   CtaPanel,
   JsonLd,
   MarketingProse,
@@ -84,7 +86,13 @@ export default async function BlogPostPage({
       mainEntityOfPage: pageUrl,
       inLanguage: "en",
       about: blueprint?.exam ?? undefined,
-      author: { "@type": "Organization", name: SITE_NAME, url: siteUrl },
+      author: {
+        "@type": "Person",
+        "@id": `${siteUrl}/about#author`,
+        name: SITE_AUTHOR.name,
+        url: `${siteUrl}/about`,
+        jobTitle: SITE_AUTHOR.role,
+      },
       publisher: { "@type": "Organization", name: SITE_NAME, url: siteUrl },
     },
     {
@@ -115,6 +123,8 @@ export default async function BlogPostPage({
         }
       />
 
+      <Byline date={formatDate(post.date)} />
+
       <MarketingProse>{post.body}</MarketingProse>
 
       {hub && examSlug ? (
@@ -128,6 +138,7 @@ export default async function BlogPostPage({
         </p>
       ) : null}
 
+      <AuthorCard />
       <CtaPanel examName={blueprint?.exam} />
     </article>
   )

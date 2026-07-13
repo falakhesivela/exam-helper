@@ -19,6 +19,7 @@ const NAV_LINKS = [
 const FOOTER_LINKS = [
   { href: "/exams", label: "Exam Guides" },
   { href: "/blog", label: "Blog" },
+  { href: "/about", label: "About" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
   { href: "/refund", label: "Refund" },

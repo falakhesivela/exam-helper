@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getSiteUrl } from "@/lib/config/site"
 import { getAllExamHubs } from "@/lib/content/exams"
+import { getIndexableDomainPages } from "@/lib/content/domains"
 import { getAllBlogPosts } from "@/lib/content/blog"
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -47,6 +48,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${siteUrl}/about`,
+      lastModified: siteUpdated,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
       url: `${siteUrl}/terms`,
       lastModified: siteUpdated,
       changeFrequency: "yearly",
@@ -80,5 +87,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }))
 
-  return [...staticEntries, ...examEntries, ...blogEntries]
+  // Domain pages without written notes are noindexed, so they stay out.
+  const examUpdatedBySlug = new Map(exams.map((doc) => [doc.slug, doc.updated]))
+  const domainEntries: MetadataRoute.Sitemap = getIndexableDomainPages().map(
+    (page) => ({
+      url: `${siteUrl}/exams/${page.examSlug}/domains/${page.slug}`,
+      lastModified: toDate(
+        examUpdatedBySlug.get(page.examSlug) ?? examsUpdated.toISOString().slice(0, 10),
+      ),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }),
+  )
+
+  return [...staticEntries, ...examEntries, ...domainEntries, ...blogEntries]
 }

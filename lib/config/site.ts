@@ -27,6 +27,26 @@ export const SITE_KEYWORDS = [
   "adaptive learning",
 ]
 
+/**
+ * The named human behind the guides and posts. Search engines weigh authored,
+ * attributable content more heavily than anonymous publisher content, so the
+ * byline, the /about page, and the Person JSON-LD all resolve to this one entity.
+ *
+ * `credentials` and `bio` are shown verbatim on /about — keep them true.
+ */
+export const SITE_AUTHOR = {
+  name: "Falakhe Sivela",
+  /** Shown under the byline and on /about. */
+  role: "Founder, Prepa",
+  bio: "Falakhe Sivela is the founder of Prepa and writes its certification study guides. He builds the exam blueprints, question generators, and study plans behind the app.",
+  /** Public profiles used as `sameAs` so the byline resolves to a real identity. */
+  sameAs: [] as string[],
+} as const
+
+export function authorUrl(): string {
+  return `${getSiteUrl()}/about`
+}
+
 export function getSiteUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL?.trim()
   if (raw) return raw.replace(/\/+$/, "")

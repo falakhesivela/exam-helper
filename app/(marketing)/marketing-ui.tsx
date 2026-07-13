@@ -2,6 +2,7 @@ import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { LEGAL_THEME, MONO, SERIF } from "@/app/(legal)/legal-theme"
+import { SITE_AUTHOR } from "@/lib/config/site"
 import type { ExamProvider } from "@/lib/exams/types"
 
 const { ink, muted, accent, border } = LEGAL_THEME
@@ -69,6 +70,48 @@ export function PageHeading({
         </p>
       ) : null}
     </header>
+  )
+}
+
+/**
+ * Visible byline. Search engines only credit an author they can see on the
+ * page, so this must render alongside the Person JSON-LD, never instead of it.
+ */
+export function Byline({ date }: { date?: string }) {
+  return (
+    <p style={{ fontSize: "14px", color: muted, margin: "0 0 24px" }}>
+      By{" "}
+      <Link href="/about" rel="author" style={{ color: accent, textDecoration: "underline", textUnderlineOffset: "3px" }}>
+        {SITE_AUTHOR.name}
+      </Link>
+      {date ? ` · ${date}` : null}
+    </p>
+  )
+}
+
+/** Author card closing out each guide and post, linking to the author entity page. */
+export function AuthorCard() {
+  return (
+    <aside style={{ marginTop: "40px", paddingTop: "24px", borderTop: `1px solid ${border}`, display: "flex", gap: "14px" }}>
+      <div
+        aria-hidden
+        style={{ flex: "0 0 auto", width: "44px", height: "44px", borderRadius: "50%", background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: "19px", fontWeight: 600 }}
+      >
+        {SITE_AUTHOR.name.charAt(0)}
+      </div>
+      <div>
+        <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: ink }}>
+          {SITE_AUTHOR.name}
+        </p>
+        <p style={{ margin: "2px 0 0", fontSize: "14px", lineHeight: 1.6, color: LEGAL_THEME.body }}>
+          {SITE_AUTHOR.bio}{" "}
+          <Link href="/about" className="mkt-link">
+            More about the author
+          </Link>
+          .
+        </p>
+      </div>
+    </aside>
   )
 }
 
