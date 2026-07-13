@@ -178,7 +178,7 @@ export function DomainMastery() {
               return (
                 <Link
                   key={`${t.topic}:${label}`}
-                  href={`/study/${resolved.slug}`}
+                  href={`/learn/${resolved.slug}`}
                   className="-mx-2 flex flex-col gap-1.5 rounded-lg px-2 py-1 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center justify-between text-sm">
@@ -191,8 +191,8 @@ export function DomainMastery() {
             })
           )}
           <Button asChild variant="outline" className="w-full">
-            <Link href="/study">
-              Open Study
+            <Link href="/learn">
+              Open Learn
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
@@ -225,7 +225,7 @@ export function DomainMastery() {
               <div key={d.id} className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <Link
-                    href={`/study/${slug}`}
+                    href={`/learn/${slug}`}
                     className="min-w-0 truncate font-medium transition-colors hover:text-primary"
                   >
                     {d.name}{" "}

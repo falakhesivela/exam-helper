@@ -144,7 +144,10 @@ export function MomentumStrip({ dueCount }: MomentumStripProps) {
       {/* Due reviews */}
       <Card className="transition-colors hover:bg-muted/40">
         <CardContent className="p-0">
-          <Link href="/study/review?due=true" className="flex items-center gap-3 p-4">
+          <Link
+            href="/practice/review?due=true"
+            className="flex items-center gap-3 p-4"
+          >
             <Brain className="size-5 shrink-0 text-primary" />
             <div className="min-w-0">
               <p className="text-xl font-semibold tracking-tight tabular-nums">

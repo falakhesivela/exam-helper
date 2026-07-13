@@ -80,7 +80,7 @@ export function NextActions({
   if (missedCount > 0) {
     actions.push({
       key: "missed",
-      href: "/study/review?mode=quiz",
+      href: "/practice/review?mode=quiz",
       icon: RefreshCcw,
       title: `Retry your ${missedCount} missed ${missedCount === 1 ? "question" : "questions"}`,
       detail:
@@ -110,7 +110,7 @@ export function NextActions({
   for (const topic of lessonMatches) {
     actions.push({
       key: `lesson-${topic.slug}`,
-      href: `/study/${topic.slug}`,
+      href: `/learn/${topic.slug}`,
       icon: BookOpen,
       title: `Learn: ${topic.topic}`,
       detail: `Covers ${topic.domainName} — your weakest area this exam.`,

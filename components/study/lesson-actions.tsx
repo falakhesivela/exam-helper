@@ -52,7 +52,7 @@ export function LessonActions({
         </Button>
       </div>
       <Button asChild size="lg" className="w-full">
-        <Link href={`/study/${topicSlug}/drill`}>
+        <Link href={`/learn/${topicSlug}/drill`}>
           Practice this topic
           <ArrowRight data-icon="inline-end" />
         </Link>

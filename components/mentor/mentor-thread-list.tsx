@@ -150,7 +150,7 @@ export function MentorThreadList({
                 isSidebar ? "text-lg" : "text-2xl",
               )}
             >
-              Mentor
+              {isSidebar ? "History" : "Mentor"}
             </h1>
             {!isSidebar && (
               <p className="mt-1 text-sm text-muted-foreground text-pretty">
@@ -160,7 +160,7 @@ export function MentorThreadList({
             )}
           </div>
           <Button asChild size="sm" className="shrink-0">
-            <Link href="/mentor/new" onClick={onConversationSelect}>
+            <Link href="/mentor" onClick={onConversationSelect}>
               <Plus data-icon="inline-start" />
               New chat
             </Link>
@@ -235,7 +235,7 @@ export function MentorThreadList({
             </div>
             {!query && (
               <Button asChild size="sm" variant={isSidebar ? "outline" : "default"}>
-                <Link href="/mentor/new" onClick={onConversationSelect}>
+                <Link href="/mentor" onClick={onConversationSelect}>
                   Start your first chat
                 </Link>
               </Button>

@@ -192,7 +192,7 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
               </div>
               {learnSlug && (
                 <Button asChild variant="outline" size="lg" className="w-full">
-                  <Link href={`/study/${learnSlug}`}>
+                  <Link href={`/learn/${learnSlug}`}>
                     <BookOpen data-icon="inline-start" />
                     Study {weakest.topic}
                   </Link>
@@ -337,9 +337,9 @@ export function SessionSummary({ session, bestStreak = 0 }: SessionSummaryProps)
           </Link>
         </Button>
         <Button asChild size="lg" variant="ghost" className="w-full">
-          <Link href="/study">
+          <Link href="/practice">
             <Home data-icon="inline-start" />
-            Back to Study
+            Back to Practice
           </Link>
         </Button>
       </div>

@@ -32,15 +32,15 @@ export function useTaskLauncher(plan: StudyPlan | null) {
         task.domainName ?? task.title.replace(/^Learn:\s*/i, "").trim()
       if (!topicName) {
         toast.info("Pick the matching topic to study.")
-        router.push("/study")
+        router.push("/learn")
         return
       }
       const { slug } = resolveTopicName(topicName, plan.examCode)
-      router.push(`/study/${slug}?planTask=${task.id}`)
+      router.push(`/learn/${slug}?planTask=${task.id}`)
       return
     }
     if (task.type === "review") {
-      router.push(`/study/review?mode=quiz&planTask=${task.id}`)
+      router.push(`/practice/review?mode=quiz&planTask=${task.id}`)
       return
     }
 

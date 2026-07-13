@@ -124,7 +124,10 @@ export function PlanSetupWizard() {
       const { message, toPractice } = friendlyCreateError(err)
       if (toPractice) {
         toast.error(message, {
-          action: { label: "Practice", onClick: () => (window.location.href = "/study") },
+          action: {
+            label: "Practice",
+            onClick: () => (window.location.href = "/practice"),
+          },
         })
       } else {
         toast.error(message)

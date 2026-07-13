@@ -56,11 +56,11 @@ export default function BookmarksPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div className="flex flex-col gap-3">
         <Link
-          href="/study"
+          href="/practice"
           className="flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Study
+          Practice
         </Link>
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -90,7 +90,7 @@ export default function BookmarksPage() {
             question&apos;s explanation to keep it here for later review.
           </p>
           <Button asChild>
-            <Link href="/study">Back to Study</Link>
+            <Link href="/practice">Back to Practice</Link>
           </Button>
         </div>
       ) : (

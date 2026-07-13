@@ -106,15 +106,15 @@ test("a rating routes back to the scheduler that owns the card", () => {
   })
 })
 
-test("no topic slug collides with a static /study child route", () => {
-  // /study/review and /study/saved shadow /study/[topicSlug]: a topic with
-  // either slug would become unreachable.
+test("no topic slug collides with a reserved Learn route", () => {
+  // Learn topic URLs are backed by the shared /study route tree, where review
+  // and saved are static children. Either slug would become unreachable.
   const reserved = new Set(["review", "saved"])
   for (const examCode of ["SAA-C03", "CUSTOM"]) {
     for (const topic of getAllCatalogTopics(examCode)) {
       assert.ok(
         !reserved.has(topic.slug),
-        `${examCode} topic "${topic.slug}" collides with a static /study route`,
+        `${examCode} topic "${topic.slug}" collides with a reserved Learn route`,
       )
     }
   }

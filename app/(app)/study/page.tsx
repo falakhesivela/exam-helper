@@ -1,5 +1,5 @@
-import { StudyHub } from "@/components/study/study-hub"
+import { redirect } from "next/navigation"
 
 export default function StudyPage() {
-  return <StudyHub />
+  redirect("/learn")
 }

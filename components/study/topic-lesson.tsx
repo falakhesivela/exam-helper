@@ -289,7 +289,7 @@ export function TopicLessonView({ topicSlug }: TopicLessonViewProps) {
 
       {nextTopic && (
         <Link
-          href={`/study/${nextTopic.slug}`}
+          href={`/learn/${nextTopic.slug}`}
           className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
         >
           <div className="flex flex-col gap-0.5">

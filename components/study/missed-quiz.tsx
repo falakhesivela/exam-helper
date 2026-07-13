@@ -137,11 +137,11 @@ export function MissedQuiz({ domainId }: { domainId?: string } = {}) {
         <div className="flex flex-wrap justify-center gap-2">
           {dueOnly && (
             <Button asChild variant="secondary">
-              <Link href="/study/review?mode=quiz">All misses</Link>
+              <Link href="/practice/review?mode=quiz">All misses</Link>
             </Button>
           )}
           <Button asChild>
-            <Link href="/study">Back to Study</Link>
+            <Link href="/practice">Back to Practice</Link>
           </Button>
         </div>
       </div>

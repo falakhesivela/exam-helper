@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Layers, Lightbulb, ListChecks } from "lucide-react"
+import { ArrowLeft, Layers, Lightbulb, ListChecks } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -92,6 +92,15 @@ export function ReviewDeck({ topicSlug, domainId, scopeNote }: ReviewDeckProps) 
 
   const header = (
     <div className="flex flex-col gap-3">
+      {!topicSlug && (
+        <Link
+          href="/practice"
+          className="flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Practice
+        </Link>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-semibold tracking-tight">Review</h1>
@@ -182,7 +191,7 @@ export function ReviewDeck({ topicSlug, domainId, scopeNote }: ReviewDeckProps) 
               {emptyMessage}
             </p>
             <Button asChild variant="secondary">
-              <Link href="/study">Back to Study</Link>
+              <Link href="/practice">Back to Practice</Link>
             </Button>
           </CardContent>
         </Card>

@@ -33,10 +33,13 @@ interface PracticeMode {
 }
 
 /**
- * The Practice half of Study. Keeps the unified destination while restoring
- * one-tap access to every practice mode that used to live on its own hub.
+ * One-tap access to every practice mode.
  */
-export function StudyFastPath() {
+export function StudyFastPath({
+  showHeading = true,
+}: {
+  showHeading?: boolean
+}) {
   const sessions = useSessionStore((s) => s.sessions)
   const dueCount = useDueReviewCount()
   const [missedCount, setMissedCount] = useState<number | null>(null)
@@ -78,7 +81,7 @@ export function StudyFastPath() {
   const modes: PracticeMode[] = [
     {
       key: "due",
-      href: "/study/review?due=true",
+      href: "/practice/review?due=true",
       icon: Brain,
       title: "Due reviews",
       description: "Your spaced-repetition queue for today",
@@ -88,7 +91,7 @@ export function StudyFastPath() {
     },
     {
       key: "missed",
-      href: "/study/review?mode=quiz&source=questions",
+      href: "/practice/review?mode=quiz&source=questions",
       icon: RotateCcw,
       title: "Retry misses",
       description: "Answer questions you previously got wrong",
@@ -97,7 +100,7 @@ export function StudyFastPath() {
     },
     {
       key: "flashcards",
-      href: "/study/review?source=questions",
+      href: "/practice/review?source=questions",
       icon: Layers,
       title: "Flashcards",
       description: "Quick recall cards built from your misses",
@@ -106,7 +109,7 @@ export function StudyFastPath() {
     },
     {
       key: "saved",
-      href: "/study/saved",
+      href: "/practice/saved",
       icon: Bookmark,
       title: "Saved questions",
       description: "Revisit or quiz yourself on bookmarks",
@@ -116,15 +119,20 @@ export function StudyFastPath() {
   ]
 
   return (
-    <section aria-labelledby="practice-heading" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 id="practice-heading" className="text-lg font-semibold">
-          Practice
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Build exam confidence with a fresh session or a focused review.
-        </p>
-      </div>
+    <section
+      aria-labelledby={showHeading ? "practice-heading" : undefined}
+      className="flex flex-col gap-4"
+    >
+      {showHeading && (
+        <div className="flex flex-col gap-1">
+          <h2 id="practice-heading" className="text-lg font-semibold">
+            Practice
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Build exam confidence with a fresh session or a focused review.
+          </p>
+        </div>
+      )}
 
       <Card className="border-primary/30 bg-linear-to-br from-primary/10 via-card to-card">
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">

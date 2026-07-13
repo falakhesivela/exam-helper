@@ -48,7 +48,7 @@ export function TopicCard({
 }) {
   const assessed = isAssessed(t)
   return (
-    <Link href={`/study/${t.slug}`} className="block h-full">
+    <Link href={`/learn/${t.slug}`} className="block h-full">
       <Card
         className={cn(
           "h-full transition-colors hover:border-primary/40",

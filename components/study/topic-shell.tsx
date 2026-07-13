@@ -23,7 +23,7 @@ export function TopicShell({
     s.learnTopics.find((t) => t.slug === topicSlug),
   )
 
-  const base = `/study/${topicSlug}`
+  const base = `/learn/${topicSlug}`
   const tabs: TopicTab[] = [
     { href: base, label: "Lesson" },
     // The lab tab only exists for topics that actually have one.
@@ -36,11 +36,11 @@ export function TopicShell({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
         <Link
-          href="/study"
+          href="/learn"
           className="flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Study
+          Learn
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-3">

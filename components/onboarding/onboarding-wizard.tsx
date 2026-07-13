@@ -194,7 +194,7 @@ export function OnboardingWizard() {
       await Promise.all([refreshProfile(), refreshUserExams()])
       if (!skipped && first) {
         await setActiveExam(first.examCode)
-        router.replace("/study")
+        router.replace("/learn")
       } else {
         router.replace("/dashboard")
       }

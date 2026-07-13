@@ -12,6 +12,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/api/",
           "/dashboard",
+          "/learn",
+          "/practice",
           "/study",
           "/exam",
           "/quiz/",

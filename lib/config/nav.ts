@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   Sparkles,
+  Target,
   User,
   Users,
   type LucideIcon,
@@ -25,8 +26,8 @@ export interface NavItem {
 
 /**
  * The single nav definition, consumed by both the desktop top bar and the
- * mobile bottom bar. Study is one destination: the syllabus and every way of
- * working through it (lesson, lab, drill, review) live under /study.
+ * mobile bottom bar. Learn and Practice are separate destinations because they
+ * serve different intents: building knowledge and testing it.
  */
 export const NAV_ITEMS: NavItem[] = [
   {
@@ -36,7 +37,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     primary: true,
   },
-  { href: "/study", label: "Study", icon: GraduationCap, primary: true },
+  { href: "/practice", label: "Practice", icon: Target, primary: true },
+  { href: "/learn", label: "Learn", icon: GraduationCap },
   { href: "/mentor", label: "Mentor", icon: Sparkles, primary: true },
   { href: "/exam", label: "Exam", icon: AlarmClock, primary: true },
   { href: "/plan", label: "Plan", icon: CalendarCheck },
