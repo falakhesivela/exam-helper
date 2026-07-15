@@ -9,7 +9,7 @@ export default function ExamPage() {
           Exam simulation
         </h1>
         <p className="text-sm text-muted-foreground text-pretty">
-          Practice under real exam conditions — domain-weighted questions, a
+          Sit your exam under real conditions — domain-weighted questions, a
           countdown timer, and a review screen before you submit.
         </p>
       </header>

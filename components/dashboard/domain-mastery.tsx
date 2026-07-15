@@ -1,10 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { ArrowRight, BarChart3, Target } from "lucide-react"
-import { toast } from "sonner"
 import {
   Card,
   CardContent,
@@ -15,23 +13,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { Progress } from "@/components/ui/progress"
-import { Spinner } from "@/components/ui/spinner"
-import {
-  getExamBlueprint,
-  scaledExamParams,
-  WEAK_FOCUS_EXAM_MINUTES,
-  WEAK_FOCUS_EXAM_QUESTIONS,
-  WEAK_FOCUS_PRACTICE_QUESTIONS,
-} from "@/lib/exams"
-import { inferExamFromSessions } from "@/lib/learning/topic-resolver"
+import { useActiveExam } from "@/hooks/use-active-exam"
+import { WEAK_FOCUS_PRACTICE_QUESTIONS } from "@/lib/exams"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
-import {
-  computeExamReadiness,
-  type DomainReadiness,
-} from "@/lib/progress/readiness"
-import { useGenerationStore } from "@/lib/generation/session-generation"
+import { computeExamReadiness } from "@/lib/progress/readiness"
 import { useSessionStore } from "@/lib/store/use-session-store"
-import { ApiClientError } from "@/lib/api/client"
 import { cn } from "@/lib/utils"
 
 /**
@@ -40,22 +26,14 @@ import { cn } from "@/lib/utils"
  * Falls back to a weakest-topics list for custom exams without a blueprint.
  */
 export function DomainMastery() {
-  const router = useRouter()
   const dataReady = useSessionStore((s) => s.dataReady)
-  const sessions = useSessionStore((s) => s.sessions)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
   const remaining = useSessionStore((s) => s.remainingFreeQuestions())
-  const hydrate = useSessionStore((s) => s.hydrate)
-  const [drillingId, setDrillingId] = useState<string | null>(null)
-  const [startingExam, setStartingExam] = useState(false)
 
-  const activeExamCode = useSessionStore((s) => s.activeExamCode)
-  const examCode = useMemo(
-    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
-    [activeExamCode, sessions],
-  )
-  const blueprint = getExamBlueprint(examCode)
+  const { activeExam } = useActiveExam()
+  const blueprint = activeExam?.blueprint ?? null
+  const examCode = activeExam?.examCode ?? "CUSTOM"
 
   const readiness = useMemo(
     () =>
@@ -73,77 +51,6 @@ export function DomainMastery() {
     remaining === Infinity
       ? WEAK_FOCUS_PRACTICE_QUESTIONS
       : Math.min(WEAK_FOCUS_PRACTICE_QUESTIONS, remaining)
-
-  function drill(domain: DomainReadiness) {
-    if (!blueprint || drillingId || startingExam || drillCount < 1) return
-    setDrillingId(domain.id)
-    useGenerationStore.getState().startPracticeGeneration(
-      {
-        description: `Focused practice for ${blueprint.exam} (${blueprint.examCode}). Target this domain: ${domain.name}. Generate exam-style multiple-choice questions on it only.`,
-        count: drillCount,
-        focusTopics: [domain.name],
-        exam: blueprint.exam,
-        examCode: blueprint.examCode,
-      },
-      {
-        onReady: (session) => {
-          toast.success(`${domain.name} drill ready!`)
-          router.push(`/quiz/${session.id}`)
-          setDrillingId(null)
-        },
-        onDone: async () => {
-          await hydrate()
-        },
-        onError: (err) => {
-          toast.error(
-            err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Question limit reached on your plan."
-              : err.message,
-          )
-          setDrillingId(null)
-        },
-      },
-    )
-  }
-
-  function startWeakExam() {
-    if (!blueprint || !readiness || startingExam || drillingId) return
-    const questionCount =
-      remaining === Infinity
-        ? WEAK_FOCUS_EXAM_QUESTIONS
-        : Math.min(WEAK_FOCUS_EXAM_QUESTIONS, remaining)
-    if (questionCount < 1) return
-    const scaled = scaledExamParams(blueprint, questionCount)
-    setStartingExam(true)
-    useGenerationStore.getState().startExamGeneration(
-      {
-        questionCount: scaled.questionCount,
-        durationSec:
-          (remaining === Infinity ? WEAK_FOCUS_EXAM_MINUTES : scaled.durationMin) * 60,
-        exam: blueprint.exam,
-        examCode: blueprint.examCode,
-        focusDomainIds: readiness.weakestDomains.slice(0, 2).map((d) => d.id),
-      },
-      {
-        onReady: (session) => {
-          toast.success("Focused mock exam ready!")
-          router.push(`/exam/${session.id}`)
-          setStartingExam(false)
-        },
-        onDone: async () => {
-          await hydrate()
-        },
-        onError: (err) => {
-          toast.error(
-            err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Question limit reached on your plan."
-              : err.message,
-          )
-          setStartingExam(false)
-        },
-      },
-    )
-  }
 
   // Mastery data still streaming in — don't flash the fallback list.
   if (!dataReady && (!readiness || readiness.totalAnswered === 0)) {
@@ -259,17 +166,16 @@ export function DomainMastery() {
                   </div>
                   {drillCount >= 1 && (
                     <Button
+                      asChild
                       size="sm"
                       variant="ghost"
                       className="h-6 shrink-0 px-2 text-xs font-semibold text-primary"
-                      disabled={drillingId != null || startingExam}
-                      onClick={() => drill(d)}
                     >
-                      {drillingId === d.id ? (
-                        <Spinner className="size-3.5" />
-                      ) : (
-                        "Drill"
-                      )}
+                      <Link
+                        href={`/practice?topic=${encodeURIComponent(d.name)}`}
+                      >
+                        Drill
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -283,23 +189,11 @@ export function DomainMastery() {
           pass mark {readiness.passMark}% · amber = below pass mark
         </p>
 
-        <Button
-          className="w-full"
-          variant="secondary"
-          disabled={startingExam || drillingId != null}
-          onClick={startWeakExam}
-        >
-          {startingExam ? (
-            <>
-              <Spinner data-icon="inline-start" />
-              Starting exam…
-            </>
-          ) : (
-            <>
-              <Target data-icon="inline-start" />
-              Mock exam on weak areas
-            </>
-          )}
+        <Button asChild className="w-full" variant="secondary">
+          <Link href="/exam">
+            <Target data-icon="inline-start" />
+            Mock exam on weak areas
+          </Link>
         </Button>
       </CardContent>
     </Card>

@@ -21,7 +21,6 @@ import {
   createExamSession,
   createSessionFromIntake,
   generateMockTopicLesson,
-  emptyProfile,
   buildMockBookmarks,
   buildMockExamTips,
   buildMockUserExams,
@@ -34,6 +33,7 @@ import {
   mockTopicMastery,
   type ExamConfig,
 } from "@/lib/mock-data";
+import { emptyProfile } from "@/lib/store/empty-profile";
 import {
   isAnswerCorrect,
   isQuestionAnswered,
@@ -433,18 +433,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ activeExamCode: examCode });
     if (USE_MOCKS) return;
     try {
-      const [learnTopics, readinessTrend, plan, tipsRes] = await Promise.all([
-        api.learnTopics(examCode),
-        api.readinessTrend(examCode).catch(() => []),
-        api.getPlan(examCode).catch(() => null),
-        api.examTips(examCode).catch(() => ({ tips: [] })),
-      ]);
+      const [learnTopics, readinessTrend, plan, tipsRes, topicMastery, examAccuracy] =
+        await Promise.all([
+          api.learnTopics(examCode),
+          api.readinessTrend(examCode).catch(() => []),
+          api.getPlan(examCode).catch(() => null),
+          api.examTips(examCode).catch(() => ({ tips: [] })),
+          api.topicMastery().catch(() => get().topicMastery),
+          api.examAccuracy().catch(() => get().examAccuracy),
+        ]);
       set({
         learnTopics,
         readinessTrend,
         plan,
         examTips: tipsRes.tips,
         coaching: null,
+        topicMastery,
+        examAccuracy,
       });
     } catch {
       set({ activeExamCode: previous });

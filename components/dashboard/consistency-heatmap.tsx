@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
@@ -61,11 +62,39 @@ function buildHeatmapCells(
   return cells
 }
 
+function HeatmapEmpty() {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarDays className="size-4 text-primary" />
+          Consistency
+        </CardTitle>
+        <CardDescription>
+          Your {WEEKS}-week practice heatmap appears after your first answered
+          question.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Practicing a little every day beats cramming — this chart keeps you
+          honest.
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
 /** GitHub-style 12-week practice heatmap, weekday-aligned (rows Sun→Sat). */
 export function ConsistencyHeatmap() {
   const streak = useSessionStore((s) => s.streak)
+  const dataReady = useSessionStore((s) => s.dataReady)
 
-  if (!streak || streak.activity.length === 0) return null
+  // The streak fetch lands after the bulk hydrate; cap the skeleton on
+  // dataReady so a failed streak fetch degrades to the empty card, not a
+  // permanent skeleton.
+  if (!streak) return dataReady ? <HeatmapEmpty /> : <CardSkeleton rows={4} />
+  if (streak.activity.length === 0) return <HeatmapEmpty />
 
   const goal = Math.max(1, streak.dailyGoal)
   const activity = streak.activity

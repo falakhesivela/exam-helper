@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils"
 interface ConfidenceMatrixProps {
   breakdown: ConfidenceBreakdown
   sessionId: string
+  /** Optional source note shown in the header, e.g. "last mock · SAA-C03". */
+  context?: string
 }
 
 /**
@@ -19,6 +21,7 @@ interface ConfidenceMatrixProps {
 export function ConfidenceMatrix({
   breakdown,
   sessionId,
+  context,
 }: ConfidenceMatrixProps) {
   if (breakdown.rated === 0) return null
 
@@ -68,6 +71,7 @@ export function ConfidenceMatrix({
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium">Confidence check</p>
           <p className="text-xs text-muted-foreground">
+            {context ? `${context} · ` : ""}
             {breakdown.rated} rated
           </p>
         </div>

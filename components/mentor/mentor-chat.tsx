@@ -17,18 +17,16 @@ import {
   Square,
   User,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Markdown } from "@/components/ui/markdown"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { ThinkingIndicator } from "@/components/ui/thinking-indicator"
+import { MentorMessageContent } from "@/components/mentor/mentor-message-content"
 import { MentorQuotaNotice } from "@/components/mentor/mentor-quota-notice"
 import { useMentorChat } from "@/hooks/use-mentor-chat"
 import { ApiClientError } from "@/lib/api/client"
 import { getExamBlueprint } from "@/lib/exams"
-import { useGenerationStore } from "@/lib/generation/session-generation"
 import { consumeMentorSeed } from "@/lib/mentor/seed"
 import {
   buildMentorFollowUpActions,
@@ -38,9 +36,6 @@ import {
 import { computeExamReadiness } from "@/lib/progress/readiness"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
-
-/** Questions generated when a "Quiz me on X" chip launches real practice. */
-const QUIZ_QUESTION_COUNT = 5
 
 interface MentorChatProps {
   /** Omitted for a brand-new thread — the server mints the id on first send. */
@@ -138,30 +133,15 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
   }, [isEmpty, messages.length, status])
 
   /**
-   * "Quiz me on X" launches the real, metered, graded generation pipeline rather
-   * than asking Mentor to invent questions in chat — chat questions would earn
-   * no mastery credit and cost tokens twice.
+   * "Quiz me on X" hands off to the Practice card with the domain pre-selected
+   * — the real, metered, graded pipeline (chat questions would earn no mastery
+   * credit), but with a chance to adjust size and difficulty before starting.
    */
   function startQuiz(domainName: string) {
-    if (!blueprint || quizzing) return
+    if (quizzing) return
     setQuizzing(true)
     sessionStorage.setItem("mentor:return", window.location.pathname)
-    useGenerationStore.getState().startPracticeGeneration(
-      {
-        description: `Focused practice for ${blueprint.exam} (${blueprint.examCode}). Target this domain: ${domainName}. Generate exam-style multiple-choice questions on it only.`,
-        count: QUIZ_QUESTION_COUNT,
-        exam: blueprint.exam,
-        examCode: blueprint.examCode,
-        focusTopics: [domainName],
-      },
-      {
-        onReady: (session) => router.push(`/quiz/${session.id}`),
-        onError: (err) => {
-          setQuizzing(false)
-          toast.error(err.message)
-        },
-      },
-    )
+    router.push(`/practice?topic=${encodeURIComponent(domainName)}`)
   }
 
   function onSuggestion(suggestion: MentorSuggestion) {
@@ -184,6 +164,12 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
         : [],
     [daysToExam, latestAssistant, readiness],
   )
+
+  /** Quiz-card "explain my mistake": pre-fill only — never auto-send quota. */
+  function prefillFollowUp(prompt: string) {
+    setInput(prompt)
+    textareaRef.current?.focus()
+  }
 
   async function copyMessage(id: string, content: string) {
     await navigator.clipboard.writeText(content)
@@ -266,7 +252,10 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                 )}
               >
                 {message.role === "assistant" ? (
-                  <Markdown>{message.content}</Markdown>
+                  <MentorMessageContent
+                    content={message.content}
+                    onFollowUp={prefillFollowUp}
+                  />
                 ) : (
                   message.content
                 )}
@@ -306,7 +295,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
               <Bot className="size-3.5" />
             </span>
             <div className="rounded-2xl border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/90">
-              <Markdown>{streamingReply}</Markdown>
+              <MentorMessageContent content={streamingReply} streaming />
               <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
             </div>
           </div>
@@ -330,7 +319,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   onClick={() => startQuiz(action.domainName)}
                 >
                   <ListPlus />
-                  {quizzing ? "Building practice…" : action.label}
+                  {quizzing ? "Opening practice…" : action.label}
                 </Button>
               ) : action.type === "plan" ? (
                 <Button
@@ -440,7 +429,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   onClick={() => onSuggestion(s)}
                   className="rounded-full border border-primary/30 px-2.5 py-1 text-xs text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
                 >
-                  {quizzing && s.focusDomain ? "Building your quiz…" : s.label}
+                  {quizzing && s.focusDomain ? "Opening practice…" : s.label}
                 </button>
               ))}
             </div>

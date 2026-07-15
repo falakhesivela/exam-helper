@@ -1,10 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
-  AlarmClock,
   ArrowRight,
   Brain,
   CalendarCheck,
@@ -14,20 +12,14 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { useTaskLauncher } from "@/components/plan/use-task-launcher"
-import {
-  getExamBlueprint,
-  WEAK_FOCUS_PRACTICE_QUESTIONS,
-} from "@/lib/exams"
-import { inferExamFromSessions } from "@/lib/learning/topic-resolver"
+import { useActiveExam } from "@/hooks/use-active-exam"
+import { WEAK_FOCUS_PRACTICE_QUESTIONS } from "@/lib/exams"
 import { computeExamReadiness } from "@/lib/progress/readiness"
-import { useGenerationStore } from "@/lib/generation/session-generation"
 import { useSessionStore } from "@/lib/store/use-session-store"
-import { ApiClientError } from "@/lib/api/client"
 
 interface NextActionCardProps {
   /** Missed questions due for review today; null while loading. */
@@ -54,22 +46,15 @@ function todayIso(): string {
  * task → weakest-domain drill → start practicing.
  */
 export function NextActionCard({ dueCount }: NextActionCardProps) {
-  const router = useRouter()
   const sessions = useSessionStore((s) => s.sessions)
   const plan = useSessionStore((s) => s.plan)
   const topicMastery = useSessionStore((s) => s.topicMastery)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
   const remaining = useSessionStore((s) => s.remainingFreeQuestions())
-  const hydrate = useSessionStore((s) => s.hydrate)
   const { launch, launchingId } = useTaskLauncher(plan)
-  const [startingDrill, setStartingDrill] = useState(false)
 
-  const activeExamCode = useSessionStore((s) => s.activeExamCode)
-  const examCode = useMemo(
-    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
-    [activeExamCode, sessions],
-  )
-  const blueprint = getExamBlueprint(examCode)
+  const { activeExam } = useActiveExam()
+  const blueprint = activeExam?.blueprint ?? null
 
   const weakestDomain = useMemo(() => {
     if (!blueprint) return null
@@ -86,38 +71,6 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
     remaining === Infinity
       ? WEAK_FOCUS_PRACTICE_QUESTIONS
       : Math.min(WEAK_FOCUS_PRACTICE_QUESTIONS, remaining)
-
-  function startDrill() {
-    if (!blueprint || !weakestDomain || startingDrill || drillCount < 1) return
-    setStartingDrill(true)
-    useGenerationStore.getState().startPracticeGeneration(
-      {
-        description: `Focused practice for ${blueprint.exam} (${blueprint.examCode}). Target my weakest domain: ${weakestDomain.name}. Generate exam-style multiple-choice questions on this domain only.`,
-        count: drillCount,
-        focusTopics: [weakestDomain.name],
-        exam: blueprint.exam,
-        examCode: blueprint.examCode,
-      },
-      {
-        onReady: (session) => {
-          toast.success("Focused drill ready!")
-          router.push(`/quiz/${session.id}`)
-          setStartingDrill(false)
-        },
-        onDone: async () => {
-          await hydrate()
-        },
-        onError: (err) => {
-          toast.error(
-            err instanceof ApiClientError && err.code === "FREEMIUM_LIMIT"
-              ? "Question limit reached on your plan."
-              : err.message,
-          )
-          setStartingDrill(false)
-        },
-      },
-    )
-  }
 
   const actions: ActionDef[] = []
 
@@ -183,8 +136,8 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
       icon: Target,
       title: `Drill ${weakestDomain.name}`,
       meta: `Your weakest domain · ${weakestDomain.mastery}% mastery${gain >= 1 ? ` · worth up to +${gain} readiness pts` : ""}`,
-      cta: startingDrill ? "Starting…" : "Start drill",
-      run: startDrill,
+      cta: "Set up drill",
+      href: `/practice?topic=${encodeURIComponent(weakestDomain.name)}`,
     })
   }
 
@@ -199,7 +152,7 @@ export function NextActionCard({ dueCount }: NextActionCardProps) {
 
   const [primary, ...rest] = actions
   const alternates = rest.slice(0, 2)
-  const busy = startingDrill || launchingId != null
+  const busy = launchingId != null
 
   return (
     <Card className="relative h-full overflow-hidden border-primary/30 bg-linear-to-br from-primary/15 via-card to-card">

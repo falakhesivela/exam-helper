@@ -197,34 +197,47 @@ function ExamRunnerInner({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Server-anchored deadline: survives reloads with the true remaining time.
-  const deadlineMs = examDeadlineMs(session) ?? undefined;
-  const remaining = useCountdown(
-    durationSec,
-    timerActive && !submitting,
-    () => {
-      void handleSubmit();
-    },
-    deadlineMs,
-  );
+  // When the server anchor is missing (degraded start, mocks) the clock is
+  // anchored client-side at startExam so every consumer — the header clock,
+  // the expiry watcher, the submit-time math — reads the same deadline.
+  const clientDeadlineRef = useRef<number | null>(null);
+  const deadlineMs =
+    examDeadlineMs(session) ?? clientDeadlineRef.current ?? undefined;
+  function ensureDeadlineAnchor() {
+    if (examDeadlineMs(session) == null && clientDeadlineRef.current == null) {
+      clientDeadlineRef.current = Date.now() + durationSec * 1000;
+    }
+  }
+  function remainingSec(): number {
+    const deadline = examDeadlineMs(session) ?? clientDeadlineRef.current;
+    if (deadline == null) return durationSec;
+    return Math.max(0, Math.round((deadline - Date.now()) / 1000));
+  }
+
+  // Auto-submit at the deadline without re-rendering on every clock tick —
+  // the visible countdown lives in ExamHeader. A parent-level effect (not a
+  // hook in the header) because time can expire on the review screen too,
+  // where the header isn't mounted.
+  const handleSubmitRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
+  useEffect(() => {
+    if (!timerActive || submitting || deadlineMs == null) return;
+    if (phase !== "exam" && phase !== "review") return;
+    const check = () => {
+      if (Date.now() >= deadlineMs) void handleSubmitRef.current();
+    };
+    check();
+    const id = setInterval(check, 1000);
+    return () => clearInterval(id);
+  }, [timerActive, submitting, deadlineMs, phase]);
 
   useEffect(() => {
     setAutosaveEnabled(phase === "exam" || phase === "review");
   }, [phase, setAutosaveEnabled]);
 
-  // Per-question pace: time spent on the current question vs the exam's average
-  // allowance, so the learner feels real exam-day time pressure.
   const targetPerQuestion = total > 0 ? Math.round(durationSec / total) : 60;
-  const [qElapsed, setQElapsed] = useState(0);
-  useEffect(() => {
-    setQElapsed(0);
-  }, [index]);
-  useEffect(() => {
-    if (!timerActive || submitting || phase !== "exam") return;
-    const id = setInterval(() => setQElapsed((e) => e + 1), 1000);
-    return () => clearInterval(id);
-  }, [timerActive, submitting, phase]);
-  const qOver = qElapsed > targetPerQuestion;
-  const qWayOver = qElapsed > targetPerQuestion * 1.6;
 
   // Real per-question time, accumulated across visits and folded into
   // `timeSpent` whenever the learner leaves the current question.
@@ -273,19 +286,15 @@ function ExamRunnerInner({
   );
   const unsureCount = unsureSet.size;
 
-  // Whole-exam pace: with the remaining time and unanswered count, is the
-  // learner on track to see every question?
-  const unansweredCount = total - answeredCount;
-  const neededPerQuestion =
-    unansweredCount > 0 ? Math.floor(remaining / unansweredCount) : null;
-  const behindPace =
-    neededPerQuestion !== null && neededPerQuestion < targetPerQuestion * 0.75;
+  // Frozen at submit; the countdown itself lives in ExamHeader.
+  const [timeUsedSec, setTimeUsedSec] = useState(0);
 
   async function handleSubmit() {
     if (phase === "done" || submitting || !canSubmit) return;
     setSubmitting(true);
     try {
-      const timeUsed = Math.min(durationSec, durationSec - remaining);
+      const timeUsed = Math.min(durationSec, durationSec - remainingSec());
+      setTimeUsedSec(Math.max(0, timeUsed));
       await onSubmit(
         session.id,
         answers,
@@ -325,12 +334,14 @@ function ExamRunnerInner({
     } finally {
       setStarting(false);
     }
+    ensureDeadlineAnchor();
     enteredAtRef.current = Date.now();
     setPhase("exam");
     setTimerActive(true);
   }
 
   function resumeExam() {
+    ensureDeadlineAnchor();
     enteredAtRef.current = Date.now();
     setPhase("exam");
     setTimerActive(true);
@@ -497,7 +508,7 @@ function ExamRunnerInner({
   if (phase === "done") {
     return (
       <div className="min-h-dvh px-4 py-8">
-        <ExamSummary session={session} timeUsedSec={durationSec - remaining} />
+        <ExamSummary session={session} timeUsedSec={timeUsedSec} />
       </div>
     );
   }
@@ -578,138 +589,29 @@ function ExamRunnerInner({
   }
 
   const isFlagged = flagged.has(question.id);
-  const lowTime = remaining <= 60;
-  const warnTime = remaining <= 300 && !lowTime;
 
   return (
     <div className="flex min-h-dvh flex-col bg-muted/20">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Exit exam">
-                <X />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Leave the exam?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {session.examStartedAt
-                    ? "Your progress is saved and the clock keeps running — resume anytime from History before time runs out."
-                    : "Your exam won't be scored and progress will be lost."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep going</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    commitElapsed();
-                    flush();
-                    onExit();
-                  }}
-                >
-                  {session.examStartedAt ? "Save & exit" : "Leave exam"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <div className="flex flex-1 flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                Question {index + 1} of {total}
-                {/* Mobile pace dot — the full per-question chip is sm+ only. */}
-                <span
-                  className={cn(
-                    "size-2 rounded-full sm:hidden",
-                    qWayOver
-                      ? "bg-destructive"
-                      : qOver
-                        ? "bg-chart-3"
-                        : "bg-success/60",
-                  )}
-                  title={`Time on this question: ${formatClock(qElapsed)} (target ~${formatClock(targetPerQuestion)})`}
-                  aria-hidden
-                />
-              </span>
-              <span>{answeredCount} answered</span>
-            </div>
-            <Progress value={(answeredCount / total) * 100} className="h-1.5" />
-            {isGenerating && (
-              <p className="text-[11px] text-primary">
-                {availableCount} of {expectedTotal} questions ready
-              </p>
-            )}
-            {!isGenerating && behindPace && neededPerQuestion !== null && (
-              <p className="text-[11px] font-medium text-chart-3">
-                Behind pace — {formatClock(Math.max(0, neededPerQuestion))} per
-                question to finish
-              </p>
-            )}
-          </div>
-
-          <div
-            className={cn(
-              "hidden items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium tabular-nums sm:flex",
-              qWayOver
-                ? "bg-destructive/15 text-destructive"
-                : qOver
-                  ? "bg-chart-3/15 text-chart-3"
-                  : "bg-secondary/60 text-muted-foreground",
-            )}
-            title={`Target ~${formatClock(targetPerQuestion)} per question`}
-            aria-label="Time on this question"
-          >
-            <Timer className="size-3.5" />
-            {formatClock(qElapsed)}
-          </div>
-
-          <div
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold tabular-nums",
-              lowTime
-                ? "bg-destructive/15 text-destructive"
-                : warnTime
-                  ? "bg-chart-3/15 text-chart-3"
-                  : "bg-secondary text-foreground",
-            )}
-            role="timer"
-            aria-label="Time remaining"
-          >
-            <Clock className="size-4" />
-            {formatClock(remaining)}
-          </div>
-          {/* Announce only threshold crossings, not every tick. */}
-          <span className="sr-only" aria-live="polite">
-            {lowTime
-              ? "Less than one minute remaining"
-              : warnTime
-                ? "Less than five minutes remaining"
-                : ""}
-          </span>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Keyboard shortcuts"
-            className="hidden sm:inline-flex"
-            onClick={() => setShortcutsOpen(true)}
-          >
-            <Keyboard />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Question navigator"
-            className="xl:hidden"
-            onClick={() => setNavOpen(true)}
-          >
-            <LayoutGrid />
-          </Button>
-        </div>
-      </header>
+      <ExamHeader
+        index={index}
+        total={total}
+        answeredCount={answeredCount}
+        availableCount={availableCount}
+        expectedTotal={expectedTotal}
+        isGenerating={isGenerating}
+        durationSec={durationSec}
+        targetPerQuestion={targetPerQuestion}
+        timerActive={timerActive && !submitting}
+        deadlineMs={deadlineMs}
+        examStarted={Boolean(session.examStartedAt)}
+        onExitConfirmed={() => {
+          commitElapsed();
+          flush();
+          onExit();
+        }}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+        onOpenNav={() => setNavOpen(true)}
+      />
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 gap-6 px-4 py-6 xl:max-w-5xl">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -893,5 +795,197 @@ function ExamRunnerInner({
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+interface ExamHeaderProps {
+  index: number;
+  total: number;
+  answeredCount: number;
+  availableCount: number;
+  expectedTotal: number;
+  isGenerating: boolean;
+  durationSec: number;
+  targetPerQuestion: number;
+  timerActive: boolean;
+  deadlineMs?: number;
+  examStarted: boolean;
+  onExitConfirmed: () => void;
+  onOpenShortcuts: () => void;
+  onOpenNav: () => void;
+}
+
+/**
+ * Sticky exam header. Owns both once-a-second tickers (the countdown clock
+ * and the per-question pace timer) so their re-renders stay confined here
+ * instead of redrawing the whole runner. Expiry auto-submit deliberately does
+ * NOT live here — this header is unmounted on the review screen, where the
+ * clock must still fire (see the deadline watcher in ExamRunnerInner).
+ */
+function ExamHeader({
+  index,
+  total,
+  answeredCount,
+  availableCount,
+  expectedTotal,
+  isGenerating,
+  durationSec,
+  targetPerQuestion,
+  timerActive,
+  deadlineMs,
+  examStarted,
+  onExitConfirmed,
+  onOpenShortcuts,
+  onOpenNav,
+}: ExamHeaderProps) {
+  const remaining = useCountdown(durationSec, timerActive, undefined, deadlineMs);
+
+  // Per-question pace: time spent on the current question vs the exam's
+  // average allowance, so the learner feels real exam-day time pressure.
+  const [qElapsed, setQElapsed] = useState(0);
+  useEffect(() => {
+    setQElapsed(0);
+  }, [index]);
+  useEffect(() => {
+    if (!timerActive) return;
+    const id = setInterval(() => setQElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [timerActive]);
+  const qOver = qElapsed > targetPerQuestion;
+  const qWayOver = qElapsed > targetPerQuestion * 1.6;
+
+  // Whole-exam pace: with the remaining time and unanswered count, is the
+  // learner on track to see every question?
+  const unansweredCount = total - answeredCount;
+  const neededPerQuestion =
+    unansweredCount > 0 ? Math.floor(remaining / unansweredCount) : null;
+  const behindPace =
+    neededPerQuestion !== null && neededPerQuestion < targetPerQuestion * 0.75;
+
+  const lowTime = remaining <= 60;
+  const warnTime = remaining <= 300 && !lowTime;
+
+  return (
+    <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Exit exam">
+              <X />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Leave the exam?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {examStarted
+                  ? "Your progress is saved and the clock keeps running — resume anytime from History before time runs out."
+                  : "Your exam won't be scored and progress will be lost."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep going</AlertDialogCancel>
+              <AlertDialogAction onClick={onExitConfirmed}>
+                {examStarted ? "Save & exit" : "Leave exam"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="flex flex-1 flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              Question {index + 1} of {total}
+              {/* Mobile pace dot — the full per-question chip is sm+ only. */}
+              <span
+                className={cn(
+                  "size-2 rounded-full sm:hidden",
+                  qWayOver
+                    ? "bg-destructive"
+                    : qOver
+                      ? "bg-chart-3"
+                      : "bg-success/60",
+                )}
+                title={`Time on this question: ${formatClock(qElapsed)} (target ~${formatClock(targetPerQuestion)})`}
+                aria-hidden
+              />
+            </span>
+            <span>{answeredCount} answered</span>
+          </div>
+          <Progress value={(answeredCount / total) * 100} className="h-1.5" />
+          {isGenerating && (
+            <p className="text-[11px] text-primary">
+              {availableCount} of {expectedTotal} questions ready
+            </p>
+          )}
+          {!isGenerating && behindPace && neededPerQuestion !== null && (
+            <p className="text-[11px] font-medium text-chart-3">
+              Behind pace — {formatClock(Math.max(0, neededPerQuestion))} per
+              question to finish
+            </p>
+          )}
+        </div>
+
+        <div
+          className={cn(
+            "hidden items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium tabular-nums sm:flex",
+            qWayOver
+              ? "bg-destructive/15 text-destructive"
+              : qOver
+                ? "bg-chart-3/15 text-chart-3"
+                : "bg-secondary/60 text-muted-foreground",
+          )}
+          title={`Target ~${formatClock(targetPerQuestion)} per question`}
+          aria-label="Time on this question"
+        >
+          <Timer className="size-3.5" />
+          {formatClock(qElapsed)}
+        </div>
+
+        <div
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold tabular-nums",
+            lowTime
+              ? "bg-destructive/15 text-destructive"
+              : warnTime
+                ? "bg-chart-3/15 text-chart-3"
+                : "bg-secondary text-foreground",
+          )}
+          role="timer"
+          aria-label="Time remaining"
+        >
+          <Clock className="size-4" />
+          {formatClock(remaining)}
+        </div>
+        {/* Announce only threshold crossings, not every tick. */}
+        <span className="sr-only" aria-live="polite">
+          {lowTime
+            ? "Less than one minute remaining"
+            : warnTime
+              ? "Less than five minutes remaining"
+              : ""}
+        </span>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Keyboard shortcuts"
+          className="hidden sm:inline-flex"
+          onClick={onOpenShortcuts}
+        >
+          <Keyboard />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Question navigator"
+          className="xl:hidden"
+          onClick={onOpenNav}
+        >
+          <LayoutGrid />
+        </Button>
+      </div>
+    </header>
   );
 }

@@ -32,12 +32,27 @@ function apiCorsHeaders() {
   ]
 }
 
+// Mirrors USE_MOCKS in lib/api/client.ts (NEXT_PUBLIC_* and NODE_ENV are
+// fixed at build time, so the two can never disagree at runtime).
+const useMocks =
+  process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NODE_ENV === "development")
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: ["pdf-parse", "esbuild"],
+  turbopack: {
+    resolveAlias: useMocks
+      ? {}
+      : // Keep the ~950-line demo dataset out of non-mock bundles. Runtime
+        // code only reaches it behind USE_MOCKS, which is false in these
+        // builds; tsc still checks against the real module.
+        { "@/lib/mock-data": "./lib/mock-data.stub.ts" },
+  },
   async headers() {
     return apiCorsHeaders()
   },

@@ -4,6 +4,7 @@ import type { StudyPlan, StudyPlanTask } from "@/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -120,12 +121,14 @@ export function PlanCalendar({ plan, launchingId, onStart }: PlanCalendarProps) 
                         </span>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel className="max-w-56">
-                          <span className="block truncate text-xs font-medium">{task.title}</span>
-                          <span className="block truncate text-[11px] font-normal text-muted-foreground">
-                            {task.rationale}
-                          </span>
-                        </DropdownMenuLabel>
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="max-w-56">
+                            <span className="block truncate text-xs font-medium">{task.title}</span>
+                            <span className="block truncate text-[11px] font-normal text-muted-foreground">
+                              {task.rationale}
+                            </span>
+                          </DropdownMenuLabel>
+                        </DropdownMenuGroup>
                         <DropdownMenuSeparator />
                         {skipped ? (
                           <DropdownMenuItem

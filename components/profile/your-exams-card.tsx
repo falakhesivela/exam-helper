@@ -6,8 +6,9 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { api } from "@/lib/api/client"
-import { listExamPresetsByProvider } from "@/lib/exams"
+import { customExamCode, listExamPresetsByProvider } from "@/lib/exams"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import type { UserExam } from "@/types"
 import { cn } from "@/lib/utils"
@@ -28,6 +29,7 @@ export function YourExamsCard() {
   const setActiveExam = useSessionStore((s) => s.setActiveExam)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [customName, setCustomName] = useState("")
   const [uploads, setUploads] = useState<
     { id: string; examCode: string | null; fileName: string }[]
   >([])
@@ -157,7 +159,7 @@ export function YourExamsCard() {
           >
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="flex items-center gap-2 text-sm font-medium">
-                {e.examCode}
+                {e.isPreset ? e.examCode : e.exam}
                 {e.examCode === activeExamCode && (
                   <Badge variant="secondary" className="text-xs">
                     Active
@@ -165,7 +167,7 @@ export function YourExamsCard() {
                 )}
               </span>
               <span className="truncate text-xs text-muted-foreground">
-                {e.exam}
+                {e.isPreset ? e.exam : "Custom exam"}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -260,6 +262,45 @@ export function YourExamsCard() {
                 </div>
               </div>
             ))}
+
+            <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Something else
+              </p>
+              <form
+                className="flex flex-col gap-2 sm:flex-row"
+                onSubmit={(ev) => {
+                  ev.preventDefault()
+                  const name = customName.trim()
+                  if (name.length < 3) return
+                  const code = customExamCode(name)
+                  if (existing.has(code)) {
+                    toast.error("You're already studying that exam")
+                    return
+                  }
+                  void handleAdd(code, name).then(() => setCustomName(""))
+                }}
+              >
+                <Input
+                  value={customName}
+                  onChange={(ev) => setCustomName(ev.target.value)}
+                  placeholder="e.g. Kubernetes CKA, Salesforce Admin…"
+                  aria-label="Custom certification name"
+                  className="sm:flex-1"
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={busy || customName.trim().length < 3}
+                >
+                  Add
+                </Button>
+              </form>
+              <p className="text-xs text-muted-foreground text-pretty">
+                Not on the list? Name it, then attach its syllabus PDF so we
+                build questions and lessons from your material.
+              </p>
+            </div>
           </div>
         )}
       </CardContent>

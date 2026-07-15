@@ -14,13 +14,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { ProgressRing } from "@/components/ui/progress-ring"
-import { getExamBlueprint } from "@/lib/exams"
-import { inferExamFromSessions } from "@/lib/learning/topic-resolver"
+import { useActiveExam } from "@/hooks/use-active-exam"
 import {
   computeExamReadiness,
   type ReadinessVerdict,
 } from "@/lib/progress/readiness"
-import { projectReadiness } from "@/lib/progress/projection"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
 // Lazy-load recharts (~100KB gz) so it doesn't ship in the dashboard's
@@ -32,21 +30,6 @@ const ReadinessSparkline = dynamic(
     ),
   { ssr: false, loading: () => <div className="h-full w-full" /> },
 )
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
-/** "2026-07-24" → "Jul 24", locale-free so server and client agree. */
-function formatDay(isoDate: string): string {
-  const [, m, d] = isoDate.split("-")
-  return `${MONTHS[Number(m) - 1] ?? ""} ${Number(d)}`.trim()
-}
-
-function daysBetween(fromIso: string, toIso: string): number {
-  return Math.round(
-    (new Date(`${toIso}T00:00:00Z`).getTime() -
-      new Date(`${fromIso}T00:00:00Z`).getTime()) / 86_400_000,
-  )
-}
 
 const VERDICT: Record<
   ReadinessVerdict,
@@ -75,17 +58,11 @@ const CONFIDENCE_LABEL = {
 export function ReadinessCard() {
   const dataReady = useSessionStore((s) => s.dataReady)
   const topicMastery = useSessionStore((s) => s.topicMastery)
-  const sessions = useSessionStore((s) => s.sessions)
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
   const readinessTrend = useSessionStore((s) => s.readinessTrend)
-  const plan = useSessionStore((s) => s.plan)
 
-  const activeExamCode = useSessionStore((s) => s.activeExamCode)
-  const examCode = useMemo(
-    () => activeExamCode ?? inferExamFromSessions(sessions).examCode,
-    [activeExamCode, sessions],
-  )
-  const blueprint = getExamBlueprint(examCode)
+  const { activeExam } = useActiveExam()
+  const blueprint = activeExam?.blueprint ?? null
 
   const readiness = useMemo(
     () =>
@@ -131,18 +108,6 @@ export function ReadinessCard() {
 
   const v = VERDICT[readiness.verdict]
   const gap = readiness.passMark - readiness.score
-  const todayIso = new Date().toISOString().slice(0, 10)
-  const projection = projectReadiness(
-    readinessTrend,
-    readiness.score,
-    readiness.passMark,
-    todayIso,
-  )
-  // Compare the projected ready date to the exam date when a plan exists.
-  const examDelta =
-    projection && plan && plan.examCode === readiness.examCode
-      ? daysBetween(projection.readyDate, plan.targetDate)
-      : null
 
   return (
     <Card className="overflow-hidden">
@@ -179,30 +144,6 @@ export function ReadinessCard() {
               <>
                 You&apos;re <strong>{-gap} point{gap === -1 ? "" : "s"}</strong>{" "}
                 above the pass mark — keep it there.
-              </>
-            )}
-            {projection && (
-              <>
-                {" "}
-                At this pace you&apos;ll reach it around{" "}
-                <strong>{formatDay(projection.readyDate)}</strong>
-                {examDelta == null && "."}
-                {examDelta != null &&
-                  (examDelta >= 0 ? (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      — {examDelta === 0
-                        ? "right on exam day"
-                        : `${examDelta} day${examDelta === 1 ? "" : "s"} before your exam`}
-                      .
-                    </span>
-                  ) : (
-                    <span className="font-medium text-warning">
-                      {" "}
-                      — {-examDelta} day{examDelta === -1 ? "" : "s"} after your
-                      exam date. Pick up the pace.
-                    </span>
-                  ))}
               </>
             )}
           </p>

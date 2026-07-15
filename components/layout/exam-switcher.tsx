@@ -5,6 +5,7 @@ import { Check, ChevronDown, GraduationCap, Settings2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -37,26 +38,28 @@ export function ExamSwitcher() {
         <ChevronDown className="size-3 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>Studying for</DropdownMenuLabel>
-        {userExams.map((e) => (
-          <DropdownMenuItem
-            key={e.examCode}
-            onClick={() => void setActiveExam(e.examCode)}
-            className="flex items-start gap-2"
-          >
-            <span className="mt-0.5 size-4 shrink-0">
-              {e.examCode === activeExamCode && (
-                <Check className="size-4 text-primary" />
-              )}
-            </span>
-            <span className="flex min-w-0 flex-col">
-              <span className="text-sm font-medium">{e.examCode}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {e.exam}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Studying for</DropdownMenuLabel>
+          {userExams.map((e) => (
+            <DropdownMenuItem
+              key={e.examCode}
+              onClick={() => void setActiveExam(e.examCode)}
+              className="flex items-start gap-2"
+            >
+              <span className="mt-0.5 size-4 shrink-0">
+                {e.examCode === activeExamCode && (
+                  <Check className="size-4 text-primary" />
+                )}
               </span>
-            </span>
-          </DropdownMenuItem>
-        ))}
+              <span className="flex min-w-0 flex-col">
+                <span className="text-sm font-medium">{e.examCode}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {e.exam}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => router.push("/profile")}

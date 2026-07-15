@@ -28,6 +28,7 @@ export {
 } from "./weak-domains"
 export {
   buildCustomExamBlueprint,
+  customExamCode,
   parseFocusTopicsInput,
   resolveExamBlueprint,
 } from "./custom-blueprint"

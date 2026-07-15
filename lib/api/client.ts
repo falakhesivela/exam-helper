@@ -506,7 +506,7 @@ export const api = {
     },
   ) => {
     if (USE_MOCKS) {
-      const reply = mockTutorReply(content);
+      const reply = mockMentorReply(content);
       opts?.onDelta?.(reply);
       return Promise.resolve({
         reply,
@@ -978,4 +978,33 @@ function mockTutorReply(lastUserMessage: string): string {
     return "Think of one busy cashier (the primary database). Read replicas are extra cashiers who can only ring up 'read' customers, so the line moves faster — without changing how new stock is added (writes).";
   }
   return "Good question. Focus on what the scenario optimizes for: here it's read latency under load. Map each option to the bottleneck it solves, and pick the one that targets reads specifically.";
+}
+
+/**
+ * Mentor variant: ends teaching replies with an interactive `quiz` block so
+ * mock mode exercises the inline quick-check card.
+ */
+function mockMentorReply(lastUserMessage: string): string {
+  const quiz = JSON.stringify({
+    question:
+      "An application on private-subnet EC2 instances must download OS patches from the internet, but must not accept inbound connections. What should you route its outbound traffic through?",
+    options: [
+      { id: "a", text: "An internet gateway attached to the private subnet" },
+      { id: "b", text: "A NAT gateway in a public subnet" },
+      { id: "c", text: "A VPC peering connection" },
+      { id: "d", text: "An Elastic IP on each instance" },
+    ],
+    correctOptionIds: ["b"],
+    multiSelect: false,
+    explanation:
+      "A **NAT gateway** lets private instances initiate outbound connections while blocking inbound ones. An internet gateway route or an Elastic IP would make the instances reachable from the internet, and VPC peering only connects VPCs.",
+  });
+  return (
+    `### The mental model\n\n${mockTutorReply(lastUserMessage)}\n\n` +
+    `**Memory hook:** NAT = "outbound only" — patches out, nothing in.\n\n` +
+    "Let's lock that in with a quick check.\n\n" +
+    "```quiz\n" +
+    quiz +
+    "\n```"
+  );
 }

@@ -9,6 +9,19 @@ function slugify(text: string): string {
     .slice(0, 48)
 }
 
+/**
+ * Mint the exam code for a certification we have no blueprint for, e.g.
+ * "Kubernetes CKA" → "KUBERNETES-CKA". Custom exams each need their own code
+ * because user_exams is keyed by it — a shared "CUSTOM" code would let a second
+ * custom exam overwrite the first. Must satisfy the backend's
+ * ^[A-Z0-9][A-Z0-9._-]{1,31}$; a name that slugs to nothing falls back to
+ * CUSTOM, which is still a legal (if collidable) code.
+ */
+export function customExamCode(name: string): string {
+  const code = slugify(name).toUpperCase().slice(0, 32).replace(/-+$/g, "")
+  return /^[A-Z0-9][A-Z0-9._-]{1,31}$/.test(code) ? code : "CUSTOM"
+}
+
 function parseFocusTopicsInput(raw?: string): string[] {
   if (!raw?.trim()) return []
   return [

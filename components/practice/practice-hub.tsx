@@ -5,7 +5,7 @@ import { StudyFastPath } from "@/components/study/study-fast-path"
 import { StudyMomentum } from "@/components/study/study-momentum"
 
 /** Focused home for starting, resuming, and reviewing practice work. */
-export function PracticeHub() {
+export function PracticeHub({ initialTopic }: { initialTopic?: string }) {
   return (
     <div className="flex flex-col gap-6">
       <motion.header
@@ -21,7 +21,7 @@ export function PracticeHub() {
       </motion.header>
 
       <StudyMomentum />
-      <StudyFastPath showHeading={false} />
+      <StudyFastPath showHeading={false} initialTopic={initialTopic} />
     </div>
   )
 }

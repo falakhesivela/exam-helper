@@ -1,24 +1,20 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
 import {
-  ArrowRight,
   Bookmark,
   Brain,
   Layers,
-  PlayCircle,
   RotateCcw,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useDueReviewCount } from "@/components/dashboard/use-due-reviews"
+import { QuickStartCard } from "@/components/practice/quick-start-card"
 import { api } from "@/lib/api/client"
-import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
 interface PracticeMode {
@@ -37,10 +33,11 @@ interface PracticeMode {
  */
 export function StudyFastPath({
   showHeading = true,
+  initialTopic,
 }: {
   showHeading?: boolean
+  initialTopic?: string
 }) {
-  const sessions = useSessionStore((s) => s.sessions)
   const dueCount = useDueReviewCount()
   const [missedCount, setMissedCount] = useState<number | null>(null)
   const [bookmarkCount, setBookmarkCount] = useState<number | null>(null)
@@ -59,24 +56,6 @@ export function StudyFastPath({
       cancelled = true
     }
   }, [])
-
-  const inProgress = useMemo(
-    () =>
-      sessions
-        .filter((s) => s.status === "in-progress" && s.mode !== "exam")
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )[0] ?? null,
-    [sessions],
-  )
-
-  const total = inProgress
-    ? Math.max(
-        inProgress.expectedQuestionCount ?? 0,
-        inProgress.questions.length,
-      )
-    : 0
 
   const modes: PracticeMode[] = [
     {
@@ -134,45 +113,7 @@ export function StudyFastPath({
         </div>
       )}
 
-      <Card className="border-primary/30 bg-linear-to-br from-primary/10 via-card to-card">
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            {inProgress ? (
-              <PlayCircle className="size-5" />
-            ) : (
-              <Sparkles className="size-5" />
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">
-              {inProgress
-                ? "Continue where you left off"
-                : "Start a practice session"}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">
-              {inProgress
-                ? `${inProgress.examCode} · question ${Math.min(
-                    inProgress.currentIndex + 1,
-                    total,
-                  )} of ${total}`
-                : "AI-generated questions tailored to your exam and level"}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            {inProgress && (
-              <Button asChild variant="secondary">
-                <Link href="/intake">New session</Link>
-              </Button>
-            )}
-            <Button asChild>
-              <Link href={inProgress ? `/quiz/${inProgress.id}` : "/intake"}>
-                {inProgress ? "Continue" : "Start practice"}
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <QuickStartCard initialTopic={initialTopic} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {modes.map((mode, i) => {

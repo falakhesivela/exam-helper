@@ -9,7 +9,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/lib/api/client"
 import { useRef } from "react"
-import { listExamPresetsByProvider } from "@/lib/exams"
+import {
+  customExamCode,
+  getExamBlueprint,
+  listExamPresetsByProvider,
+} from "@/lib/exams"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
@@ -109,8 +113,11 @@ export function OnboardingWizard() {
   const setActiveExam = useSessionStore((s) => s.setActiveExam)
 
   const [step, setStep] = useState<Step>("exams")
+  /** Presets only — the custom exam is derived from customName. */
   const [selected, setSelected] = useState<SelectedExam[]>([])
   const [customName, setCustomName] = useState("")
+  /** Set once a syllabus is attached, pinning the custom exam's code. */
+  const [frozenCustomCode, setFrozenCustomCode] = useState<string | null>(null)
   /** Attached syllabi, keyed by the exam code they ground. */
   const [syllabi, setSyllabi] = useState<Record<string, AttachedSyllabus>>({})
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
@@ -123,8 +130,23 @@ export function OnboardingWizard() {
   }, [hydrated, profile.onboardedAt, router])
 
   const providerGroups = useMemo(() => listExamPresetsByProvider(), [])
-  const customSelected = selected.some((s) => s.examCode === "CUSTOM")
-  const first = selected[0]
+  const customSelected = customName.trim().length > 0
+  /**
+   * A custom exam's code is minted from its name, so it moves while the user
+   * types. Attaching a syllabus scopes an upload to the code server-side, so
+   * the first attach freezes it — the name stays editable, the key doesn't.
+   */
+  const customCode = frozenCustomCode ?? customExamCode(customName)
+
+  // Presets are chosen by tapping; the custom exam exists whenever it's named.
+  const selectedExams = useMemo<SelectedExam[]>(
+    () =>
+      customSelected
+        ? [...selected, { examCode: customCode, exam: customName.trim() }]
+        : selected,
+    [selected, customSelected, customCode, customName],
+  )
+  const first = selectedExams[0]
 
   function toggleExam(examCode: string, exam: string) {
     setSelected((prev) =>
@@ -183,7 +205,7 @@ export function OnboardingWizard() {
         skipped
           ? { exams: [], skipped: true }
           : {
-              exams: selected.map((s, i) => ({
+              exams: selectedExams.map((s, i) => ({
                 examCode: s.examCode,
                 exam: s.exam,
                 // The date applies to the first-selected (main) exam.
@@ -278,14 +300,11 @@ export function OnboardingWizard() {
                 onChange={(e) => {
                   const name = e.target.value
                   setCustomName(name)
-                  // Clearing the name de-selects CUSTOM — take its syllabus with it.
-                  if (!name.trim()) removeSyllabus("CUSTOM")
-                  setSelected((prev) => {
-                    const rest = prev.filter((s) => s.examCode !== "CUSTOM")
-                    return name.trim()
-                      ? [...rest, { examCode: "CUSTOM", exam: name.trim() }]
-                      : rest
-                  })
+                  // Clearing the name drops the exam — take its syllabus with it.
+                  if (!name.trim() && frozenCustomCode) {
+                    removeSyllabus(frozenCustomCode)
+                    setFrozenCustomCode(null)
+                  }
                 }}
                 placeholder="e.g. Kubernetes CKA, Salesforce Admin…"
                 aria-label="Custom certification name"
@@ -298,10 +317,16 @@ export function OnboardingWizard() {
                     we&apos;ll build questions and lessons directly from them.
                   </p>
                   <SyllabusAttach
-                    attached={syllabi.CUSTOM}
-                    uploading={uploadingFor === "CUSTOM"}
-                    onFile={(file) => void handleSyllabus("CUSTOM", file)}
-                    onRemove={() => removeSyllabus("CUSTOM")}
+                    attached={syllabi[customCode]}
+                    uploading={uploadingFor === customCode}
+                    onFile={(file) => {
+                      setFrozenCustomCode(customCode)
+                      void handleSyllabus(customCode, file)
+                    }}
+                    onRemove={() => {
+                      removeSyllabus(customCode)
+                      setFrozenCustomCode(null)
+                    }}
                   />
                 </div>
               )}
@@ -347,29 +372,34 @@ export function OnboardingWizard() {
       {step === "done" && (
         <Card>
           <CardContent className="flex flex-col gap-3 p-5">
-            {selected.map((s, i) => (
-              <div key={s.examCode} className="flex items-center gap-3 text-sm">
-                <Check className="size-4 shrink-0 text-success" />
-                <span className="font-medium">{s.examCode === "CUSTOM" ? s.exam : s.examCode}</span>
-                <span className="truncate text-muted-foreground">
-                  {s.examCode === "CUSTOM" ? "Custom exam" : s.exam}
-                </span>
-                {i === 0 && examDate && (
-                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                    {examDate}
+            {selectedExams.map((s, i) => {
+              const isPreset = getExamBlueprint(s.examCode) !== undefined
+              return (
+                <div key={s.examCode} className="flex items-center gap-3 text-sm">
+                  <Check className="size-4 shrink-0 text-success" />
+                  <span className="font-medium">
+                    {isPreset ? s.examCode : s.exam}
                   </span>
-                )}
-              </div>
-            ))}
+                  <span className="truncate text-muted-foreground">
+                    {isPreset ? s.exam : "Custom exam"}
+                  </span>
+                  {i === 0 && examDate && (
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                      {examDate}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
 
             {/* Optional and never a gate: presets already have a blueprint, so a
-                syllabus only sharpens them. CUSTOM attaches on the exams step. */}
-            {first && first.examCode !== "CUSTOM" && (
+                syllabus only sharpens them. Custom exams attach on the exams step. */}
+            {first && getExamBlueprint(first.examCode) !== undefined && (
               <div className="flex flex-col gap-2 border-t border-border pt-4">
                 <p className="text-xs text-muted-foreground text-pretty">
                   Have the official {first.examCode} syllabus or your own study
                   notes? Attach the PDF to ground your questions and lessons in it
-                  {selected.length > 1 ? " — you can add one per exam later in Profile." : " — optional, and you can add it later in Profile."}
+                  {selectedExams.length > 1 ? " — you can add one per exam later in Profile." : " — optional, and you can add it later in Profile."}
                 </p>
                 <SyllabusAttach
                   attached={syllabi[first.examCode]}
@@ -398,7 +428,10 @@ export function OnboardingWizard() {
         )}
 
         {step === "exams" && (
-          <Button onClick={() => setStep("date")} disabled={selected.length === 0}>
+          <Button
+            onClick={() => setStep("date")}
+            disabled={selectedExams.length === 0}
+          >
             Continue
             <ArrowRight data-icon="inline-end" />
           </Button>

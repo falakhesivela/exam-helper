@@ -1,36 +1,31 @@
 "use client"
 
-import { Crosshair, ShieldCheck, TrendingDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ShieldCheck, TrendingDown } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { getExamBlueprint } from "@/lib/exams"
 
-interface ReadinessRecommendationProps {
-  examCode: string
-  passMark: number
-  /** Largest exam launchable on the user's plan right now. */
-  examCap: number
-  starting: boolean
-  onDrill: (
-    questionCount: number,
-    durationMin: number,
-    focusDomainIds: string[],
-  ) => void
+export interface WeakDomain {
+  domainId: string
+  name: string
+  mastery: number
+}
+
+export interface ExamReadiness {
+  accuracy: number
+  /** At or above the pass mark on recent mocks. */
+  ready: boolean
+  weakest: WeakDomain[]
 }
 
 /**
- * Data-driven nudge on the config screen: below the pass mark on recent
- * mocks → drill the weakest domains first; at or above → take the
- * full-length simulation with confidence.
+ * Recent-mock signal for one exam, or null until there is enough of it to
+ * advise on. Drives which launch option the exam page recommends.
  */
-export function ReadinessRecommendation({
-  examCode,
-  passMark,
-  examCap,
-  starting,
-  onDrill,
-}: ReadinessRecommendationProps) {
+export function useExamReadiness(
+  examCode: string,
+  passMark: number,
+): ExamReadiness | null {
   const examAccuracy = useSessionStore((s) => s.examAccuracy)
   const topicMastery = useSessionStore((s) => s.topicMastery)
 
@@ -54,21 +49,34 @@ export function ReadinessRecommendation({
       mastery: Math.round(t.mastery),
     }))
 
-  const ready = recent.accuracy >= passMark
+  return { accuracy: recent.accuracy, ready: recent.accuracy >= passMark, weakest }
+}
 
-  if (ready) {
+/**
+ * States where the user stands, and why the recommended launch option is the
+ * one it is. The launch options themselves carry the buttons.
+ */
+export function ReadinessBanner({
+  readiness,
+  passMark,
+}: {
+  readiness: ExamReadiness
+  passMark: number
+}) {
+  const accuracy = Math.round(readiness.accuracy)
+
+  if (readiness.ready) {
     return (
       <Card className="border-success/30">
         <CardContent className="flex items-start gap-3 p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-success" />
           <p className="text-sm">
             <span className="font-medium">
-              You&apos;re averaging {Math.round(recent.accuracy)}% on recent
-              mocks
+              You&apos;re averaging {accuracy}% on recent mocks
             </span>{" "}
             <span className="text-muted-foreground">
-              — above the {passMark}% pass mark. A full-length simulation is
-              the right next step.
+              — above the {passMark}% pass mark. A full-length simulation is the
+              right next step.
             </span>
           </p>
         </CardContent>
@@ -76,54 +84,30 @@ export function ReadinessRecommendation({
     )
   }
 
-  const drillCount = Math.max(1, Math.min(20, examCap))
-  const drillMinutes = Math.max(5, Math.round(drillCount * 1.5))
-
   return (
     <Card className="border-chart-3/40">
-      <CardContent className="flex flex-col gap-3 p-4">
-        <p className="flex items-start gap-3 text-sm">
-          <TrendingDown className="mt-0.5 size-5 shrink-0 text-chart-3" />
-          <span>
-            <span className="font-medium">
-              You&apos;re averaging {Math.round(recent.accuracy)}% on recent
-              mocks
-            </span>{" "}
-            <span className="text-muted-foreground">
-              — under the {passMark}% pass mark.
-              {weakest.length > 0 ? (
-                <>
-                  {" "}
-                  Drilling{" "}
-                  <span className="font-medium text-foreground">
-                    {weakest.map((w) => w.name).join(" and ")}
-                  </span>{" "}
-                  first beats another full mock.
-                </>
-              ) : (
-                " A short focused session beats another full mock."
-              )}
-            </span>
+      <CardContent className="flex items-start gap-3 p-4">
+        <TrendingDown className="mt-0.5 size-5 shrink-0 text-chart-3" />
+        <p className="text-sm">
+          <span className="font-medium">
+            You&apos;re averaging {accuracy}% on recent mocks
+          </span>{" "}
+          <span className="text-muted-foreground">
+            — under the {passMark}% pass mark.
+            {readiness.weakest.length > 0 ? (
+              <>
+                {" "}
+                Drilling{" "}
+                <span className="font-medium text-foreground">
+                  {readiness.weakest.map((w) => w.name).join(" and ")}
+                </span>{" "}
+                first beats another full mock.
+              </>
+            ) : (
+              " A short focused session beats another full mock."
+            )}
           </span>
         </p>
-        {weakest.length > 0 && examCap >= 1 && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="self-start"
-            disabled={starting}
-            onClick={() =>
-              onDrill(
-                drillCount,
-                drillMinutes,
-                weakest.map((w) => w.domainId),
-              )
-            }
-          >
-            <Crosshair data-icon="inline-start" />
-            Drill {weakest.map((w) => w.name).join(" + ")}
-          </Button>
-        )}
       </CardContent>
     </Card>
   )

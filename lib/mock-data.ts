@@ -1,5 +1,6 @@
 import type {
   ClarifyingQuestion,
+  Confidence,
   LearnTopic,
   PlanCoaching,
   PracticeSession,
@@ -41,23 +42,6 @@ export const mockProfile: UserProfile = {
   },
 }
 
-/** Blank profile used before API hydration (never show mock demo data). */
-export const emptyProfile: UserProfile = {
-  name: "",
-  email: "",
-  isAnonymous: true,
-  plan: "free",
-  subscriptionStatus: null,
-  planExpiresAt: null,
-  limits: limitsFor("free"),
-  dailyLimit: limitsFor("free").questions,
-  questionsUsedToday: 0,
-  streakDays: 0,
-  longestStreak: 0,
-  dailyGoal: 10,
-  onboardedAt: null,
-  activeExam: null,
-}
 
 export function buildMockExamTips(): import("@/types").ExamTip[] {
   return [
@@ -556,6 +540,7 @@ const day = 24 * 60 * 60 * 1000
 function buildAnswers(
   questions: Question[],
   correctCount: number,
+  withConfidence = false,
 ): PracticeSession["answers"] {
   const answers: PracticeSession["answers"] = {}
   questions.forEach((q, i) => {
@@ -569,6 +554,11 @@ function buildAnswers(
       markedForReview: false,
       skipped: false,
       timeSpentSec: 40 + i * 7,
+      // Spread across the confidence quadrants so the debrief matrix and
+      // dashboard confidence insights have something to show.
+      ...(withConfidence && {
+        confidence: (i % 3 === 0 ? "unsure" : "sure") as Confidence,
+      }),
     }
   })
   return answers
@@ -598,6 +588,38 @@ export const mockHistory: PracticeSession[] = [
     questions: SAMPLE_QUESTIONS,
     answers: buildAnswers(SAMPLE_QUESTIONS, 3),
     currentIndex: SAMPLE_QUESTIONS.length,
+  },
+  // Two completed mocks so the score trend and confidence widgets render.
+  {
+    id: "e-1001",
+    exam: "AWS Certified Solutions Architect – Associate",
+    examCode: "SAA-C03",
+    focusTopics: ["Full exam simulation"],
+    createdAt: new Date(now - 2 * day).toISOString(),
+    completedAt: new Date(now - 2 * day + 80 * 60 * 1000).toISOString(),
+    status: "completed",
+    questions: SAMPLE_QUESTIONS,
+    answers: buildAnswers(SAMPLE_QUESTIONS, 6, true),
+    currentIndex: SAMPLE_QUESTIONS.length,
+    mode: "exam",
+    durationSec: 90 * 60,
+    passMark: 72,
+  },
+  {
+    id: "e-1000",
+    exam: "AWS Certified Solutions Architect – Associate",
+    examCode: "SAA-C03",
+    focusTopics: ["Full exam simulation"],
+    createdAt: new Date(now - 6 * day).toISOString(),
+    completedAt: new Date(now - 6 * day + 85 * 60 * 1000).toISOString(),
+    status: "completed",
+    questions: SAMPLE_QUESTIONS,
+    answers: buildAnswers(SAMPLE_QUESTIONS, 4, true),
+    currentIndex: SAMPLE_QUESTIONS.length,
+    mode: "exam",
+    durationSec: 90 * 60,
+    // DEFAULT_EXAM is declared below this initializer — literal to avoid TDZ.
+    passMark: 72,
   },
 ]
 

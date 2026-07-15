@@ -1,19 +1,21 @@
 "use client"
 
 import { useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
-import { CalendarPlus, Target } from "lucide-react"
+import { ConfidenceInsights } from "@/components/dashboard/confidence-insights"
 import { ConsistencyHeatmap } from "@/components/dashboard/consistency-heatmap"
 import { DomainMastery } from "@/components/dashboard/domain-mastery"
+import { ExamCountdown } from "@/components/dashboard/exam-countdown"
 import { MomentumStrip } from "@/components/dashboard/momentum-strip"
 import { NextActionCard } from "@/components/dashboard/next-action-card"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { ReadinessCard } from "@/components/dashboard/readiness-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { PlanTodayCard } from "@/components/dashboard/plan-today-card"
+import { UsageNudge } from "@/components/dashboard/usage-nudge"
 import { useDueReviewCount } from "@/components/dashboard/use-due-reviews"
+import { ScoreTrend } from "@/components/history/score-trend"
 import { computePlanPace } from "@/lib/plan/pace"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
@@ -97,28 +99,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {plan && pace ? (
-          <Link
-            href="/plan"
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/10 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-primary/15"
-          >
-            <Target className="size-4 text-primary" />
-            {plan.examCode} ·{" "}
-            <span className="font-semibold text-primary tabular-nums">
-              {pace.daysRemaining === 0
-                ? "exam day"
-                : `${pace.daysRemaining} day${pace.daysRemaining === 1 ? "" : "s"} left`}
-            </span>
-          </Link>
-        ) : (
-          <Link
-            href="/plan"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground"
-          >
-            <CalendarPlus className="size-4 text-primary" />
-            Set your exam date
-          </Link>
-        )}
+        <ExamCountdown />
       </motion.div>
 
       {/* min-w-0 on every grid item: without it the auto tracks take their
@@ -138,13 +119,17 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <DomainMastery />
+          <ConfidenceInsights />
           <PlanTodayCard />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          <ScoreTrend />
           <ConsistencyHeatmap />
           <RecentActivity sessions={sessions} />
         </div>
       </div>
+
+      <UsageNudge />
 
       <QuickActions />
     </div>
