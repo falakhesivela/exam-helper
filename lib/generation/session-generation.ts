@@ -70,6 +70,30 @@ interface GenerationState {
   clear: () => void;
 }
 
+// One in-flight session refresh at a time: a burst of question events
+// coalesces into a single trailing fetch instead of one GET per question,
+// which also stops out-of-order responses from merging stale snapshots.
+let refreshInFlight = false;
+let refreshQueuedId: string | null = null;
+
+function refreshSession(sessionId: string) {
+  if (refreshInFlight) {
+    refreshQueuedId = sessionId;
+    return;
+  }
+  refreshInFlight = true;
+  void api
+    .getSession(sessionId)
+    .then(mergeSessionIntoStore)
+    .catch(() => undefined)
+    .finally(() => {
+      refreshInFlight = false;
+      const queued = refreshQueuedId;
+      refreshQueuedId = null;
+      if (queued) refreshSession(queued);
+    });
+}
+
 function mergeSessionIntoStore(session: PracticeSession) {
   useSessionStore.setState((state) => {
     const existing = state.sessions.find((s) => s.id === session.id);
@@ -128,9 +152,7 @@ function wireSseHandlers(
             : state.active,
         }));
         const sid = sessionId ?? get().active?.sessionId;
-        if (sid) {
-          void api.getSession(sid).then(mergeSessionIntoStore);
-        }
+        if (sid) refreshSession(sid);
         handlers?.onQuestion?.(index);
       } else if (event === "ready") {
         const { sessionId, session } = data as {
