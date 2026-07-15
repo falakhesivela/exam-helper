@@ -30,7 +30,12 @@ export function HistoryList() {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-  const completed = sessions.filter((s) => s.status === "completed")
+  const completed = sessions
+    .filter((s) => s.status === "completed")
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
 
   // Session list still streaming in — don't flash the empty state.
   if (!dataReady && completed.length === 0 && inProgress.length === 0) {
@@ -148,7 +153,12 @@ export function HistoryList() {
                   </p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <Calendar className="size-3" />
-                    {formatDate(s.createdAt)}
+                    {/* Locale/timezone formatting differs between the SSR
+                        pass and the browser — this text may legitimately
+                        change on hydration. */}
+                    <span suppressHydrationWarning>
+                      {formatDate(s.createdAt)}
+                    </span>
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">

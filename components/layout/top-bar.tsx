@@ -9,7 +9,7 @@ import { UsageMeter } from "@/components/layout/usage-meter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { isNavItemActive, visibleNavItems } from "@/lib/config/nav"
+import { desktopNavItems, isNavItemActive } from "@/lib/config/nav"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
@@ -18,7 +18,7 @@ export function TopBar() {
   const pathname = usePathname()
   const profile = useSessionStore((s) => s.profile)
   const isAnonymous = profile.isAnonymous
-  const visibleNav = visibleNavItems(isAnonymous)
+  const visibleNav = desktopNavItems(isAnonymous)
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-lg">

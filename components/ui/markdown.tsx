@@ -51,9 +51,13 @@ const blockElements: Components = {
   h4: ({ node: _, ...props }) => (
     <p role="heading" aria-level={4} className="font-semibold" {...props} />
   ),
+  // contain-[inline-size] on the scroll wrappers: without it, the content's
+  // max-content width propagates through the wrapper's intrinsic size and
+  // widens fit-content ancestors (mx-auto page columns) past the phone
+  // viewport instead of scrolling.
   pre: ({ node: _, ...props }) => (
     <pre
-      className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-[0.85em] leading-relaxed [&_code]:bg-transparent [&_code]:p-0"
+      className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-[0.85em] leading-relaxed contain-[inline-size] [&_code]:bg-transparent [&_code]:p-0"
       {...props}
     />
   ),
@@ -65,7 +69,7 @@ const blockElements: Components = {
   ),
   hr: ({ node: _, ...props }) => <hr className="border-border" {...props} />,
   table: ({ node: _, ...props }) => (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="overflow-x-auto rounded-lg border border-border contain-[inline-size]">
       <table className="w-full min-w-max" {...props} />
     </div>
   ),

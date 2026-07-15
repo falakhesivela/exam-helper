@@ -30,7 +30,13 @@ export function PlanToday({ plan, launchingId, onStart }: PlanTodayProps) {
   const todays = plan.tasks.filter(
     (t) => t.scheduledDate === today && t.status !== "skipped",
   )
-  const openToday = todays.filter((t) => t.status === "pending")
+  // Same window as the dashboard's plan card: due today *or* overdue.
+  // Anything pending from an earlier day surfaces here as catch-up instead
+  // of silently disappearing into the week list.
+  const openToday = pending
+    .filter((t) => t.scheduledDate <= today)
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
+  const overdueCount = openToday.filter((t) => t.scheduledDate < today).length
   const nextUp = pending
     .filter((t) => t.scheduledDate > today)
     .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0]
@@ -47,10 +53,14 @@ export function PlanToday({ plan, launchingId, onStart }: PlanTodayProps) {
         <CardDescription>
           {planComplete
             ? "Every task is done."
-            : isRestDay
-              ? "Rest day — recovery is part of the plan."
-              : openToday.length > 0
-                ? `${openToday.length} task${openToday.length === 1 ? "" : "s"} on today's schedule.`
+            : openToday.length > 0
+              ? `${openToday.length} task${openToday.length === 1 ? "" : "s"} on today's schedule${
+                  overdueCount > 0
+                    ? ` — ${overdueCount} carried over from earlier days`
+                    : ""
+                }.`
+              : isRestDay
+                ? "Rest day — recovery is part of the plan."
                 : "Nothing left for today."}
         </CardDescription>
       </CardHeader>
@@ -69,7 +79,8 @@ export function PlanToday({ plan, launchingId, onStart }: PlanTodayProps) {
               task={task}
               launching={launchingId === task.id}
               onStart={() => onStart(task)}
-              hideDate
+              // Carried-over tasks keep their date so the catch-up is visible.
+              hideDate={task.scheduledDate === today}
             />
           ))
         ) : isRestDay ? (

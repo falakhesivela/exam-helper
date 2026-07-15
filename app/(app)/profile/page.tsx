@@ -10,6 +10,7 @@ import {
   LogOut,
   Sparkles,
   Target,
+  Users,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -152,6 +153,17 @@ export default function ProfilePage() {
             </span>
             <Switch defaultChecked aria-label="Study reminders" />
           </div>
+          <Separator />
+          <Link
+            href="/team"
+            className="flex items-center justify-between gap-3 px-6 py-3.5 text-left text-sm transition-colors hover:bg-secondary/50"
+          >
+            <span className="flex items-center gap-3">
+              <Users className="size-4 text-muted-foreground" />
+              Team
+            </span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
           <Separator />
           <Link
             href={isPaidTier(profile.plan) ? "/profile/billing" : "/upgrade"}

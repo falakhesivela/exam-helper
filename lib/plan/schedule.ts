@@ -252,6 +252,15 @@ export function buildStudyPlan(input: BuildPlanInput): StudyPlan {
       continue
     }
     practiceCount.set(domain.id, (practiceCount.get(domain.id) ?? 0) + 1)
+    // byFocus is sorted by weighted gap, so its head is the real weakest area;
+    // every other domain gets a rationale that matches its actual standing.
+    const mastery = Math.round(domain.mastery)
+    const rationale =
+      domain.mastery >= input.targetScore
+        ? `Currently ${mastery}% — on target; a session to keep it sharp.`
+        : domain.id === byFocus[0]
+          ? `Currently ${mastery}% — your weakest weighted area.`
+          : `Currently ${mastery}% — ${input.targetScore - mastery} points below your ${input.targetScore}% target.`
     tasks.push({
       dayIndex: slot.dayIndex,
       date,
@@ -260,7 +269,7 @@ export function buildStudyPlan(input: BuildPlanInput): StudyPlan {
       domainName: domain.name,
       questionCount: practiceQuestions,
       title: `Practice: ${domain.name} (${practiceQuestions}Q)`,
-      rationale: `Currently ${Math.round(domain.mastery)}% — your weakest weighted area.`,
+      rationale,
     })
   }
 

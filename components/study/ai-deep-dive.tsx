@@ -150,7 +150,10 @@ export function AiDeepDive({
             {(content.comparisons ?? []).map((table) => (
               <div key={table.title} className="flex flex-col gap-2">
                 <h3 className="text-sm font-semibold">{table.title}</h3>
-                <div className="overflow-x-auto rounded-lg border border-border">
+                {/* [contain:inline-size] stops the table's max-content width
+                    from propagating up the fit-content page column (mx-auto)
+                    and widening the whole page on phones. */}
+                <div className="overflow-x-auto rounded-lg border border-border contain-[inline-size]">
                   <table className="w-full min-w-max text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">

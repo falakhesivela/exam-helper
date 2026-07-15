@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useTaskLauncher } from "@/components/plan/use-task-launcher"
 import { useActiveExam } from "@/hooks/use-active-exam"
 import { WEAK_FOCUS_PRACTICE_QUESTIONS } from "@/lib/exams"
+import { todayIso } from "@/lib/plan/dates"
 import { computeExamReadiness } from "@/lib/progress/readiness"
 import { useSessionStore } from "@/lib/store/use-session-store"
 
@@ -34,10 +35,6 @@ interface ActionDef {
   cta: string
   href?: string
   run?: () => void
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 /**

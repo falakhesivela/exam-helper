@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "motion/react"
 import { Badge } from "@/components/ui/badge"
+import { publicPathname } from "@/lib/config/nav"
 import { cn } from "@/lib/utils"
 
 export interface TopicTab {
@@ -23,7 +24,9 @@ export interface TopicTab {
  * identically.
  */
 export function TopicTabs({ tabs }: { tabs: TopicTab[] }) {
-  const pathname = usePathname()
+  // Normalized because these pages prerender under their internal /study
+  // pathname while tab hrefs (and the browser) use the public /learn URLs.
+  const pathname = publicPathname(usePathname())
 
   return (
     <nav
