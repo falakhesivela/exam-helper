@@ -107,7 +107,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-background font-sans antialiased">
-        <SerwistProvider swUrl="/serwist/sw.js">
+        {/* In dev the SW outlives server restarts and serves chunk URLs the
+            new Turbopack process no longer has, breaking client navigation. */}
+        <SerwistProvider
+          swUrl="/serwist/sw.js"
+          disable={process.env.NODE_ENV === "development"}
+        >
           <StoreHydrator>{children}</StoreHydrator>
           <InstallPrompt />
           <Toaster position="top-center" />
