@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Copy, CreditCard, Link2, Minus, Plus, Trash2, X } from "lucide-react"
+import { Check, Copy, CreditCard, Link2, Mail, Minus, Plus, Send, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -152,6 +152,8 @@ function inviteUrlFor(token: string): string {
 function InvitesCard({ team }: { team: Team }) {
   const [invites, setInvites] = useState<TeamInvite[] | null>(null)
   const [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState("")
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -178,6 +180,28 @@ function InvitesCard({ team }: { team: Team }) {
     }
   }
 
+  async function sendEmailInvite() {
+    const address = email.trim()
+    if (!address || sending) return
+    setSending(true)
+    try {
+      const { token, emailed } = await api.inviteToTeam(address)
+      if (emailed) {
+        toast.success(`Invitation sent to ${address}`)
+      } else {
+        // Invite exists but the email couldn't go out — hand over the link.
+        await navigator.clipboard.writeText(inviteUrlFor(token)).catch(() => {})
+        toast.warning("Couldn't send the email — invite link copied instead.")
+      }
+      setEmail("")
+      setInvites(await api.teamInvites().then((r) => r.invites))
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't send the invitation"))
+    } finally {
+      setSending(false)
+    }
+  }
+
   async function revoke(token: string) {
     setInvites((prev) => prev?.filter((i) => i.token !== token) ?? null)
     try {
@@ -193,9 +217,10 @@ function InvitesCard({ team }: { team: Team }) {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div className="space-y-1.5">
-          <CardTitle className="text-base">Invite links</CardTitle>
+          <CardTitle className="text-base">Invites</CardTitle>
           <CardDescription>
-            Anyone with a link can join until it expires or you revoke it.
+            Invite by email, or share a link — anyone with a link can join
+            until it expires or you revoke it.
           </CardDescription>
         </div>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => void createInvite()}>
@@ -204,19 +229,45 @@ function InvitesCard({ team }: { team: Team }) {
         </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void sendEmailInvite()
+          }}
+        >
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="teammate@company.com"
+            aria-label="Invite by email"
+          />
+          <Button type="submit" disabled={sending || !email.trim()}>
+            {sending ? <Spinner data-icon="inline-start" /> : <Send data-icon="inline-start" />}
+            Invite
+          </Button>
+        </form>
         {invites === null ? (
           <Spinner className="size-4" />
         ) : invites.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active invite links.</p>
+          <p className="text-sm text-muted-foreground">No pending invites.</p>
         ) : (
           invites.map((invite) => (
             <div
               key={invite.token}
               className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
             >
-              <code className="flex-1 truncate text-xs text-muted-foreground">
-                …{invite.token.slice(-8)}
-              </code>
+              {invite.email ? (
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+                  <Mail className="size-3.5 shrink-0" />
+                  <span className="truncate">{invite.email}</span>
+                </span>
+              ) : (
+                <code className="flex-1 truncate text-xs text-muted-foreground">
+                  …{invite.token.slice(-8)}
+                </code>
+              )}
               <span className="shrink-0 text-xs text-muted-foreground">
                 {invite.expiresAt
                   ? `expires ${new Date(invite.expiresAt).toLocaleDateString()}`

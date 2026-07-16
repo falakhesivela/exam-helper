@@ -500,6 +500,13 @@ export function buildMockTeamInvites(): import("@/types").TeamInvite[] {
       token: "mock-invite-token",
       createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
       expiresAt: new Date(Date.now() + 12 * 86_400_000).toISOString(),
+      email: null,
+    },
+    {
+      token: "mock-email-invite",
+      createdAt: new Date(Date.now() - 86_400_000).toISOString(),
+      expiresAt: new Date(Date.now() + 13 * 86_400_000).toISOString(),
+      email: "newhire@example.com",
     },
   ]
 }

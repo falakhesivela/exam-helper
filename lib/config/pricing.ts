@@ -109,6 +109,25 @@ function planFeatures(tier: Tier): string[] {
   return features
 }
 
+/**
+ * Marketing card for the seat-based Team plan. Kept out of PLANS: it isn't a
+ * user tier (the org holds the subscription) and pricing grids render it as a
+ * separate full-width banner, not a fourth column.
+ */
+export const TEAM_PLAN = {
+  name: "Team",
+  price: TEAM_PRICE_LABEL,
+  cycle: TEAM_PRICE_CYCLE,
+  tagline: "Pro for your whole cohort — one subscription, one invoice.",
+  features: [
+    "Every seat gets full Pro access",
+    "Assign the same mock exam to everyone & compare results",
+    "Team dashboard: readiness, weekly leaderboard, at-risk flags",
+    "CSV progress export & weekly email digest",
+    `${TEAM_MIN_SEATS}–${TEAM_MAX_SEATS} seats — add or remove anytime`,
+  ],
+} as const
+
 export const PLANS: PlanCard[] = [
   {
     tier: "free",

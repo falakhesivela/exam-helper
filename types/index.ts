@@ -127,6 +127,8 @@ export interface TeamInvite {
   token: string
   createdAt: string
   expiresAt: string | null
+  /** Address the invite was emailed to; null for shareable link invites. */
+  email?: string | null
 }
 
 export interface Team {

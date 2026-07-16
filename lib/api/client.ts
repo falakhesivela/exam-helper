@@ -909,9 +909,14 @@ export const api = {
     });
   },
 
-  inviteToTeam: () => {
-    if (USE_MOCKS) return Promise.resolve({ token: "mock-invite-token" });
-    return request<{ token: string }>("/api/team/invite", { method: "POST" });
+  inviteToTeam: (email?: string) => {
+    if (USE_MOCKS) {
+      return Promise.resolve({ token: "mock-invite-token", emailed: !!email });
+    }
+    return request<{ token: string; emailed?: boolean }>("/api/team/invite", {
+      method: "POST",
+      ...(email ? { body: JSON.stringify({ email }) } : {}),
+    });
   },
 
   joinTeam: (token: string) => {

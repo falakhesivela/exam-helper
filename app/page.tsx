@@ -5,7 +5,7 @@ import { Logo } from "@/components/layout/logo"
 import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
-import { PLANS, PRO_ANNUAL_PRICE_LABEL } from "@/lib/config/pricing"
+import { PLANS, PRO_ANNUAL_PRICE_LABEL, TEAM_PLAN } from "@/lib/config/pricing"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -141,7 +141,7 @@ const faqs = [
   },
   {
     q: "Is Prepa free to use?",
-    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($12/month, or $79/year) unlocks daily practice, mock exams, hands-on labs, and the AI tutor and coach. Exam Pass ($39 one-time) gives you everything at exam-cram volume — 250 questions and 2 full mock exams every day — for 90 days.",
+    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($12/month, or $79/year) unlocks daily practice, mock exams, hands-on labs, and the AI tutor and coach. Exam Pass ($39 one-time) gives you everything at exam-cram volume — 250 questions and 2 full mock exams every day — for 90 days. Teams get per-seat pricing at $15/seat/month.",
   },
   {
     q: "How is Prepa different from static question banks?",
@@ -158,6 +158,10 @@ const faqs = [
   {
     q: "Can I use my own study material?",
     a: "Yes — upload your PDF notes or course material and Prepa generates practice questions directly from it, alongside its own exam-style questions.",
+  },
+  {
+    q: "Can I use Prepa with a team, class, or bootcamp cohort?",
+    a: "Yes — the Team plan is $15 per seat per month. Every member gets full Pro access, and team leads can assign the same mock exam to everyone and compare results, track cohort readiness on a team dashboard with a weekly leaderboard and at-risk flags, export progress as CSV, and get a weekly email digest. One subscription, one invoice, add or remove seats anytime.",
   },
   {
     q: "Does it work on my phone?",
@@ -208,6 +212,13 @@ function buildStructuredData() {
           price: "39",
           priceCurrency: "USD",
           description: examPassPlan.tagline,
+        },
+        {
+          "@type": "Offer",
+          name: "Team",
+          price: "15",
+          priceCurrency: "USD",
+          description: TEAM_PLAN.tagline,
         },
       ],
       featureList: features.map((f) => f.h).join(", "),
@@ -768,6 +779,29 @@ export default async function LandingPage() {
               ))}
             </div>
             <LandingProButton tier="exam_pass" label="Get Exam Pass" filled={false} />
+          </div>
+        </div>
+        {/* Team */}
+        <div className="card" style={{ maxWidth: "1000px", margin: "20px auto 0", borderRadius: "18px", padding: "28px 32px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px" }}>
+          <div style={{ flex: "1 1 240px", minWidth: "220px" }}>
+            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "10px" }}>
+              Prepa for Teams
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
+              <span className="lp-price">{TEAM_PLAN.price}</span>
+              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{TEAM_PLAN.cycle}</span>
+            </div>
+            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 18px" }}>
+              {TEAM_PLAN.tagline}
+            </p>
+            <Link href="/team" className="btn" style={{ display: "inline-flex", background: "#F4F0E8", border: "1px solid #E1DACB", fontSize: "15px", padding: "13px 22px" }}>
+              Start a team
+            </Link>
+          </div>
+          <div style={{ flex: "2 1 320px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "11px" }}>
+            {TEAM_PLAN.features.map((f) => (
+              <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
+            ))}
           </div>
         </div>
       </section>
