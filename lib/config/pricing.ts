@@ -10,6 +10,10 @@ export const PRO_ANNUAL_PRICE_LABEL = "$79"
 export const PRO_ANNUAL_PRICE_CYCLE = "year"
 export const EXAM_PASS_PRICE_LABEL = "$39"
 export const EXAM_PASS_CYCLE = "90 days"
+export const TEAM_PRICE_LABEL = "$15"
+export const TEAM_PRICE_CYCLE = "seat / month"
+export const TEAM_MIN_SEATS = 3
+export const TEAM_MAX_SEATS = 100
 
 /**
  * What the user buys at checkout. pro_annual is a billing variant of the
@@ -30,6 +34,15 @@ export function getProAnnualPriceId(): string | undefined {
 /** Paddle price id for the one-time Exam Pass ($39 / 90 days). */
 export function getExamPassPriceId(): string | undefined {
   return process.env.NEXT_PUBLIC_PADDLE_EXAM_PASS_PRICE_ID
+}
+
+/**
+ * Paddle price id for the seat-based Team plan ($15/seat/mo). Not a
+ * CheckoutSku: team checkout carries a quantity and org custom_data, and the
+ * webhook entitles the organization rather than a user profile.
+ */
+export function getTeamPriceId(): string | undefined {
+  return process.env.NEXT_PUBLIC_PADDLE_TEAM_PRICE_ID
 }
 
 /** Paddle price id for a checkout SKU (used by the checkout hook). */

@@ -111,12 +111,22 @@ export type OrgRole = "owner" | "admin" | "member"
 export interface TeamMember {
   userId: string
   name: string
+  /** Masked ("") for viewers below admin, except the viewer's own row. */
   email: string
   role: OrgRole
   overallMastery: number
   questionsAnswered: number
+  /** Questions answered in the trailing 7 days. */
+  weeklyQuestions: number
   streakDays: number
   lastActiveDate: string | null
+}
+
+/** A shareable invite link the team's owner/admins can revoke. */
+export interface TeamInvite {
+  token: string
+  createdAt: string
+  expiresAt: string | null
 }
 
 export interface Team {
@@ -124,7 +134,66 @@ export interface Team {
   name: string
   /** The current user's role in this team. */
   role: OrgRole
+  /** "team" once the org has a seat-based subscription. */
+  plan: "none" | "team"
+  /** Paid seat count; null without a team subscription. */
+  seats: number | null
+  seatsUsed: number
+  subscriptionStatus: string | null
+  /** When set, member progress shown on /team is scoped to this exam. */
+  targetExamCode: string | null
+  targetExam: string | null
   members: TeamMember[]
+}
+
+/** The viewer's own attempt at a team assignment. */
+export interface TeamAssignmentAttempt {
+  sessionId: string
+  status: "in-progress" | "completed"
+  correct: number
+  answered: number
+}
+
+/** A shared mock exam assigned to the whole team (identical questions). */
+export interface TeamAssignment {
+  id: string
+  title: string
+  exam: string
+  examCode: string
+  questionCount: number
+  durationSec: number | null
+  passMark: number | null
+  dueAt: string | null
+  createdAt: string
+  createdBy: string
+  completedCount?: number
+  myAttempt?: TeamAssignmentAttempt | null
+}
+
+export interface TeamAssignmentMemberResult {
+  userId: string
+  name: string
+  email: string
+  status: "not-started" | "in-progress" | "completed"
+  correct: number
+  answered: number
+  timeUsedSec: number | null
+  completedAt: string | null
+}
+
+export interface TeamAssignmentResults {
+  assignment: TeamAssignment
+  members: TeamAssignmentMemberResult[]
+}
+
+/** Team subscription details for the settings/billing panel. */
+export interface TeamBilling {
+  hasSubscription: boolean
+  status: string | null
+  seats: number | null
+  nextBilledAt: string | null
+  cancelEffectiveAt: string | null
+  updatePaymentUrl: string | null
 }
 
 /** A saved question the learner can revisit across sessions. */
@@ -231,6 +300,8 @@ export interface UserProfile {
   /** True for anonymous sessions (no real account yet) — gates account-only UI. */
   isAnonymous: boolean
   plan: Tier
+  /** True when the plan is inherited from a team seat (no own subscription). */
+  planViaTeam?: boolean
   /**
    * Raw Paddle subscription status (e.g. "active", "trialing", "past_due",
    * "canceled") when the user has a subscription; null for free users.

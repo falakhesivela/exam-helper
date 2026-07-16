@@ -478,11 +478,88 @@ export function buildMockTeam(): import("@/types").Team {
     id: "org-1",
     name: "Cloud Bootcamp · Cohort 7",
     role: "owner",
+    plan: "team",
+    seats: 8,
+    seatsUsed: 4,
+    subscriptionStatus: "active",
+    targetExamCode: "SAA-C03",
+    targetExam: "AWS Certified Solutions Architect – Associate",
     members: [
-      { userId: "u-jordan", name: "Jordan Avery", email: "jordan@certforge.app", role: "owner", overallMastery: 65, questionsAnswered: 358, streakDays: 12, lastActiveDate: today },
-      { userId: "u-sam", name: "Sam Okoye", email: "sam@example.com", role: "member", overallMastery: 78, questionsAnswered: 512, streakDays: 5, lastActiveDate: today },
-      { userId: "u-mia", name: "Mia Chen", email: "mia@example.com", role: "member", overallMastery: 44, questionsAnswered: 96, streakDays: 0, lastActiveDate: yesterday },
-      { userId: "u-leo", name: "Leo Martins", email: "leo@example.com", role: "admin", overallMastery: 71, questionsAnswered: 240, streakDays: 21, lastActiveDate: today },
+      { userId: "u-jordan", name: "Jordan Avery", email: "jordan@certforge.app", role: "owner", overallMastery: 65, questionsAnswered: 358, weeklyQuestions: 84, streakDays: 12, lastActiveDate: today },
+      { userId: "u-sam", name: "Sam Okoye", email: "sam@example.com", role: "member", overallMastery: 78, questionsAnswered: 512, weeklyQuestions: 121, streakDays: 5, lastActiveDate: today },
+      { userId: "u-mia", name: "Mia Chen", email: "mia@example.com", role: "member", overallMastery: 44, questionsAnswered: 96, weeklyQuestions: 0, streakDays: 0, lastActiveDate: yesterday },
+      { userId: "u-leo", name: "Leo Martins", email: "leo@example.com", role: "admin", overallMastery: 71, questionsAnswered: 240, weeklyQuestions: 45, streakDays: 21, lastActiveDate: today },
+    ],
+  }
+}
+
+/** Mock invite links for the team settings panel. */
+export function buildMockTeamInvites(): import("@/types").TeamInvite[] {
+  return [
+    {
+      token: "mock-invite-token",
+      createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      expiresAt: new Date(Date.now() + 12 * 86_400_000).toISOString(),
+    },
+  ]
+}
+
+/** Mock team subscription for the billing panel. */
+export function buildMockTeamBilling(): import("@/types").TeamBilling {
+  return {
+    hasSubscription: true,
+    status: "active",
+    seats: 8,
+    nextBilledAt: new Date(Date.now() + 21 * 86_400_000).toISOString(),
+    cancelEffectiveAt: null,
+    updatePaymentUrl: null,
+  }
+}
+
+/** Mock team assignments for the assignments tab. */
+export function buildMockTeamAssignments(): import("@/types").TeamAssignment[] {
+  return [
+    {
+      id: "ta-1",
+      title: "Week 4 checkpoint mock",
+      exam: "AWS Certified Solutions Architect – Associate",
+      examCode: "SAA-C03",
+      questionCount: 30,
+      durationSec: 3600,
+      passMark: 72,
+      dueAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      createdBy: "u-jordan",
+      completedCount: 2,
+      myAttempt: { sessionId: "s-1000", status: "completed", correct: 24, answered: 30 },
+    },
+    {
+      id: "ta-2",
+      title: "Networking deep-dive",
+      exam: "AWS Certified Solutions Architect – Associate",
+      examCode: "SAA-C03",
+      questionCount: 20,
+      durationSec: 2400,
+      passMark: 72,
+      dueAt: null,
+      createdAt: new Date(Date.now() - 86_400_000).toISOString(),
+      createdBy: "u-jordan",
+      completedCount: 0,
+      myAttempt: null,
+    },
+  ]
+}
+
+/** Mock per-member results for a team assignment. */
+export function buildMockTeamAssignmentResults(): import("@/types").TeamAssignmentResults {
+  const [assignment] = buildMockTeamAssignments()
+  return {
+    assignment,
+    members: [
+      { userId: "u-jordan", name: "Jordan Avery", email: "jordan@certforge.app", status: "completed", correct: 24, answered: 30, timeUsedSec: 2900, completedAt: new Date().toISOString() },
+      { userId: "u-sam", name: "Sam Okoye", email: "sam@example.com", status: "completed", correct: 27, answered: 30, timeUsedSec: 2400, completedAt: new Date().toISOString() },
+      { userId: "u-mia", name: "Mia Chen", email: "mia@example.com", status: "in-progress", correct: 6, answered: 11, timeUsedSec: null, completedAt: null },
+      { userId: "u-leo", name: "Leo Martins", email: "leo@example.com", status: "not-started", correct: 0, answered: 0, timeUsedSec: null, completedAt: null },
     ],
   }
 }

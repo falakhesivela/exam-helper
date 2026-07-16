@@ -20,6 +20,10 @@ import {
   buildMockLabCatalog,
   buildMockMissedQuestions,
   buildMockTeam,
+  buildMockTeamAssignmentResults,
+  buildMockTeamAssignments,
+  buildMockTeamBilling,
+  buildMockTeamInvites,
   buildMockTopicLab,
   buildMockUserExams,
 } from "@/lib/mock-data";
@@ -923,6 +927,130 @@ export const api = {
     return request<{ ok: boolean }>(`/api/team/members/${userId}`, {
       method: "DELETE",
     });
+  },
+
+  updateTeam: (patch: {
+    name?: string;
+    /** "" clears the focus exam. */
+    targetExamCode?: string;
+    targetExam?: string;
+  }) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeam());
+    return request<import("@/types").Team>("/api/team", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteTeam: () => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>("/api/team", { method: "DELETE" });
+  },
+
+  setTeamMemberRole: (userId: string, role: "admin" | "member") => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>(`/api/team/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  teamInvites: () => {
+    if (USE_MOCKS) return Promise.resolve({ invites: buildMockTeamInvites() });
+    return request<{ invites: import("@/types").TeamInvite[] }>(
+      "/api/team/invites",
+    );
+  },
+
+  revokeTeamInvite: (token: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>(
+      `/api/team/invites/${encodeURIComponent(token)}`,
+      { method: "DELETE" },
+    );
+  },
+
+  teamAssignments: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve({ assignments: buildMockTeamAssignments() });
+    }
+    return request<{ assignments: import("@/types").TeamAssignment[] }>(
+      "/api/team/assignments",
+    );
+  },
+
+  createTeamAssignment: (body: {
+    sourceSessionId: string;
+    title: string;
+    dueAt?: string | null;
+  }) => {
+    if (USE_MOCKS) {
+      return Promise.resolve(buildMockTeamAssignments()[0]);
+    }
+    return request<import("@/types").TeamAssignment>("/api/team/assignments", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  startTeamAssignment: (assignmentId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ sessionId: "e-1001" });
+    return request<{ sessionId: string }>(
+      `/api/team/assignments/${assignmentId}/start`,
+      { method: "POST" },
+    );
+  },
+
+  teamAssignmentResults: (assignmentId: string) => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeamAssignmentResults());
+    return request<import("@/types").TeamAssignmentResults>(
+      `/api/team/assignments/${assignmentId}/results`,
+    );
+  },
+
+  deleteTeamAssignment: (assignmentId: string) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true });
+    return request<{ ok: boolean }>(`/api/team/assignments/${assignmentId}`, {
+      method: "DELETE",
+    });
+  },
+
+  exportTeamCsv: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve({
+        filename: "mock-team-progress.csv",
+        csv: "name,email\nJordan Avery,jordan@certforge.app\n",
+      });
+    }
+    return request<{ filename: string; csv: string }>("/api/team/export");
+  },
+
+  teamBilling: () => {
+    if (USE_MOCKS) return Promise.resolve(buildMockTeamBilling());
+    return request<import("@/types").TeamBilling>("/api/team/billing");
+  },
+
+  updateTeamSeats: (seats: number) => {
+    if (USE_MOCKS) return Promise.resolve({ ok: true, seats });
+    return request<{ ok: boolean; seats: number }>("/api/team/billing/seats", {
+      method: "POST",
+      body: JSON.stringify({ seats }),
+    });
+  },
+
+  cancelTeamSubscription: () => {
+    if (USE_MOCKS) {
+      return Promise.resolve({
+        hasSubscription: true,
+        status: "active",
+        cancelEffectiveAt: new Date(Date.now() + 21 * 86_400_000).toISOString(),
+      });
+    }
+    return request<{
+      hasSubscription: boolean;
+      status: string | null;
+      cancelEffectiveAt: string | null;
+    }>("/api/team/billing/cancel", { method: "POST" });
   },
 
   getSubscription: () => {

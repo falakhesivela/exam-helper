@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Check } from "lucide-react"
+import { Check, Users } from "lucide-react"
 import { SubscribeButton } from "@/components/upgrade/subscribe-button"
-import { PLANS, PRO_ANNUAL_PRICE_LABEL } from "@/lib/config/pricing"
+import {
+  PLANS,
+  PRO_ANNUAL_PRICE_LABEL,
+  TEAM_MIN_SEATS,
+  TEAM_PRICE_LABEL,
+} from "@/lib/config/pricing"
 import { LEGAL_LINKS } from "@/app/(legal)/legal-config"
 import { cn } from "@/lib/utils"
 
@@ -74,6 +79,26 @@ export default function UpgradePage() {
           </section>
         ))}
       </div>
+
+      <section className="flex flex-col items-start gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <Users className="size-5 text-primary" />
+        </div>
+        <div className="flex-1 space-y-1">
+          <h2 className="text-lg font-semibold">Prepa for Teams</h2>
+          <p className="text-sm text-muted-foreground text-pretty">
+            Put a cohort or study group on Pro with one invoice —{" "}
+            {TEAM_PRICE_LABEL}/seat per month (min {TEAM_MIN_SEATS} seats), plus
+            a shared progress dashboard, roles, and seat management.
+          </p>
+        </div>
+        <Link
+          href="/team"
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-input px-4 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          Set up a team
+        </Link>
+      </section>
 
       <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>Payments handled securely by Paddle.</span>
