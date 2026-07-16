@@ -287,10 +287,10 @@ export function buildMockStudyPlan(): StudyPlan {
     dailyLimit: 20,
     fullExamQuestionCount: 65,
     domains: [
-      { id: "design-resilient", name: "Design Resilient Architectures", weightPercent: 30, mastery: 60 },
-      { id: "design-high-performing", name: "Design High-Performing Architectures", weightPercent: 28, mastery: 75 },
-      { id: "design-secure", name: "Design Secure Architectures", weightPercent: 24, mastery: 55 },
-      { id: "design-cost-optimized", name: "Design Cost-Optimized Architectures", weightPercent: 18, mastery: 35 },
+      { id: "design-resilient", name: "Design Resilient Architectures", weightPercent: 26, mastery: 60 },
+      { id: "design-high-performing", name: "Design High-Performing Architectures", weightPercent: 24, mastery: 75 },
+      { id: "design-secure", name: "Design Secure Architectures", weightPercent: 30, mastery: 55 },
+      { id: "design-cost-optimized", name: "Design Cost-Optimized Architectures", weightPercent: 20, mastery: 35 },
     ],
   })
   return {

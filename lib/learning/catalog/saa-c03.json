@@ -5,7 +5,7 @@
     {
       "id": "design-resilient",
       "name": "Design Resilient Architectures",
-      "weight": "30%",
+      "weight": "26%",
       "topics": [
         {
           "slug": "networking",
@@ -70,7 +70,7 @@
     {
       "id": "design-high-performing",
       "name": "Design High-Performing Architectures",
-      "weight": "28%",
+      "weight": "24%",
       "topics": [
         {
           "slug": "storage",
@@ -117,7 +117,7 @@
     {
       "id": "design-secure",
       "name": "Design Secure Architectures",
-      "weight": "24%",
+      "weight": "30%",
       "topics": [
         {
           "slug": "security-identity",
@@ -146,7 +146,7 @@
     {
       "id": "design-cost-optimized",
       "name": "Design Cost-Optimized Architectures",
-      "weight": "18%",
+      "weight": "20%",
       "topics": [
         {
           "slug": "cost-optimization",

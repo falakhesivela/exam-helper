@@ -1,0 +1,91 @@
+import type { ExamBlueprint } from "../types"
+
+export const scsC03Blueprint: ExamBlueprint = {
+  examCode: "SCS-C03",
+  exam: "AWS Certified Security – Specialty",
+  provider: "aws",
+  questionCount: 65,
+  durationMin: 170,
+  passMark: 75,
+  questionMix: { singleChoice: 0.65, multipleResponse: 0.35 },
+  styleGuide: { scenarioHeavy: true, servicesShortNames: true },
+  domains: [
+    {
+      id: "detection",
+      name: "Detection",
+      weightPercent: 16,
+      topics: [
+        "Monitoring and alerting design: GuardDuty, Security Hub, Macie, Security Lake",
+        "Automated assessments: Config conformance packs, Systems Manager State Manager",
+        "Logging architecture: organization CloudTrail trails, centralized CloudWatch Logs accounts",
+        "Log analysis: CloudWatch Logs Insights, Athena, OpenSearch, correlation with Lambda",
+        "Network log sources: VPC flow logs, transit gateway flow logs, Route 53 Resolver logs",
+        "Troubleshooting missing logs and misconfigured monitoring",
+      ],
+    },
+    {
+      id: "incident-response",
+      name: "Incident Response",
+      weightPercent: 14,
+      topics: [
+        "Incident response plans and runbooks: Systems Manager OpsCenter, preparation posture",
+        "Testing IR effectiveness: Fault Injection Service, Resilience Hub, game days",
+        "Automated remediation: Step Functions, Lambda, Automated Forensics Orchestrator",
+        "Forensics: capturing and preserving logs and artifacts, memory/disk evidence handling",
+        "Containment and eradication: network isolation, credential revocation, restoring from backups",
+        "Root cause analysis with Amazon Detective",
+      ],
+    },
+    {
+      id: "infrastructure-security",
+      name: "Infrastructure Security",
+      weightPercent: 18,
+      topics: [
+        "Edge protection: CloudFront security headers, WAF rules, Shield Advanced, OWASP Top 10",
+        "Edge controls: geo-restrictions, rate limiting, client fingerprinting, OCSF integrations",
+        "Compute hardening: golden AMIs with Image Builder, instance profiles, Inspector scanning",
+        "Patch automation with Systems Manager Patch Manager; secure admin access via Session Manager",
+        "Pipeline security scanning and guardrails for generative AI workloads (OWASP LLM Top 10)",
+        "Network controls: security groups, NACLs, Network Firewall, segmentation, Verified Access",
+      ],
+    },
+    {
+      id: "identity-access-management",
+      name: "Identity and Access Management",
+      weightPercent: 20,
+      topics: [
+        "Authentication design: IAM Identity Center, Cognito, MFA, external IdP federation",
+        "Temporary credentials: STS, presigned URLs, session policies",
+        "Authorization: IAM policies, permission boundaries, resource policies, role trust policies",
+        "ABAC and RBAC strategies with tags and attributes; Verified Permissions, IAM Roles Anywhere",
+        "Debugging access: IAM policy simulator, Access Analyzer, CloudTrail-based auditing",
+        "Detecting and correcting unintended permissions and privilege escalation paths",
+      ],
+    },
+    {
+      id: "data-protection",
+      name: "Data Protection",
+      weightPercent: 18,
+      topics: [
+        "Encryption in transit: ELB security policies, TLS enforcement, inter-node encryption",
+        "Private access paths: PrivateLink, VPC endpoints, Client VPN, Verified Access",
+        "Encryption at rest: KMS vs CloudHSM, client-side vs server-side, key policies",
+        "Data integrity and retention: S3 Object Lock, Glacier Vault Lock, versioning, code signing",
+        "Secrets and key management: Secrets Manager rotation, imported key material, external key stores",
+        "Sensitive data masking: CloudWatch Logs data protection policies, SNS message data protection",
+      ],
+    },
+    {
+      id: "security-foundations-governance",
+      name: "Security Foundations and Governance",
+      weightPercent: 14,
+      topics: [
+        "Multi-account strategy: Organizations, Control Tower controls, delegated administrators",
+        "Organization policies: SCPs, RCPs, declarative policies, AI service opt-out policies",
+        "Root user governance: centralized root access, MFA, break-glass procedures",
+        "Secure IaC deployment: StackSets, CloudFormation Guard, cfn-lint, Firewall Manager",
+        "Compliance evaluation: Config remediation, Audit Manager, Artifact, Well-Architected reviews",
+      ],
+    },
+  ],
+}

@@ -13,7 +13,7 @@ export const clfC02Blueprint: ExamBlueprint = {
     {
       id: "cloud-concepts",
       name: "Cloud Concepts",
-      weightPercent: 26,
+      weightPercent: 24,
       topics: [
         "Benefits of cloud: elasticity, agility, global reach",
         "Cloud deployment models: public, private, hybrid",
@@ -24,7 +24,7 @@ export const clfC02Blueprint: ExamBlueprint = {
     {
       id: "security",
       name: "Security and Compliance",
-      weightPercent: 25,
+      weightPercent: 30,
       topics: [
         "Shared responsibility model",
         "IAM users, groups, roles, policies",
@@ -35,7 +35,7 @@ export const clfC02Blueprint: ExamBlueprint = {
     {
       id: "technology",
       name: "Cloud Technology and Services",
-      weightPercent: 33,
+      weightPercent: 34,
       topics: [
         "Core services: EC2, S3, RDS, Lambda, VPC basics",
         "Storage classes and use cases",
@@ -46,7 +46,7 @@ export const clfC02Blueprint: ExamBlueprint = {
     {
       id: "billing",
       name: "Billing, Pricing, and Support",
-      weightPercent: 16,
+      weightPercent: 12,
       topics: [
         "On-Demand, Reserved, Savings Plans, Spot pricing",
         "AWS Organizations and consolidated billing",

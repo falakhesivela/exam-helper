@@ -21,7 +21,15 @@ export function SessionStreak({ streak }: SessionStreakProps) {
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: milestone ? [1, 1.25, 1] : 1, opacity: 1 }}
         exit={{ scale: 0.6, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 400, damping: 18 }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 18,
+          // Springs only support two keyframes; the milestone pop has three.
+          ...(milestone && {
+            scale: { type: "tween", duration: 0.45, ease: "easeInOut" },
+          }),
+        }}
         className={cn(
           "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
           milestone

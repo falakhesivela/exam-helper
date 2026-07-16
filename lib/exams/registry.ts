@@ -2,14 +2,22 @@ import saaC03Catalog from "@/lib/learning/catalog/saa-c03.json"
 import type { ExamCatalog } from "@/lib/learning/types"
 import { aPlus2201101Blueprint } from "./blueprints/220-1101"
 import { ccna200301Blueprint } from "./blueprints/200-301"
+import { aifC01Blueprint } from "./blueprints/aif-c01"
+import { aipC01Blueprint } from "./blueprints/aip-c01"
+import { ansC01Blueprint } from "./blueprints/ans-c01"
 import { az104Blueprint } from "./blueprints/az-104"
 import { az900Blueprint } from "./blueprints/az-900"
 import { clfC02Blueprint } from "./blueprints/clf-c02"
 import { cisspBlueprint } from "./blueprints/cissp"
+import { deaC01Blueprint } from "./blueprints/dea-c01"
 import { dopC02Blueprint } from "./blueprints/dop-c02"
 import { dvaC02Blueprint } from "./blueprints/dva-c02"
 import { gcpAceBlueprint } from "./blueprints/gcp-ace"
+import { mlaC01Blueprint } from "./blueprints/mla-c01"
 import { n10009Blueprint } from "./blueprints/n10-009"
+import { sapC02Blueprint } from "./blueprints/sap-c02"
+import { scsC03Blueprint } from "./blueprints/scs-c03"
+import { soaC03Blueprint } from "./blueprints/soa-c03"
 import { sy0701Blueprint } from "./blueprints/sy0-701"
 import { blueprintFromCatalog } from "./from-catalog"
 import type { ExamBlueprint } from "./types"
@@ -27,8 +35,16 @@ const saaC03Blueprint = blueprintFromCatalog(saaC03Catalog as ExamCatalog, {
 const blueprints: Record<string, ExamBlueprint> = {
   "SAA-C03": saaC03Blueprint,
   "CLF-C02": clfC02Blueprint,
+  "AIF-C01": aifC01Blueprint,
   "DVA-C02": dvaC02Blueprint,
+  "SOA-C03": soaC03Blueprint,
+  "DEA-C01": deaC01Blueprint,
+  "MLA-C01": mlaC01Blueprint,
+  "SAP-C02": sapC02Blueprint,
   "DOP-C02": dopC02Blueprint,
+  "AIP-C01": aipC01Blueprint,
+  "ANS-C01": ansC01Blueprint,
+  "SCS-C03": scsC03Blueprint,
   "AZ-900": az900Blueprint,
   "AZ-104": az104Blueprint,
   "GCP-ACE": gcpAceBlueprint,
@@ -43,8 +59,16 @@ const blueprints: Record<string, ExamBlueprint> = {
 export const EXAM_PRESET_CODES = [
   "SAA-C03",
   "CLF-C02",
+  "AIF-C01",
   "DVA-C02",
+  "SOA-C03",
+  "DEA-C01",
+  "MLA-C01",
+  "SAP-C02",
   "DOP-C02",
+  "AIP-C01",
+  "ANS-C01",
+  "SCS-C03",
   "AZ-900",
   "AZ-104",
   "GCP-ACE",
