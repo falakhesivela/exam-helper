@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og"
 
 export const alt =
-  "Prepa — AI-powered practice questions for certification exams"
+  "Prepa — verified practice questions for certification exams"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -61,7 +61,7 @@ export default function OpengraphImage() {
               maxWidth: "900px",
             }}
           >
-            Pass your certification exam with practice that adapts to you
+            Practice questions you can actually trust
           </div>
           <div
             style={{
@@ -72,8 +72,8 @@ export default function OpengraphImage() {
               lineHeight: 1.4,
             }}
           >
-            Fresh AI questions, instant explanations, timed mock exams, and
-            progress tracking.
+            Every answer key blind-checked by a second model. Explanations cite
+            the source.
           </div>
         </div>
 

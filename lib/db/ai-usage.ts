@@ -24,8 +24,14 @@ export const MODEL_PRICES: Record<string, { input: number; output: number }> = {
   // Google Gemini (OpenAI-compatible endpoint)
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
+  "gemini-3.5-flash": { input: 1.5, output: 9.0 },
+  "gemini-3.1-flash-lite": { input: 0.125, output: 0.75 },
   // OpenAI fallback
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "gpt-5.4-mini": { input: 0.75, output: 4.5 },
+  "gpt-5.6-luna": { input: 0.2, output: 1.2 },
+  "gpt-5.6-terra": { input: 2.0, output: 12.0 },
+  "gpt-5.6-sol": { input: 5.0, output: 30.0 },
 }
 
 export function estimateCostUsd(

@@ -12,7 +12,7 @@ const { ink, body, muted, border } = LEGAL_THEME
 export const metadata: Metadata = {
   title: "Certification Exam Guides — AWS, Azure, CompTIA, Cisco & More",
   description:
-    "Free study guides for AWS, Azure, Google Cloud, CompTIA, Cisco, and CISSP certification exams: domains, weights, format, pass marks, and how to prepare.",
+    "Free study guides for AWS, Azure, Google Cloud, CompTIA, Cisco, and CISSP certification exams: domains, weights, format, pass marks, and how to prepare — plus practice questions whose answer keys are independently double-checked.",
   alternates: { canonical: "/exams" },
 }
 

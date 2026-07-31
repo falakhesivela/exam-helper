@@ -3,10 +3,10 @@ import type { MetadataRoute } from "next"
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Prepa — AI Exam Prep",
+    name: "Prepa — Verified Exam Prep",
     short_name: "Prepa",
     description:
-      "AI-powered, adaptive practice questions for high-stakes certification exams.",
+      "Verified practice questions for high-stakes certification exams — every answer key double-checked.",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",

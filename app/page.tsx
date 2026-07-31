@@ -6,6 +6,7 @@ import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
 import { PLANS, PRO_ANNUAL_PRICE_LABEL, TEAM_PLAN } from "@/lib/config/pricing"
+import { listExamPresets } from "@/lib/exams/registry"
 
 // Fonts from the imported Prepa Landing design.
 const serif = Newsreader({
@@ -29,33 +30,37 @@ const ACCENT = "#1E5C44"
 const PAPER = "#F3EFE7"
 const INK = "#1A1C18"
 
-const coverage = [
-  "AWS Solutions Architect",
-  "AWS Cloud Practitioner",
-  "AWS Developer",
-  "AWS DevOps Professional",
-  "CompTIA Security+",
-  "CompTIA Network+",
-  "CompTIA A+",
-  "Cisco CCNA",
-  "Azure Fundamentals",
-  "Azure Administrator",
-  "Google Cloud Engineer",
-  "CISSP",
-  "+ any custom exam",
-]
+/**
+ * Built from the exam registry so the marquee and the "N certifications" claim
+ * can never drift from what the app actually supports.
+ */
+const presets = listExamPresets()
+const PRESET_COUNT = presets.length
+const coverage = [...presets.map((p) => p.exam), "+ any custom exam"]
 
 const features = [
+  {
+    icon: "shield",
+    k: "Double-checked",
+    h: "Never study a wrong answer key",
+    p: "A second, independent AI blind-answers every generated question before you see it. If the two disagree, the question is thrown out — so you never study a wrong answer key. Multiple-choice questions are checked this way.",
+  },
+  {
+    icon: "link",
+    k: "Sourced",
+    h: "Straight from the vendor's docs",
+    p: "Explanations link to the official documentation for your exam — AWS, Microsoft Learn, Google Cloud, Cisco. Links to anywhere else, and links that have gone dead, are stripped before delivery.",
+  },
   {
     icon: "book",
     k: "Learn",
     h: "A syllabus that actually teaches",
-    p: "Your exam's full syllabus, weighted like the real test, with AI lessons built around decision tables, exam traps, and key facts — then a knowledge check that proves you got it.",
+    p: "Your exam's full syllabus, weighted like the real test, with lessons built around decision tables, exam traps, and key facts — then a knowledge check that proves you got it.",
   },
   {
     icon: "sparkles",
     k: "Adaptive",
-    h: "Fresh AI questions, every session",
+    h: "Never the same drill twice",
     p: "New exam-style questions generated for you each time, tuned to the topics you keep missing. Never the same recycled drill twice.",
   },
   {
@@ -75,12 +80,6 @@ const features = [
     k: "Mock Exams",
     h: "Timed mocks with real exam formats",
     p: "Multiple choice, drag-to-order, matching, Yes/No grids — even typed CLI commands for network exams. The exact question styles you'll face, under the real clock.",
-  },
-  {
-    icon: "shield",
-    k: "Double-checked",
-    h: "Every question verified twice",
-    p: "A second, independent AI blind-answers every generated question before you see it. If the two disagree, the question is thrown out — so you never study a wrong answer key.",
   },
   {
     icon: "gauge",
@@ -106,17 +105,17 @@ const steps = [
   {
     n: "01",
     h: "Pick your exam — or upload your notes",
-    p: "Choose from 12 major certifications or describe any exam. Thirty seconds later you have a personalized syllabus, weighted like the real test.",
+    p: `Choose from ${PRESET_COUNT} certifications or describe any exam. Thirty seconds later you have a personalized syllabus, weighted like the real test.`,
   },
   {
     n: "02",
     h: "Learn it, then do it for real",
-    p: "AI lessons teach each topic with decision tables and exam traps — then hands-on labs put you in the actual cloud console, in your own free account.",
+    p: "Lessons teach each topic with decision tables and exam traps — then hands-on labs put you in the actual cloud console, in your own free account.",
   },
   {
     n: "03",
     h: "Drill with questions built for you",
-    p: "Adaptive, exam-style practice tuned to your weak spots, with instant explanations and an AI tutor for follow-ups. Misses come back as flashcards.",
+    p: "Adaptive, exam-style practice tuned to your weak spots, with double-checked answer keys, sourced explanations, and an AI tutor for follow-ups.",
   },
   {
     n: "04",
@@ -126,26 +125,49 @@ const steps = [
 ]
 
 const versus = [
-  { old: "The same recycled questions, over and over", nu: "Fresh AI-generated questions every single session" },
+  { old: "An answer key you just have to trust", nu: "Every multiple-choice key blind-checked by a second model" },
+  { old: "Explanations with no source to check", nu: "Explanations that link to the vendor's own documentation" },
+  { old: "The same recycled questions, over and over", nu: "Fresh questions every single session, tuned to your weak spots" },
   { old: "Reading theory you'll never touch", nu: "Guided hands-on labs in your own cloud account" },
-  { old: "An answer key and nothing else", nu: "Lessons, instant explanations, and an AI tutor for follow-ups" },
-  { old: "Answer keys you just have to trust", nu: "Every question blind-checked by a second AI before you see it" },
   { old: "No idea if you're actually ready", nu: "A readiness score and mastery tracking per exam domain" },
   { old: "Clunky PDFs chained to your desktop", nu: "Installs on your phone and works offline" },
 ]
 
+/** The mechanism behind the headline claim — see the #verified band. */
+const verifySteps = [
+  {
+    n: "01",
+    h: "Generated against the official blueprint",
+    p: "Questions are written to your exam's published domains and weightings — the vendor's own outline, not a guess at it.",
+  },
+  {
+    n: "02",
+    h: "Blind-answered by a second model",
+    p: "A separate model sits the question cold, with no access to the answer key. If its answer doesn't match, the question never reaches you.",
+  },
+  {
+    n: "03",
+    h: "Explained, with the source",
+    p: "Every explanation links to the vendor's own documentation — and we check the link is alive before you see it. Invented URLs get stripped.",
+  },
+]
+
 const faqs = [
   {
+    q: "How do I know the answer keys are right?",
+    a: "Every multiple-choice question is answered a second time by a separate, independent model that never sees the answer key — it sits the question cold. If its answer doesn't match, the question is discarded and you never see it. Explanations link to the vendor's own documentation, and those links are checked before delivery. If a question still looks wrong, flag it: it gets independently re-checked and removed from your review queue if the check agrees with you.",
+  },
+  {
     q: "Which certification exams does Prepa cover?",
-    a: `Prepa works with any certification exam — including ${coverage.slice(0, 7).join(", ")} and hundreds more. Just tell it what you're studying for and it generates fresh, exam-style questions. You can even upload your own PDF study notes and Prepa will build questions from them.`,
+    a: `Prepa ships ${PRESET_COUNT} certifications built from their official exam blueprints — including ${presets.slice(0, 6).map((p) => p.exam).join(", ")} and more — and works with any other certification exam you describe. You can also upload your own PDF study notes and Prepa will build questions from them.`,
   },
   {
     q: "Is Prepa free to use?",
-    a: "Yes. The free plan lets you generate AI practice questions, a mock exam, and AI lessons to try everything out. Pro ($12/month, or $79/year) unlocks daily practice, mock exams, hands-on labs, and the AI tutor and coach. Exam Pass ($39 one-time) gives you everything at exam-cram volume — 250 questions and 2 full mock exams every day — for 90 days. Teams get per-seat pricing at $15/seat/month.",
+    a: "Yes. The free plan lets you generate practice questions, a mock exam, and lessons to try everything out. Pro ($12/month, or $79/year) unlocks daily practice, mock exams, hands-on labs, and the AI tutor and coach. Exam Pass ($39 one-time) gives you everything at exam-cram volume — 250 questions and 2 full mock exams every day — for 90 days. Teams get per-seat pricing at $15/seat/month.",
   },
   {
     q: "How is Prepa different from static question banks?",
-    a: "Question banks recycle a fixed set of questions and stop there. Prepa covers the whole journey: AI lessons that teach the syllabus, fresh exam-style questions tuned to your weak areas (each one blind-verified by a second AI before you see it), hands-on labs in the real cloud console, spaced-repetition flashcards, and a readiness score that tells you when you're prepared.",
+    a: "Question banks recycle a fixed set of questions and ask you to trust the answer key. Prepa checks its own work — every multiple-choice key is blind-verified by a second, independent model, and every explanation cites the vendor's own documentation. On top of that you get lessons that teach the syllabus, questions tuned to your weak areas, hands-on labs in the real cloud console, spaced-repetition flashcards, and a readiness score that tells you when you're prepared.",
   },
   {
     q: "What are hands-on labs? Do I need a cloud account?",
@@ -280,6 +302,9 @@ function FeatureIcon({ name }: { name: string }) {
     shield: (
       <path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6l7-3zM9 12l2.2 2.2L15.5 9.7" />
     ),
+    link: (
+      <path d="M10.5 13.5a3.5 3.5 0 005 0l3-3a3.5 3.5 0 00-5-5l-1.2 1.2M13.5 10.5a3.5 3.5 0 00-5 0l-3 3a3.5 3.5 0 005 5l1.2-1.2" />
+    ),
   }
   return (
     <svg
@@ -383,7 +408,8 @@ export default async function LandingPage() {
           border-radius:14px; padding:12px 15px; box-shadow:0 18px 40px -18px rgba(28,30,22,.35);
           animation:lp-float 5s ease-in-out infinite; }
         .lp-chip-readiness { top:-26px; left:-30px; }
-        .lp-chip-tutor { bottom:-30px; right:-18px; max-width:250px; animation-delay:2.5s; }
+        /* Sits clear of the citation line at the foot of the explanation panel. */
+        .lp-chip-tutor { bottom:-58px; right:-18px; max-width:250px; animation-delay:2.5s; }
         .lp-chip-lab { bottom:16%; left:-34px; animation-delay:1.2s; }
         @media (max-width:1240px){ .lp-chip-readiness { left:-8px } .lp-chip-tutor { right:-6px } .lp-chip-lab { left:-10px } }
         @media (max-width:960px){ .lp-chip-lab { display:none } }
@@ -392,6 +418,24 @@ export default async function LandingPage() {
           padding:5px 10px; border-radius:7px; }
         .lp-mock-meta { font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:#7A7C72;
           display:flex; align-items:center; gap:6px; }
+        .lp-mock-verified { font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+          color:var(--accent); font-weight:600; border:1px solid color-mix(in oklab, var(--accent) 28%, #fff);
+          padding:4px 8px; border-radius:99px; white-space:nowrap; }
+        @media (max-width:420px){ .lp-mock-verified { display:none; } }
+
+        /* Verification proof band */
+        .lp-verify { background:#fff; border:1px solid var(--card-line); border-radius:22px; padding:44px 40px; }
+        .lp-verify-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; margin-top:32px; }
+        .lp-verify-step .n { font-family:var(--mono); font-size:12px; letter-spacing:.12em; color:var(--accent); font-weight:600; }
+        .lp-verify-step h3 { font-size:17px; font-weight:600; margin:12px 0 8px; letter-spacing:-.01em; }
+        .lp-verify-step p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); }
+        .lp-verify-step + .lp-verify-step { position:relative; }
+        .lp-verify-foot { margin-top:30px; padding-top:22px; border-top:1px solid #EFE9DD;
+          font-size:14.5px; line-height:1.6; color:var(--muted); }
+        @media (max-width:860px){
+          .lp-verify { padding:34px 26px; }
+          .lp-verify-grid { grid-template-columns:1fr; gap:22px; }
+        }
         .lp-opt { display:flex; align-items:center; gap:11px; padding:12px 13px;
           border:1px solid #E8E2D6; border-radius:11px; }
         .lp-opt-key { width:25px; height:25px; flex:none; border-radius:7px; border:1px solid #DCD5C7;
@@ -409,6 +453,10 @@ export default async function LandingPage() {
 
         /* Features */
         .lp-features { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+        /* An odd card count leaves a lone card on the last row — centre it. */
+        @media (min-width:961px){
+          .lp-features > .lp-feature:last-child:nth-child(3n+1) { grid-column:2; }
+        }
         .lp-feature { padding:26px 26px 28px; transition:transform .2s ease, box-shadow .2s ease; }
         .lp-feature:hover { transform:translateY(-3px); box-shadow:0 24px 44px -28px rgba(28,30,22,.3); }
         .lp-feature-icon { width:42px; height:42px; border-radius:12px; color:var(--accent);
@@ -505,27 +553,28 @@ export default async function LandingPage() {
       {/* HERO */}
       <section className="wrap lp-hero">
         <div>
-          <div className="kicker rise rise-1">AI-powered exam prep</div>
+          <div className="kicker rise rise-1">Every answer key, double-checked</div>
           <h1 className="rise rise-2">
-            The last study app you&apos;ll need before you <em>pass</em>
+            Practice questions you can actually <em>trust</em>
           </h1>
           <p className="sub rise rise-3">
-            Prepa teaches your exam&apos;s syllabus with AI lessons, drills you with fresh
-            exam-style questions, puts your hands on the real cloud console — and tells
-            you exactly when you&apos;re ready. Any certification, even from your own notes.
+            Before any question reaches you, a second independent model blind-answers it.
+            If it disagrees with the answer key, the question is thrown out — and every
+            explanation cites the vendor&apos;s own documentation. Study for {PRESET_COUNT}{" "}
+            certifications, or bring your own notes.
           </p>
           <div className="rise rise-4" style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
             <Link href="/signup" className="btn btn-accent" style={{ fontSize: "16px", padding: "15px 26px" }}>
               Start practising free
             </Link>
-            <a href="#features" className="btn btn-ghost" style={{ fontSize: "16px", padding: "15px 26px" }}>
-              See what&apos;s inside
+            <a href="#verified" className="btn btn-ghost" style={{ fontSize: "16px", padding: "15px 26px" }}>
+              How verification works
             </a>
           </div>
           <div className="lp-hero-trust rise rise-4">
             <span><span className="check">✓</span>Free to try — no card required</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
-            <span><span className="check">✓</span>12 major certs + custom exams</span>
+            <span><span className="check">✓</span>{PRESET_COUNT} certifications + custom exams</span>
             <span style={{ color: "#CFC8BA" }}>·</span>
             <span><span className="check">✓</span>Cancel anytime</span>
           </div>
@@ -574,7 +623,10 @@ export default async function LandingPage() {
 
           <div className="lp-mock-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <span className="lp-mock-label">AWS · Databases</span>
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="lp-mock-label">AWS · Databases</span>
+                <span className="lp-mock-verified">✓ Blind-checked</span>
+              </span>
               <span className="lp-mock-meta">
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: ACCENT }} />12-DAY STREAK
               </span>
@@ -608,8 +660,36 @@ export default async function LandingPage() {
               <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.5, color: "#42453E" }}>
                 DynamoDB is AWS&apos;s fully managed NoSQL store, built for consistent single-digit-ms latency at scale. RDS and Aurora are relational; Redshift is for analytics.
               </p>
+              <div style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".02em", color: ACCENT, fontWeight: 500, marginTop: "9px" }}>
+                ↗ docs.aws.amazon.com
+              </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* VERIFICATION — the mechanism behind the headline claim */}
+      <section id="verified" className="wrap" style={{ padding: "34px 24px 46px", scrollMarginTop: "80px" }}>
+        <div className="lp-verify">
+          <div style={{ maxWidth: "760px" }}>
+            <div className="kicker" style={{ marginBottom: "14px" }}>How verification works</div>
+            <h2 className="h2" style={{ fontSize: "clamp(28px,3.2vw,38px)", textWrap: "balance" }}>
+              We check our own work before you see it
+            </h2>
+          </div>
+          <div className="lp-verify-grid">
+            {verifySteps.map((s) => (
+              <div key={s.n} className="lp-verify-step">
+                <span className="n">{s.n}</span>
+                <h3>{s.h}</h3>
+                <p>{s.p}</p>
+              </div>
+            ))}
+          </div>
+          <p className="lp-verify-foot">
+            Still think a question is wrong? Flag it — it gets independently re-checked and
+            pulled from your review queue if the check disagrees with the answer key.
+          </p>
         </div>
       </section>
 
@@ -689,7 +769,7 @@ export default async function LandingPage() {
       <section className="wrap" style={{ padding: "40px 24px 30px" }}>
         <div style={{ textAlign: "center", maxWidth: "620px", margin: "0 auto 40px" }}>
           <div className="kicker" style={{ marginBottom: "14px" }}>Why switch</div>
-          <h2 className="h2">Question banks quiz you. Prepa gets you ready.</h2>
+          <h2 className="h2">Question banks ask you to trust them. Prepa proves it.</h2>
         </div>
         <div className="lp-vs">
           <div className="lp-vs-col old">
@@ -829,7 +909,7 @@ export default async function LandingPage() {
             Your exam won&apos;t study for itself
           </h2>
           <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>
-            Get 10 free AI-generated questions every day, with explanations that actually teach. Set up in under a minute.
+            Start with 30 free questions — each one double-checked, each one explained with a link to the source. Set up in under a minute.
           </p>
           <Link href="/signup" className="btn" style={{ position: "relative", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,.35)" }}>
             Start practising free

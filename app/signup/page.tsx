@@ -4,9 +4,9 @@ import { AuthForm } from "@/components/auth/auth-form"
 import { getAuthenticatedUserId } from "@/lib/supabase/auth-server"
 
 export const metadata: Metadata = {
-  title: "Start free — AI practice questions for any certification exam",
+  title: "Start free — verified practice questions for any certification exam",
   description:
-    "Create a free Prepa account and get 20 AI-generated practice questions per day for AWS, Azure, CompTIA, PMP, CISSP and more — with instant explanations and progress tracking.",
+    "Create a free Prepa account and get 30 practice questions for AWS, Azure, CompTIA, Cisco, CISSP and more — every multiple-choice answer key blind-checked by a second model, every explanation linked to the vendor's own docs.",
   alternates: { canonical: "/signup" },
 }
 

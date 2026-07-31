@@ -7,12 +7,16 @@
  */
 export const SITE_NAME = "Prepa"
 
-export const SITE_TITLE = "Prepa — AI Exam Prep for Certification Exams"
+export const SITE_TITLE =
+  "Prepa — Verified Practice Questions for Certification Exams"
 
 export const SITE_DESCRIPTION =
-  "Pass AWS, Azure, Google Cloud, CompTIA, Cisco, and CISSP exams with AI lessons, fresh practice questions, hands-on cloud labs, timed mock exams, and a readiness score that tells you when you're ready. Start free."
+  "Practice questions you can trust. Every multiple-choice question is blind-answered by a second, independent model before you see it — if it disagrees with the answer key, the question is thrown out. Explanations cite the vendor's own docs. AWS, Azure, Google Cloud, CompTIA, Cisco and CISSP. Start free."
 
 export const SITE_KEYWORDS = [
+  "verified practice questions",
+  "accurate certification practice test",
+  "exam questions with official documentation",
   "certification exam practice",
   "AI practice questions",
   "exam prep app",
