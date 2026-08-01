@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
 import { ConfidenceInsights } from "@/components/dashboard/confidence-insights"
 import { ConsistencyHeatmap } from "@/components/dashboard/consistency-heatmap"
+import { DailyChallengeCard } from "@/components/dashboard/daily-challenge-card"
 import { DomainMastery } from "@/components/dashboard/domain-mastery"
+import { LeagueCard } from "@/components/dashboard/league-card"
 import { ExamCountdown } from "@/components/dashboard/exam-countdown"
 import { MomentumStrip } from "@/components/dashboard/momentum-strip"
 import { NextActionCard } from "@/components/dashboard/next-action-card"
@@ -121,8 +123,10 @@ export default function DashboardPage() {
           <DomainMastery />
           <ConfidenceInsights />
           <PlanTodayCard />
+          <LeagueCard />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          <DailyChallengeCard />
           <ScoreTrend />
           <ConsistencyHeatmap />
           <RecentActivity sessions={sessions} />

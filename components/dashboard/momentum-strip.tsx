@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
-import { Brain, ChevronDown, Flame, TrendingUp } from "lucide-react"
+import { Brain, ChevronDown, Flame, TrendingUp, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { ProgressRing } from "@/components/ui/progress-ring"
@@ -33,6 +33,7 @@ interface MomentumStripProps {
 export function MomentumStrip({ dueCount }: MomentumStripProps) {
   const profile = useSessionStore((s) => s.profile)
   const streak = useSessionStore((s) => s.streak)
+  const gamification = useSessionStore((s) => s.gamification)
   const sessions = useSessionStore((s) => s.sessions)
   const setDailyGoal = useSessionStore((s) => s.setDailyGoal)
   const celebrated = useRef(false)
@@ -72,7 +73,7 @@ export function MomentumStrip({ dueCount }: MomentumStripProps) {
   }, [sessions])
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {/* Streak */}
       <Card className={cn(atRisk && "border-warning/40 bg-warning/5")}>
         <CardContent className="flex items-center gap-3 p-4">
@@ -176,6 +177,30 @@ export function MomentumStrip({ dueCount }: MomentumStripProps) {
                   : `last mock · best ${lastMock.best}%`
                 : "no mock exams yet"}
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Level / XP — spans both columns on mobile so it never sits alone. */}
+      <Card className="col-span-2 lg:col-span-1">
+        <CardContent className="flex items-center gap-3 p-4">
+          <ProgressRing value={gamification?.pct ?? 0} size={44} strokeWidth={14}>
+            <Zap className="size-4 text-primary" />
+          </ProgressRing>
+          <div className="min-w-0">
+            <p className="text-xl font-semibold tracking-tight tabular-nums">
+              Level {gamification?.level ?? 1}
+            </p>
+            <p className="truncate text-xs text-muted-foreground tabular-nums">
+              {gamification
+                ? `${gamification.intoLevel}/${gamification.forNext} XP`
+                : "— XP"}
+            </p>
+            {gamification && gamification.xpToday > 0 && (
+              <p className="truncate text-xs font-medium text-primary tabular-nums">
+                +{gamification.xpToday} today
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

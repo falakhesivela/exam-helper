@@ -24,6 +24,9 @@ import {
   buildMockBookmarks,
   buildMockExamTips,
   buildMockUserExams,
+  buildMockChallenge,
+  buildMockGamification,
+  buildMockLeague,
   buildMockStreak,
   buildMockStudyPlan,
   mockPlanCoaching,
@@ -49,6 +52,12 @@ interface SessionState {
   plan: StudyPlan | null;
   coaching: PlanCoaching | null;
   streak: StreakSummary | null;
+  /** XP, level, and badges. Null until the non-critical hydration tail lands. */
+  gamification: import("@/types").GamificationSummary | null;
+  /** Today's daily challenge; fetched by the dashboard card. */
+  challenge: import("@/types").DailyChallengeState | null;
+  /** Weekly league standings; fetched lazily by the league card. */
+  league: import("@/types").LeagueSnapshot | null;
   bookmarkedIds: string[];
   learnTopics: LearnTopic[];
   /** Exams the user is studying (onboarding choices + practiced exams). */
@@ -122,6 +131,13 @@ interface SessionState {
   requestCoaching: () => Promise<void>;
   refreshStreak: () => Promise<void>;
   setDailyGoal: (dailyGoal: number) => Promise<void>;
+  refreshGamification: () => Promise<void>;
+  refreshChallenge: () => Promise<void>;
+  refreshLeague: () => Promise<void>;
+  /** Start (or resume) today's challenge; resolves to the session to open. */
+  startChallenge: () => Promise<PracticeSession>;
+  /** Acknowledge unlock celebrations so they only fire once. */
+  markBadgesSeen: (badgeIds: string[]) => Promise<void>;
   toggleBookmark: (questionId: string) => Promise<void>;
   refreshLearnTopics: () => Promise<void>;
   fetchLesson: (topicSlug: string) => Promise<TopicLesson>;
@@ -231,6 +247,9 @@ function signedOutState(): Partial<SessionState> {
     plan: null,
     coaching: null,
     streak: null,
+    gamification: null,
+    challenge: null,
+    league: null,
     bookmarkedIds: [],
     learnTopics: [],
     userExams: [],
@@ -269,6 +288,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   plan: USE_MOCKS ? buildMockStudyPlan() : null,
   coaching: null,
   streak: USE_MOCKS ? buildMockStreak() : null,
+  gamification: USE_MOCKS ? buildMockGamification() : null,
+  challenge: USE_MOCKS ? buildMockChallenge() : null,
+  league: USE_MOCKS ? buildMockLeague() : null,
   bookmarkedIds: USE_MOCKS ? buildMockBookmarks().map((b) => b.questionId) : [],
   learnTopics: USE_MOCKS ? buildMockLearnTopics() : [],
   userExams: USE_MOCKS ? buildMockUserExams() : [],
@@ -404,6 +426,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       .then(({ tips }) => set({ examTips: tips }))
       .catch(() => {});
     void get().refreshStreak();
+    void get().refreshGamification();
+    void get().refreshChallenge();
     void api
       .bookmarkIds()
       .then(({ ids }) => set({ bookmarkedIds: ids }))
@@ -576,6 +600,66 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ streak });
     } catch {
       // ignore — streak is non-critical
+    }
+  },
+
+  refreshGamification: async () => {
+    if (USE_MOCKS) return;
+    try {
+      const gamification = await api.gamificationSummary();
+      set({ gamification });
+    } catch {
+      // ignore — gamification is non-critical
+    }
+  },
+
+  refreshChallenge: async () => {
+    if (USE_MOCKS) return;
+    try {
+      const challenge = await api.challengeToday(get().activeExamCode);
+      set({ challenge });
+    } catch {
+      // ignore
+    }
+  },
+
+  refreshLeague: async () => {
+    if (USE_MOCKS) return;
+    try {
+      const league = await api.league();
+      set({ league });
+    } catch {
+      // ignore
+    }
+  },
+
+  startChallenge: async () => {
+    const session = await api.startChallenge(get().activeExamCode);
+    set((state) => ({
+      sessions: mergeUpsertSession(state.sessions, session),
+    }));
+    void get().refreshChallenge();
+    return session;
+  },
+
+  markBadgesSeen: async (badgeIds) => {
+    if (badgeIds.length === 0) return;
+    // Drop them locally first so the celebration can't replay on re-render.
+    set((state) => ({
+      gamification: state.gamification
+        ? {
+            ...state.gamification,
+            unseenBadgeIds: state.gamification.unseenBadgeIds.filter(
+              (id) => !badgeIds.includes(id),
+            ),
+          }
+        : state.gamification,
+    }));
+    if (USE_MOCKS) return;
+    try {
+      await api.markBadgesSeen(badgeIds);
+    } catch {
+      // ignore — worst case the toast reappears next session
     }
   },
 
@@ -802,6 +886,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       get().refreshExamAccuracy(),
       // Plan-linked task is marked done server-side on submit.
       get().refreshPlan(),
+      get().refreshGamification(),
+      get().refreshChallenge(),
     ]);
   },
 
@@ -866,6 +952,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       get().refreshProfile(),
       get().refreshTopicMastery(),
       get().refreshStreak(),
+      get().refreshGamification(),
     ]);
     return { isCorrect: result.answer.isCorrect };
   },
@@ -967,6 +1054,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }));
     // Plan-linked task is marked done server-side on completion.
     void get().refreshPlan();
+    // XP, badge unlocks, and challenge completion are all awarded server-side
+    // as part of completing the session.
+    void get().refreshGamification();
+    void get().refreshChallenge();
     await get().refreshProfile();
   },
 }));

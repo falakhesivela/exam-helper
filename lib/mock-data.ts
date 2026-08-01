@@ -1,6 +1,9 @@
 import type {
   ClarifyingQuestion,
   Confidence,
+  DailyChallengeState,
+  GamificationSummary,
+  LeagueSnapshot,
   LearnTopic,
   PlanCoaching,
   PracticeSession,
@@ -16,6 +19,8 @@ import { getAllCatalogTopics } from "@/lib/learning/catalog"
 import { resolveTopicName } from "@/lib/learning/topic-resolver"
 import { buildStudyPlan } from "@/lib/plan/schedule"
 import { limitsFor } from "@/lib/config/tiers"
+import { levelProgress } from "@/lib/gamification/xp"
+import { weekStartUtc } from "@/lib/gamification/league"
 
 // ---------------------------------------------------------------------------
 // Realistic mock content for the Prepa prototype. In production these
@@ -259,6 +264,78 @@ export function buildMockStreak(): StreakSummary {
     questionsToday: counts[counts.length - 1],
     atRisk: false,
     activity,
+  }
+}
+
+/** Mid-level XP with one freshly unlocked badge, so the toast is exercised. */
+export function buildMockGamification(): GamificationSummary {
+  const xpTotal = 3240
+  const unlocked = [
+    "streak-3",
+    "streak-7",
+    "first-mock",
+    "hundred-questions",
+    "perfect-session",
+    "level-5",
+  ]
+  return {
+    xpTotal,
+    ...levelProgress(xpTotal),
+    xpToday: 120,
+    leagueTier: "silver",
+    unlockedBadges: unlocked.map((badgeId, i) => ({
+      badgeId,
+      unlockedAt: new Date(Date.now() - (unlocked.length - i) * 864e5).toISOString(),
+    })),
+    unseenBadgeIds: ["perfect-session"],
+  }
+}
+
+/** A playable challenge with a 4-day run behind it. */
+export function buildMockChallenge(): DailyChallengeState {
+  const today = new Date().toISOString().slice(0, 10)
+  const calendar = Array.from({ length: 28 }, (_, i) => {
+    const d = new Date(`${today}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - (27 - i))
+    const date = d.toISOString().slice(0, 10)
+    // Deterministic: a steady run for the last 4 days, patchier before that.
+    const completed = i >= 23 && i < 27 ? true : i % 3 === 0 && i < 20
+    return { date, completed, scorePct: completed ? 60 + ((i * 7) % 40) : null }
+  })
+  return {
+    status: "ready",
+    date: today,
+    examCode: "SAA-C03",
+    sessionId: null,
+    scorePct: null,
+    questionCount: 5,
+    challengeStreak: 4,
+    calendar,
+  }
+}
+
+/** A mid-table league position, inside neither promotion nor demotion zone. */
+export function buildMockLeague(): LeagueSnapshot {
+  const names = [
+    "Thandi M.", "Priya R.", "Sam O.", "Lerato K.", "Chen W.",
+    "Marcus B.", "You", "Ana S.", "Dev P.", "Kofi A.",
+    "Zanele N.", "Ivan T.", "Grace L.", "Omar H.",
+  ]
+  const members = names.map((name, i) => ({
+    rank: i + 1,
+    name,
+    xpThisWeek: Math.max(0, 1400 - i * 115 - ((i * 37) % 60)),
+    isYou: name === "You",
+  }))
+  return {
+    eligible: true,
+    tier: "silver",
+    weekStart: weekStartUtc(new Date().toISOString().slice(0, 10)),
+    rank: 7,
+    promoteCount: 5,
+    demoteCount: 5,
+    members,
+    lastWeek: { result: "promoted", rank: 3, tier: "bronze" },
   }
 }
 

@@ -470,6 +470,69 @@ export interface StreakSummary {
   activity: { date: string; count: number; goalMet: boolean }[]
 }
 
+/** XP, level, and badge state for the signed-in user. */
+export interface GamificationSummary {
+  xpTotal: number
+  level: number
+  /** XP earned inside the current level, and what the next one needs. */
+  intoLevel: number
+  forNext: number
+  /** Progress through the current level, 0–100. */
+  pct: number
+  xpToday: number
+  leagueTier: LeagueTier
+  unlockedBadges: { badgeId: string; unlockedAt: string }[]
+  /** Unlocked but not yet celebrated — drives the unlock toast. */
+  unseenBadgeIds: string[]
+}
+
+export type LeagueTier = "bronze" | "silver" | "gold" | "diamond"
+
+/** One day in the daily-challenge calendar. */
+export interface ChallengeDay {
+  date: string
+  completed: boolean
+  scorePct: number | null
+}
+
+/**
+ * Today's daily challenge. `locked` means the user hasn't practiced enough
+ * for us to source questions from their own history yet.
+ */
+export interface DailyChallengeState {
+  status: "locked" | "ready" | "completed"
+  date: string
+  examCode: string
+  sessionId: string | null
+  scorePct: number | null
+  questionCount: number | null
+  challengeStreak: number
+  calendar: ChallengeDay[]
+}
+
+export interface LeagueMember {
+  rank: number
+  name: string
+  xpThisWeek: number
+  isYou: boolean
+}
+
+/** Weekly league standings. Anonymous users get `eligible: false`. */
+export interface LeagueSnapshot {
+  eligible: boolean
+  tier?: LeagueTier
+  weekStart?: string
+  rank?: number | null
+  promoteCount?: number
+  demoteCount?: number
+  members?: LeagueMember[]
+  lastWeek?: {
+    result: "promoted" | "demoted" | "stayed"
+    rank: number | null
+    tier: LeagueTier | null
+  } | null
+}
+
 /** A clarifying question the AI asks during intake. */
 export interface ClarifyingQuestion {
   id: string

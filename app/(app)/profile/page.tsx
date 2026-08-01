@@ -11,6 +11,7 @@ import {
   Sparkles,
   Target,
   Users,
+  Zap,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -27,11 +28,13 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { AccountGate } from "@/components/auth/account-gate"
 import { YourExamsCard } from "@/components/profile/your-exams-card"
+import { BadgeGallery } from "@/components/profile/badge-gallery"
 
 export default function ProfilePage() {
   const router = useRouter()
   const profile = useSessionStore((s) => s.profile)
   const topicMastery = useSessionStore((s) => s.topicMastery)
+  const gamification = useSessionStore((s) => s.gamification)
   const [signingOut, setSigningOut] = useState(false)
   const used = profile.questionsUsedToday
   const limit = profile.dailyLimit
@@ -101,18 +104,34 @@ export default function ProfilePage() {
         </Card>
         <Card>
           <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
-            <Sparkles className="size-5 text-primary" />
+            <Zap className="size-5 text-primary" />
             <span className="text-lg font-semibold">
-              {limit === null ? used : `${used}/${limit}`}
+              {gamification?.level ?? 1}
             </span>
             <span className="text-xs text-muted-foreground">
-              {limit === null ? "questions" : "used"}
+              level ·{" "}
+              <span className="tabular-nums">
+                {(gamification?.xpTotal ?? 0).toLocaleString()}
+              </span>{" "}
+              XP
             </span>
           </CardContent>
         </Card>
       </div>
 
+      {gamification && (
+        <div className="flex flex-col gap-1.5">
+          <Progress value={gamification.pct} className="h-1.5" />
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {gamification.forNext - gamification.intoLevel} XP to level{" "}
+            {gamification.level + 1}
+          </p>
+        </div>
+      )}
+
       <YourExamsCard />
+
+      <BadgeGallery />
 
       {/* Upgrade card for free users */}
       {profile.plan === "free" && (

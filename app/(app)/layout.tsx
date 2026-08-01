@@ -4,6 +4,7 @@ import { requireAuthUser } from "@/lib/supabase/auth-server"
 import { TopBar } from "@/components/layout/top-bar"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { GenerationTracker } from "@/components/generation/generation-tracker"
+import { BadgeUnlockListener } from "@/components/gamification/badge-unlock-listener"
 
 // Authenticated surfaces carry no public content — keep them out of search indexes.
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh">
       <GenerationTracker />
+      <BadgeUnlockListener />
       <TopBar />
       <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-6 sm:px-6 xl:pb-10">
         {children}

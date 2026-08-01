@@ -687,6 +687,28 @@ export const api = {
       body: JSON.stringify({ dailyGoal }),
     }),
 
+  gamificationSummary: () =>
+    request<import("@/types").GamificationSummary>("/api/gamification/summary"),
+
+  markBadgesSeen: (badgeIds: string[]) =>
+    request<{ ok: boolean }>("/api/gamification/badges/seen", {
+      method: "POST",
+      body: JSON.stringify({ badgeIds }),
+    }),
+
+  challengeToday: (exam?: string | null) =>
+    request<import("@/types").DailyChallengeState>(
+      withExam("/api/gamification/challenge/today", exam),
+    ),
+
+  startChallenge: (exam?: string | null) =>
+    request<PracticeSession>(
+      withExam("/api/gamification/challenge/start", exam),
+      { method: "POST" },
+    ),
+
+  league: () => request<import("@/types").LeagueSnapshot>("/api/gamification/league"),
+
   progressSummary: () =>
     request<{
       overallMastery: number;
