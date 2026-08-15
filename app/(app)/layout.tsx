@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import type { ReactNode } from "react"
 import { requireAuthUser } from "@/lib/supabase/auth-server"
 import { TopBar } from "@/components/layout/top-bar"
+import { BackBar } from "@/components/layout/back-bar"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { GenerationTracker } from "@/components/generation/generation-tracker"
 import { BadgeUnlockListener } from "@/components/gamification/badge-unlock-listener"
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <BadgeUnlockListener />
       <TopBar />
       <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-6 sm:px-6 xl:pb-10">
+        <BackBar />
         {children}
       </main>
       <BottomNav />

@@ -1,8 +1,6 @@
 "use client"
 
 import type { ReactNode } from "react"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { TopicTabs, type TopicTab } from "@/components/study/topic-tabs"
 import { useSessionStore } from "@/lib/store/use-session-store"
@@ -35,14 +33,6 @@ export function TopicShell({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
-        <Link
-          href="/learn"
-          className="flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Learn
-        </Link>
-
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1.5">
             <h1 className="text-2xl font-semibold tracking-tight">
