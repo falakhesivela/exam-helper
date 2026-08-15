@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
-  ArrowLeft,
   CreditCard,
   ExternalLink,
   Sparkles,
@@ -113,19 +112,10 @@ export default function BillingPage() {
   return (
     <AccountGate feature="Billing">
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/profile">
-              <ArrowLeft data-icon="inline-start" />
-              Profile
-            </Link>
-          </Button>
-          <p className="flex items-center gap-1.5 text-sm font-medium">
-            <CreditCard className="size-4 text-primary" />
-            Billing & plan
-          </p>
-          <span className="w-20" />
-        </div>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <CreditCard className="size-5 text-primary" />
+          Billing &amp; plan
+        </h1>
 
         {loading ? (
           <div className="flex justify-center py-20">

@@ -4,8 +4,9 @@ import { useCheckout, type CheckoutTier } from "./use-checkout"
 
 const ACCENT = "#1E5C44"
 
-/** Paid-tier CTA for the landing pricing cards — starts checkout directly (no
- * detour through a second pricing page). Styled to match the landing design. */
+/** Paid-tier CTA for the landing pricing columns — starts checkout directly (no
+ * detour through a second pricing page). Matches the landing's flat, ruled
+ * button system: square corners, hairline border, no shadow. */
 export function LandingProButton({
   tier = "pro",
   label,
@@ -26,13 +27,13 @@ export function LandingProButton({
         display: "block",
         width: "100%",
         textAlign: "center",
-        background: filled ? ACCENT : "#F4F0E8",
-        color: filled ? "#fff" : "#3D403A",
+        background: filled ? ACCENT : "transparent",
+        color: filled ? "#fff" : "#1A1C18",
         fontWeight: 600,
         fontSize: "15px",
-        padding: "13px",
-        borderRadius: "11px",
-        border: filled ? "none" : "1px solid #E1DACB",
+        padding: "14px 24px",
+        borderRadius: "2px",
+        border: `1px solid ${filled ? ACCENT : "#CFC7B4"}`,
         cursor: loading ? "default" : "pointer",
         opacity: loading ? 0.7 : 1,
         fontFamily: "inherit",

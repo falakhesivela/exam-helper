@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Check, CircleHelp, Clock, Flag, X, XCircle } from "lucide-react"
+import { Check, CircleHelp, Clock, Flag, X, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -137,11 +137,6 @@ export function SessionReview({ sessionId, filter = "all" }: SessionReviewProps)
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon" aria-label="Back to history">
-          <Link href="/history">
-            <ArrowLeft />
-          </Link>
-        </Button>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold tracking-tight">{session.examCode}</h1>
           <p className="text-sm text-muted-foreground">
