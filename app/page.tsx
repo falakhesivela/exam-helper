@@ -65,113 +65,114 @@ function shortExamName(name: string): string {
 }
 
 const facts = [
-  { n: PRESET_COUNT, l: "certifications", p: "Each built from the vendor's own published exam blueprint — domains and weightings included." },
-  { n: 2, l: "models per key", p: "A writer and an examiner that never meet. Both must land on the same answer." },
-  { n: 0, l: "recycled questions", p: "Nothing is drawn from a fixed bank. Every session is written for you, then checked." },
-  { n: "$0", l: "to start", p: "The free plan runs the whole machine — questions, lessons, a mock exam. No card." },
+  { n: PRESET_COUNT, l: "exams covered", p: "AWS, Azure, Google Cloud, CompTIA, Cisco and CISSP — or describe any other exam and Prepa builds the syllabus for it." },
+  { n: "2×", l: "checked answers", p: "Every multiple-choice answer is confirmed by a second AI before it reaches you. If the two disagree, you never see the question." },
+  { n: 0, l: "recycled questions", p: "Nothing comes from a stale dump. Every session is written for your exam and the topics you keep getting wrong." },
+  { n: "$0", l: "to get started", p: "30 practice questions, two lessons, a hands-on lab and a mock exam — free, and no card to sign up." },
 ]
 
 const features = [
   {
-    k: "Double-checked",
-    h: "Never study a wrong answer key",
-    p: "A second, independent AI blind-answers every generated question before you see it. If the two disagree, the question is thrown out — so you never study a wrong answer key. Multiple-choice questions are checked this way.",
+    k: "Lessons",
+    h: "Learn the syllabus, not just the questions",
+    p: "Your exam's full syllabus, weighted exactly like the real test, taught with decision tables, the traps examiners love, and the facts worth memorising — then a knowledge check that proves it stuck.",
   },
   {
-    k: "Sourced",
-    h: "Straight from the vendor's docs",
-    p: "Explanations link to the official documentation for your exam — AWS, Microsoft Learn, Google Cloud, Cisco. Links to anywhere else, and links that have gone dead, are stripped before delivery.",
+    k: "Practice",
+    h: "Drill the topics you keep getting wrong",
+    p: "Fresh exam-style questions every session, aimed at your weakest domains. The more you practise, the more the questions target what's actually holding your score down.",
   },
   {
-    k: "Learn",
-    h: "A syllabus that actually teaches",
-    p: "Your exam's full syllabus, weighted like the real test, with lessons built around decision tables, exam traps, and key facts — then a knowledge check that proves you got it.",
+    k: "Hands-on labs",
+    h: "Build it for real, in a real console",
+    p: "Guided labs you run in your own free-tier cloud account — build the VPC, deploy the pipeline. Checkpoints confirm you did it, and a cleanup list means nothing keeps running and nothing gets billed.",
   },
   {
-    k: "Adaptive",
-    h: "Never the same drill twice",
-    p: "New exam-style questions generated for you each time, tuned to the topics you keep missing. Never the same recycled drill twice.",
+    k: "Mock exams",
+    h: "Sit the real thing before you sit the real thing",
+    p: "Timed, full-length mocks in your exam's actual question formats — multiple choice, drag-to-order, matching, Yes/No grids, even typed CLI commands. No surprises on the day.",
   },
   {
-    k: "Hands-on Labs",
-    h: "Do it for real, not just on paper",
-    p: "Guided labs you run in your own free-tier cloud account — build the VPC, deploy the pipeline — with checkpoints that prove you did it and cleanup steps so you never get billed.",
+    k: "Readiness score",
+    h: "Know when you're ready to book",
+    p: "One number that climbs as you improve, backed by mastery tracking in every exam domain. Book with evidence instead of a gut feeling.",
   },
   {
-    k: "AI Tutor",
-    h: "Ask why — not just what",
-    p: "Every answer and every lesson comes with a built-in AI tutor. Ask follow-ups, get mnemonics, request a simpler explanation — until it actually clicks.",
+    k: "Study plan",
+    h: "Know what to study today",
+    p: "Set your exam date and Prepa builds the daily plan — weighted to your weak areas, rebalanced when life gets in the way, and honest with you about pace.",
   },
   {
-    k: "Mock Exams",
-    h: "Timed mocks with real exam formats",
-    p: "Multiple choice, drag-to-order, matching, Yes/No grids — even typed CLI commands for network exams. The exact question styles you'll face, under the real clock.",
+    k: "AI tutor",
+    h: "Get an answer to 'but why?'",
+    p: "Every question and lesson has a tutor attached. Ask a follow-up, ask for a mnemonic, ask for it again but simpler — until it actually makes sense.",
   },
   {
-    k: "Readiness",
-    h: "Know when you're ready",
-    p: "A readiness score that climbs as you improve, plus mastery tracking per exam domain — so exam day is a confirmation, not a gamble.",
+    k: "Flashcards",
+    h: "Stop forgetting what you already learned",
+    p: "Questions you miss and key facts from your lessons turn into flashcards automatically, scheduled to reappear right before you'd have forgotten them.",
   },
   {
-    k: "Study Plan",
-    h: "A plan for today, every day",
-    p: "Set your exam date and Prepa builds a daily plan around your weak areas, rebalances when life happens, and coaches you on pace.",
+    k: "Verified answers",
+    h: "Never revise from a wrong answer",
+    p: "A second, independent AI answers every multiple-choice question with the answer key hidden. If it disagrees, the question is thrown out before it ever reaches you.",
   },
   {
-    k: "Retention",
-    h: "Spaced repetition that runs itself",
-    p: "Missed questions and key facts from your lessons automatically become flashcards, scheduled to come back right before you'd forget them.",
+    k: "Real sources",
+    h: "Check the answer against the vendor",
+    p: "Explanations link to the official documentation — AWS, Microsoft Learn, Google Cloud, Cisco. Links anywhere else, or links that have gone dead, are stripped before you see them.",
   },
 ]
 
 const steps = [
   {
     n: "01",
-    h: "Pick your exam — or upload your notes",
-    p: `Choose from ${PRESET_COUNT} certifications or describe any exam. Thirty seconds later you have a personalized syllabus, weighted like the real test.`,
+    h: "Tell Prepa which exam you're taking",
+    p: `Pick one of ${PRESET_COUNT} certifications, describe any other exam, or upload your own study notes. About thirty seconds later you have a full syllabus, weighted exactly like the real test.`,
   },
   {
     n: "02",
-    h: "Learn it, then do it for real",
-    p: "Lessons teach each topic with decision tables and exam traps — then hands-on labs put you in the actual cloud console, in your own free account.",
+    h: "Learn each topic, then go and build it",
+    p: "Lessons teach the topic properly — decision tables, examiner traps, the facts worth memorising. Then a hands-on lab drops you into a real cloud console to do it for yourself.",
   },
   {
     n: "03",
-    h: "Drill with questions built for you",
-    p: "Adaptive, exam-style practice tuned to your weak spots, with double-checked answer keys, sourced explanations, and an AI tutor for follow-ups.",
+    h: "Practise where you're actually weak",
+    p: "Every session brings fresh questions aimed at the domains dragging your score down, with explanations you can check and a tutor for the follow-up questions.",
   },
   {
     n: "04",
-    h: "Sit mocks until readiness says go",
-    p: "Full timed simulations in the real exam's format, a readiness score per domain, and a daily plan that paces you to your exam date.",
+    h: "Book the exam when the score says go",
+    p: "Sit timed, full-length mocks in the real question formats. Your readiness score and per-domain mastery tell you when you're ready — and the daily plan gets you there by your exam date.",
   },
 ]
 
 const versus = [
-  { old: "An answer key you just have to trust", nu: "Every multiple-choice key blind-checked by a second model" },
-  { old: "Explanations with no source to check", nu: "Explanations that link to the vendor's own documentation" },
-  { old: "The same recycled questions, over and over", nu: "Fresh questions every single session, tuned to your weak spots" },
-  { old: "Reading theory you'll never touch", nu: "Guided hands-on labs in your own cloud account" },
-  { old: "No idea if you're actually ready", nu: "A readiness score and mastery tracking per exam domain" },
-  { old: "Clunky PDFs chained to your desktop", nu: "Installs on your phone and works offline" },
+  { old: "Answers you just have to take on faith", nu: "Every multiple-choice answer confirmed by a second AI" },
+  { old: "No source to check when you disagree", nu: "Every explanation links to the vendor's own documentation" },
+  { old: "The same questions, memorised by round three", nu: "Fresh questions every session, aimed at your weak spots" },
+  { old: "Written for an exam version that's since changed", nu: "Generated against the current published blueprint" },
+  { old: "Theory you read but never actually do", nu: "Guided labs you build in your own cloud account" },
+  { old: "Booking the exam and hoping for the best", nu: "A readiness score and mastery in every exam domain" },
+  { old: "A PDF chained to your desktop", nu: "Installs on your phone and works offline" },
 ]
 
-/** The mechanism behind the headline claim — see the #method band. */
+/** Reason to believe the pass-first-time promise — see the #trust band. */
 const verifySteps = [
   {
     n: "01",
-    h: "Generated against the official blueprint",
-    p: "Questions are written to your exam's published domains and weightings — the vendor's own outline, not a guess at it.",
+    h: "Written from the official exam blueprint",
+    p: "Questions follow your exam's published domains and weightings — the vendor's own outline, not somebody's guess at what might come up.",
   },
   {
     n: "02",
-    h: "Blind-answered by a second model",
-    p: "A separate model sits the question cold, with no access to the answer key. If its answer doesn't match, the question never reaches you.",
+    h: "Answered again by a second AI",
+    p: "A different AI answers the question with the answer key hidden from it. If the two don't agree, the question is thrown out. You only ever see the ones they both got right.",
   },
   {
     n: "03",
-    h: "Explained, with the source",
-    p: "Every explanation links to the vendor's own documentation — and we check the link is alive before you see it. Invented URLs get stripped.",
+    h: "Backed by a link you can check yourself",
+    p: "Every explanation cites the vendor's own documentation, and we test the link works before you see it. Made-up URLs get stripped out.",
   },
 ]
 
@@ -184,10 +185,10 @@ const examPassPlan = PLANS.find((p) => p.tier === "exam_pass")!
  * folio numbers and tallies can't drift as sections are edited.
  */
 const contents = [
-  { n: "02", t: "The method", c: `${verifySteps.length} gates`, href: "#method" },
-  { n: "03", t: "The catalogue", c: `${PRESET_COUNT} exams`, href: "#catalogue" },
-  { n: "04", t: "What you get", c: `${features.length} features`, href: "#features" },
-  { n: "05", t: "How it works", c: `${steps.length} steps`, href: "#how" },
+  { n: "02", t: "How it works", c: `${steps.length} steps`, href: "#how" },
+  { n: "03", t: "What you get", c: `${features.length} features`, href: "#features" },
+  { n: "04", t: "Why you can trust it", c: `${verifySteps.length} checks`, href: "#trust" },
+  { n: "05", t: "Exams we cover", c: `${PRESET_COUNT} exams`, href: "#exams" },
   { n: "07", t: "Pricing", c: `From ${freePlan.price}`, href: "#pricing" },
 ]
 
@@ -471,7 +472,9 @@ export default async function LandingPage() {
         }
 
         /* Specimen record — flat, ruled, printed. No shadow, no float. */
-        .lp-spec { border:1px solid var(--ink); background:#FAF7F1; }
+        /* align-self:start — otherwise the grid stretches the panel to match the
+           taller text column and leaves dead space under the ledger. */
+        .lp-spec { border:1px solid var(--ink); background:#FAF7F1; align-self:start; }
         .lp-spec-head { display:flex; align-items:baseline; justify-content:space-between;
           gap:14px; padding:11px 18px; border-bottom:1px solid var(--ink); background:var(--ink); }
         .lp-spec-head span { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
@@ -487,6 +490,15 @@ export default async function LandingPage() {
         .lp-spec-opt b { font-family:var(--mono); font-size:12px; color:var(--faint); font-weight:500; }
         .lp-spec-opt.key { color:var(--ink); font-weight:600; }
         .lp-spec-opt.key b { color:var(--accent); font-weight:600; }
+        .lp-spec-tick { margin-left:auto; font-family:var(--mono); font-size:10px;
+          letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+        .lp-spec-why { border-top:1px solid var(--hair); padding:14px 18px 16px;
+          background:color-mix(in oklab, var(--accent) 5%, #FAF7F1); }
+        .lp-spec-why-h { font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:7px; }
+        .lp-spec-why p { margin:0; font-size:13.5px; line-height:1.55; color:var(--body); }
+        .lp-spec-cite { display:inline-block; margin-top:9px; font-family:var(--mono);
+          font-size:10.5px; letter-spacing:.06em; color:var(--accent); }
         .lp-spec-ledger { border-top:1px solid var(--ink); padding:14px 18px 16px; }
         .lp-ledger-row { display:flex; align-items:baseline; gap:8px; padding:5px 0;
           font-family:var(--mono); font-size:11px; letter-spacing:.06em; }
@@ -496,8 +508,6 @@ export default async function LandingPage() {
           overflow:hidden; text-overflow:ellipsis; max-width:46%; }
         .lp-ledger-lead { flex:1; border-bottom:1px dotted var(--rule); transform:translateY(-3px); }
         .lp-ledger-value { color:var(--accent); font-weight:600; flex:none; text-transform:uppercase; }
-        .lp-spec-foot { border-top:1px solid var(--hair); padding:12px 18px 14px;
-          font-size:13px; line-height:1.55; color:var(--muted); }
         @media (max-width:420px){
           .lp-ledger-label { width:72px; }
           .lp-ledger-detail { display:none; }
@@ -605,6 +615,8 @@ export default async function LandingPage() {
         }
 
         /* --- Pricing ------------------------------------------------------ */
+        .lp-price-lead { font-family:var(--serif); font-size:clamp(17px,1.5vw,20px);
+          font-weight:300; line-height:1.5; color:var(--body); max-width:58ch; margin:-14px 0 30px; }
         .lp-plans { display:grid; grid-template-columns:repeat(3,1fr);
           border-top:2px solid var(--ink); }
         .lp-plan { padding:26px 26px 30px; display:flex; flex-direction:column; }
@@ -692,9 +704,9 @@ export default async function LandingPage() {
             <span>Prepa</span>
           </Link>
           <div className="lp-mast-nav">
-            <a className="lp-mast-anchor" href="#method">Method</a>
-            <a className="lp-mast-anchor" href="#catalogue">Catalogue</a>
+            <a className="lp-mast-anchor" href="#how">How it works</a>
             <a className="lp-mast-anchor" href="#features">Features</a>
+            <a className="lp-mast-anchor" href="#exams">Exams</a>
             <a className="lp-mast-anchor" href="#pricing">Pricing</a>
             <Link href="/login">Sign in</Link>
             <Link href="/signup" className="lp-mast-cta">Start free</Link>
@@ -705,36 +717,36 @@ export default async function LandingPage() {
       {/* HERO */}
       <section className="wrap lp-hero">
         <div className="lp-dateline">
-          <span className="k">№ 01 — Verification</span>
-          <span className="r">{PRESET_COUNT} certifications · Free to start</span>
+          <span className="k">№ 01 — Certification prep</span>
+          <span className="r">{PRESET_COUNT} exams · Free to start</span>
         </div>
         <h1 className="display">
-          Every answer key is checked by a <em>second examiner</em>.
+          Pass your certification. <em>First try.</em>
         </h1>
 
         <div className="lp-hero-cols">
           <div className="lp-hero-left">
             <p className="deck">
-              Before a question reaches you, a separate model sits it cold — no
-              answer key, no hints. If the two disagree, the question is binned.
-              Every explanation cites the vendor&apos;s own documentation, and
-              we check the link is alive before you see it.
+              Prepa teaches your exam&apos;s full syllabus, drills you on the
+              topics you keep getting wrong, and puts you in a real cloud
+              console to build things yourself — then tells you when
+              you&apos;re ready to book.
             </p>
             <div className="lp-hero-actions">
               <Link href="/signup" className="btn btn-accent">
-                Start practising free
+                Start free — no card
               </Link>
-              <a href="#method" className="btn btn-ghost">
-                Read the method
+              <a href="#how" className="btn btn-ghost">
+                See how it works
               </a>
             </div>
             <p className="lp-hero-fine">
-              No card required — {PRESET_COUNT} certifications, or bring your own
-              notes. Cancel anytime.
+              30 practice questions, two lessons, a lab and a mock exam — free.
+              {" "}{PRESET_COUNT} certifications, or bring your own notes.
             </p>
 
             <nav className="lp-toc" aria-label="Page contents">
-              <span className="lp-toc-h">In this issue</span>
+              <span className="lp-toc-h">On this page</span>
               {contents.map((c) => (
                 <a key={c.href} href={c.href} className="lp-toc-row">
                   <span className="n">{c.n}</span>
@@ -746,32 +758,40 @@ export default async function LandingPage() {
             </nav>
           </div>
 
-          {/* SPECIMEN — a worked record of the check, not a floating dashboard. */}
+          {/* A real practice question as you'd actually see it — the product,
+              with the verification stamp as supporting proof rather than the pitch. */}
           <figure className="lp-spec" style={{ margin: 0 }}>
             <figcaption className="lp-spec-head">
-              <span>Specimen record</span>
-              <span className="ok">Cleared for delivery ✓</span>
+              <span>A question you&apos;d get</span>
+              <span className="ok">AWS SAA-C03</span>
             </figcaption>
             <div className="lp-spec-body">
-              <div className="lp-spec-src">AWS SAA-C03 · Domain 3 · Databases</div>
+              <div className="lp-spec-src">Domain 3 · Databases</div>
               <p className="lp-spec-q">
                 Which AWS service provides a fully managed NoSQL database with
                 single-digit millisecond latency at any scale?
               </p>
               <div className="lp-spec-opt"><b>A</b><span>Amazon RDS</span></div>
-              <div className="lp-spec-opt key"><b>B</b><span>Amazon DynamoDB</span></div>
+              <div className="lp-spec-opt key">
+                <b>B</b><span>Amazon DynamoDB</span>
+                <span className="lp-spec-tick">Correct</span>
+              </div>
               <div className="lp-spec-opt"><b>C</b><span>Amazon Redshift</span></div>
             </div>
+            <div className="lp-spec-why">
+              <div className="lp-spec-why-h">Why</div>
+              <p>
+                DynamoDB is AWS&apos;s managed NoSQL store, built for consistent
+                single-digit-millisecond reads at any scale. RDS and Aurora are
+                relational; Redshift is built for analytics, not low-latency
+                lookups.
+              </p>
+              <span className="lp-spec-cite">↗ docs.aws.amazon.com</span>
+            </div>
             <div className="lp-spec-ledger">
-              <LedgerRow label="Writer" detail="answer key" value="B" />
-              <LedgerRow label="Examiner" detail="blind, no key" value="B" />
-              <LedgerRow label="Reconciled" detail="keys compared" value="Match" />
+              <LedgerRow label="Answer" detail="confirmed by a second AI" value="Checked" />
               <LedgerRow label="Source" detail="docs.aws.amazon.com" value="Live" />
             </div>
-            <p className="lp-spec-foot">
-              Had the examiner answered anything but B, this question would have
-              been thrown out — you would never have seen it.
-            </p>
           </figure>
         </div>
       </section>
@@ -789,15 +809,59 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* METHOD */}
-      <section id="method" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
-        <Folio n="№ 02" title="The method" aside="How verification works" />
+      {/* HOW IT WORKS */}
+      <section id="how" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
+        <Folio n="№ 02" title="How it works" aside="From today to exam day" />
         <div className="lp-split">
           <div className="lp-split-label">
-            <h2>We check our own work before you see it.</h2>
+            <h2>Four steps. Nothing to buy first.</h2>
             <p>
-              Three gates stand between a generated question and your screen.
-              Any one of them can bin it.
+              There&apos;s no question bank to purchase and no course to hunt
+              down. Prepa builds the syllabus, the lessons, the labs and the
+              questions around the exam you&apos;re actually sitting.
+            </p>
+            <p style={{ marginTop: "22px" }}>
+              <Link href="/signup" className="btn btn-accent">Start free — no card</Link>
+            </p>
+          </div>
+          <div className="lp-rows">
+            {steps.map((s) => (
+              <div key={s.n}>
+                <span className="n">{s.n}</span>
+                <div>
+                  <h3>{s.h}</h3>
+                  <p>{s.p}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 03" title="What you get" aside="Everything in one subscription" />
+        <div className="lp-index">
+          {features.map((f) => (
+            <div key={f.k} className="lp-item">
+              <div className="k">{f.k}</div>
+              <h3>{f.h}</h3>
+              <p>{f.p}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* TRUST */}
+      <section id="trust" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
+        <Folio n="№ 04" title="Why you can trust it" aside="How every answer is checked" />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>An AI wrote your questions. So we check them.</h2>
+            <p>
+              Nothing hurts your score like revising a wrong answer for a week.
+              Three checks stand between a new question and your screen — and
+              any one of them will throw it out.
             </p>
           </div>
           <div>
@@ -813,27 +877,28 @@ export default async function LandingPage() {
               ))}
             </div>
             <p className="prose" style={{ borderTop: "1px solid var(--hair)", paddingTop: "20px", marginTop: "0", maxWidth: "62ch" }}>
-              Still think a question is wrong? Flag it — it gets independently
-              re-checked and pulled from your review queue if the check
-              disagrees with the answer key.
+              Still think a question is wrong? Flag it. We re-check it
+              independently, and if the check agrees with you it comes straight
+              out of your review queue.
             </p>
           </div>
         </div>
       </section>
 
-      {/* CATALOGUE */}
-      <section id="catalogue" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
-        <Folio n="№ 03" title="The catalogue" aside={`${PRESET_COUNT} exams in print`} />
+      {/* EXAMS */}
+      <section id="exams" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 05" title="Exams we cover" aside={`${PRESET_COUNT} certifications`} />
         <div className="lp-split">
           <div className="lp-split-label">
-            <h2>Every exam, built from its own blueprint.</h2>
+            <h2>Your exam, weighted like the real thing.</h2>
             <p>
-              Domains and weightings come from the vendor&apos;s published
-              outline. Not on the list? Describe your exam, or upload your
-              notes, and Prepa builds the syllabus anyway.
+              Domains and weightings come straight from each vendor&apos;s
+              published outline, so you spend the most time where the exam puts
+              the most marks. Sitting something that isn&apos;t listed? Describe
+              it, or upload your notes, and Prepa builds the syllabus anyway.
             </p>
             <p style={{ marginTop: "16px" }}>
-              <Link href="/exams" className="ulink">Browse all study guides →</Link>
+              <Link href="/exams" className="ulink">Read the free study guides →</Link>
             </p>
           </div>
           <div className="lp-cat">
@@ -866,60 +931,21 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section id="features" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
-        <Folio n="№ 04" title="What you get" aside="Between now and exam day" />
-        <div className="lp-index">
-          {features.map((f) => (
-            <div key={f.k} className="lp-item">
-              <div className="k">{f.k}</div>
-              <h3>{f.h}</h3>
-              <p>{f.p}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section id="how" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
-        <Folio n="№ 05" title="How it works" aside="From zero to exam-ready" />
-        <div className="lp-split">
-          <div className="lp-split-label">
-            <h2>No bank to buy. No content to hunt down.</h2>
-            <p>
-              Prepa builds the syllabus, the lessons, the labs and the questions
-              around you — then paces them to your exam date.
-            </p>
-            <p style={{ marginTop: "22px" }}>
-              <Link href="/signup" className="btn btn-accent">Start practising free</Link>
-            </p>
-          </div>
-          <div className="lp-rows">
-            {steps.map((s) => (
-              <div key={s.n}>
-                <span className="n">{s.n}</span>
-                <div>
-                  <h3>{s.h}</h3>
-                  <p>{s.p}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* VERSUS */}
       <section className="wrap lp-sec" style={{ paddingTop: 0 }}>
-        <Folio n="№ 06" title="Against a question bank" aside="Trust vs. proof" />
+        <Folio n="№ 06" title="Compared with a question bank" aside="Why people switch" />
         <div className="lp-split">
           <div className="lp-split-label">
-            <h2>Question banks ask you to trust them.</h2>
-            <p>Prepa proves it instead — on every question, every session.</p>
+            <h2>Dumps ask you to trust them. Prepa shows its work.</h2>
+            <p>
+              A question bank sells you someone else&apos;s answers, frozen the
+              day they were written. Here&apos;s what you get instead.
+            </p>
           </div>
           <table className="lp-vs">
             <thead>
               <tr>
-                <th>Static question banks</th>
+                <th>A question bank or dump</th>
                 <th className="nu">Prepa</th>
               </tr>
             </thead>
@@ -937,12 +963,19 @@ export default async function LandingPage() {
 
       {/* PRICING */}
       <section id="pricing" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
-        <Folio n="№ 07" title="Pricing" aside="Less than a coffee a month" />
+        <Folio n="№ 07" title="Pricing" aside="Cheaper than re-sitting" />
+        <p className="lp-price-lead">
+          Start free and see if it suits how you study. Upgrade when you book
+          your exam date — a month of Pro costs a fraction of the exam fee, and
+          you can cancel any time.
+        </p>
         <div className="lp-plans">
           <div className="lp-plan">
             <div className="lp-plan-name"><span>{freePlan.name}</span></div>
             <div className="lp-plan-price">{freePlan.price}</div>
-            <div className="lp-plan-cycle">{freePlan.cycle}</div>
+            {/* freePlan.cycle is "free", which just repeats the plan name here.
+                The tagline already covers "no card", so don't say it twice. */}
+            <div className="lp-plan-cycle">forever</div>
             <p className="lp-plan-tag">{freePlan.tagline}</p>
             <ul className="lp-plan-feats">
               {freePlan.features.map((f) => <li key={f}>{f}</li>)}
@@ -1002,12 +1035,13 @@ export default async function LandingPage() {
 
       {/* FAQ */}
       <section id="faq" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
-        <Folio n="№ 08" title="Questions, answered" />
+        <Folio n="№ 08" title="Questions, answered" aside="Before you sign up" />
         <div className="lp-split">
           <div className="lp-split-label">
-            <h2>The things people ask before they sign up.</h2>
+            <h2>What people ask before they start.</h2>
             <p>
-              Still stuck? Everything here is free to try before you decide.
+              Anything still unclear? You can try the whole thing free before
+              you decide — no card, nothing to cancel.
             </p>
           </div>
           <div className="lp-faq">
@@ -1025,16 +1059,16 @@ export default async function LandingPage() {
       <section className="lp-close">
         <div className="wrap lp-close-inner">
           <h2>
-            Your exam won&apos;t <em>study itself</em>.
+            Walk in knowing <em>you&apos;ll pass</em>.
           </h2>
           <div>
             <p>
-              Start with 30 free questions — each one blind-checked by a second
-              model, each one explained with a link to the source. Set up in
-              under a minute.
+              Set up takes under a minute. You get 30 practice questions, two
+              lessons, a hands-on lab and a mock exam free — enough to know
+              whether Prepa suits the way you study.
             </p>
             <Link href="/signup" className="btn btn-paper">
-              Start practising free
+              Start free — no card
             </Link>
           </div>
         </div>
@@ -1050,8 +1084,8 @@ export default async function LandingPage() {
                 <span>Prepa</span>
               </Link>
               <p className="lp-colo-note">
-                Certification practice that checks its own work — every
-                multiple-choice key blind-verified, every explanation sourced.
+                Lessons, practice, hands-on labs and mock exams for {PRESET_COUNT}{" "}
+                certifications — built to get you through first time.
               </p>
             </div>
             <div>

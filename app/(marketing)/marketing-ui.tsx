@@ -130,11 +130,10 @@ export function CtaPanel({ examName }: { examName?: string }) {
         Practise {examName ? `for the ${examName}` : "with Prepa"} — free
       </h2>
       <p style={{ fontSize: "15.5px", lineHeight: 1.65, color: LEGAL_THEME.body, margin: "0 0 18px", maxWidth: "56ch" }}>
-        Prepa generates exam-style questions tuned to the official blueprint —
-        then blind-answers every multiple-choice question with a second,
-        independent model and throws it out if the two disagree. Every
-        explanation links to the vendor&apos;s own documentation. 30 free
-        questions to start.
+        Lessons that teach the syllabus, practice aimed at the topics you keep
+        getting wrong, hands-on labs and timed mock exams — plus a readiness
+        score that tells you when you&apos;re ready to book. Start with 30
+        practice questions, two lessons, a lab and a mock exam, free.
       </p>
       <Link
         href="/signup"
