@@ -8,15 +8,18 @@
 export const SITE_NAME = "Prepa"
 
 export const SITE_TITLE =
-  "Prepa — Verified Practice Questions for Certification Exams"
+  "Prepa — Certification Exam Prep: Pass First Time"
 
+// Doubles as the search-result snippet, so it leads with what you get rather
+// than how the questions are made. Verification is the reason to believe, not
+// the pitch — it lands in the final clause.
 export const SITE_DESCRIPTION =
-  "Practice questions you can trust. Every multiple-choice question is blind-answered by a second, independent model before you see it — if it disagrees with the answer key, the question is thrown out. Explanations cite the vendor's own docs. AWS, Azure, Google Cloud, CompTIA, Cisco and CISSP. Start free."
+  "Pass your certification first time. Lessons, adaptive practice questions, hands-on labs and timed mock exams for AWS, Azure, Google Cloud, CompTIA, Cisco and CISSP — plus a readiness score that tells you when you're ready to book. Every answer is checked by a second AI. Start free."
 
 export const SITE_KEYWORDS = [
-  "verified practice questions",
-  "accurate certification practice test",
-  "exam questions with official documentation",
+  "certification exam prep",
+  "pass certification exam first time",
+  "certification practice questions",
   "certification exam practice",
   "AI practice questions",
   "exam prep app",

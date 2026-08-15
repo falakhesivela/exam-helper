@@ -66,9 +66,18 @@ export function tierForPriceId(priceId: string | null | undefined): Tier | null 
   return null
 }
 
+/**
+ * Nouns here are written plural ("mock exams"), so a limit of 1 would otherwise
+ * read "1 mock exams to start". Drop the trailing "s" off the head noun — every
+ * noun passed in pluralises regularly.
+ */
+function singularise(noun: string): string {
+  return noun.replace(/s$/, "")
+}
+
 function quotaLabel(limit: number | null, noun: string, window: string): string {
   if (limit === null) return `Unlimited ${noun}`
-  return `${limit} ${noun} ${window}`
+  return `${limit} ${limit === 1 ? singularise(noun) : noun} ${window}`
 }
 
 const WINDOW_WORD: Record<"daily" | "monthly" | "lifetime", string> = {
