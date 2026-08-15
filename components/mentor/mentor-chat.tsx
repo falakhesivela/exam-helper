@@ -74,6 +74,8 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
 
   const {
     messages,
+    quizAttempts,
+    recordQuizAttempt,
     streamingReply,
     input,
     setInput,
@@ -274,6 +276,15 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   <MentorMessageContent
                     content={message.content}
                     onFollowUp={prefillFollowUp}
+                    messageId={message.serverId}
+                    attempts={
+                      message.serverId != null
+                        ? quizAttempts.filter(
+                            (a) => a.messageId === message.serverId,
+                          )
+                        : undefined
+                    }
+                    onQuizAttempt={recordQuizAttempt}
                   />
                 ) : (
                   message.content

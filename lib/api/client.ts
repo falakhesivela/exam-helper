@@ -459,10 +459,12 @@ export const api = {
           updatedAt: new Date().toISOString(),
         } satisfies MentorConversation,
         messages: [] as MentorMessage[],
+        quizAttempts: [] as import("@/types").MentorQuizAttempt[],
       });
     return request<{
       conversation: MentorConversation;
       messages: MentorMessage[];
+      quizAttempts: import("@/types").MentorQuizAttempt[];
     }>(`/api/mentor/conversations/${conversationId}`);
   },
 
@@ -515,6 +517,7 @@ export const api = {
       return Promise.resolve({
         reply,
         conversationId: opts?.conversationId ?? "mock-conversation",
+        messageId: Date.now(),
         title: content.slice(0, 60),
         remaining: null,
       });
@@ -522,6 +525,8 @@ export const api = {
     return consumeSse<{
       reply: string;
       conversationId: string;
+      /** Row id of the persisted reply — the key for its quick-check attempts. */
+      messageId: number | null;
       title: string;
       remaining: number | null;
     }>(
@@ -536,6 +541,78 @@ export const api = {
         signal: opts?.signal,
         onReady: (data) =>
           opts?.onReady?.(data as { conversationId: string; title: string }),
+        onEvent: (event, data) => {
+          if (event === "delta") {
+            const text = (data as { text?: string }).text;
+            if (text) opts?.onDelta?.(text);
+          }
+        },
+      },
+    );
+  },
+
+  /**
+   * Record an answer to a Mentor quick check.
+   *
+   * Deliberately sends only what was picked. The server re-parses the quiz from
+   * the stored message and decides correctness itself, so the response — not
+   * the card's local grading — is the source of truth for what gets saved.
+   */
+  mentorQuizAttempt: (body: {
+    messageId: number;
+    quizIndex: number;
+    selectedOptionIds: string[];
+    attempts: number;
+    confidence?: import("@/types").Confidence;
+  }) => {
+    if (USE_MOCKS)
+      return Promise.resolve({
+        attempt: {
+          messageId: body.messageId,
+          quizIndex: body.quizIndex,
+          selectedOptionIds: body.selectedOptionIds,
+          isCorrect: true,
+          attempts: body.attempts,
+          confidence: body.confidence ?? null,
+          answeredAt: new Date().toISOString(),
+        } satisfies import("@/types").MentorQuizAttempt,
+        isCorrect: true,
+        correctOptionIds: body.selectedOptionIds,
+      });
+    return request<{
+      attempt: import("@/types").MentorQuizAttempt;
+      isCorrect: boolean;
+      correctOptionIds: string[];
+    }>("/api/mentor/quiz/attempt", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  /**
+   * "Why was I wrong?" for a quick check. Runs on the cheap per-question tutor
+   * rather than Mentor, which would re-send its whole grounding block — so it
+   * spends a tutor message, not one of the learner's Mentor messages.
+   */
+  mentorQuizExplain: (
+    body: {
+      messageId: number;
+      quizIndex: number;
+      selectedOptionIds: string[];
+      messages?: { role: "user" | "assistant"; content: string }[];
+    },
+    opts?: { onDelta?: (text: string) => void; signal?: AbortSignal },
+  ) => {
+    if (USE_MOCKS) {
+      const reply = mockTutorReply("explain my mistake");
+      opts?.onDelta?.(reply);
+      return Promise.resolve({ reply });
+    }
+    return consumeSse<{ reply: string }>(
+      "/api/mentor/quiz/explain",
+      { ...body, messages: body.messages ?? [] },
+      {
+        signal: opts?.signal,
         onEvent: (event, data) => {
           if (event === "delta") {
             const text = (data as { text?: string }).text;

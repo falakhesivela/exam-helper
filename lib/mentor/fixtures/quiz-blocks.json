@@ -1,0 +1,210 @@
+{
+  "_note": "Shared contract for the Mentor quick-check parsers. TWIN OF prepa-backend/tests/fixtures/quiz_blocks.json — the two files must stay byte-identical. Both test suites load their local copy, so a change on one side that isn't mirrored shows up as a failing case rather than as a silent grading disagreement in production.",
+
+  "parseCases": [
+    {
+      "name": "valid single-answer quiz",
+      "raw": "{\"question\":\"Which subnet routes to an internet gateway?\",\"options\":[{\"id\":\"a\",\"text\":\"Public\"},{\"id\":\"b\",\"text\":\"Private\"},{\"id\":\"c\",\"text\":\"Isolated\"}],\"correctOptionIds\":[\"a\"],\"explanation\":\"Public subnets have an IGW route.\"}",
+      "valid": true,
+      "multiSelect": false,
+      "correctOptionIds": ["a"],
+      "optionCount": 3,
+      "explanation": "Public subnets have an IGW route."
+    },
+    {
+      "name": "multiSelect derived from two correct ids",
+      "raw": "{\"question\":\"Pick two AZ-resilient services.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"},{\"id\":\"c\",\"text\":\"Three\"}],\"correctOptionIds\":[\"a\",\"b\"],\"explanation\":\"\"}",
+      "valid": true,
+      "multiSelect": true,
+      "correctOptionIds": ["a", "b"],
+      "optionCount": 3,
+      "explanation": ""
+    },
+    {
+      "name": "explicit multiSelect false is overridden by two correct ids",
+      "raw": "{\"question\":\"Pick two.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"},{\"id\":\"c\",\"text\":\"Three\"}],\"correctOptionIds\":[\"a\",\"b\"],\"multiSelect\":false,\"explanation\":\"\"}",
+      "valid": true,
+      "multiSelect": true,
+      "correctOptionIds": ["a", "b"],
+      "optionCount": 3,
+      "explanation": ""
+    },
+    {
+      "name": "explicit multiSelect true with one correct id is honoured",
+      "raw": "{\"question\":\"Pick one for now.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"],\"multiSelect\":true,\"explanation\":\"\"}",
+      "valid": true,
+      "multiSelect": true,
+      "correctOptionIds": ["a"],
+      "optionCount": 2,
+      "explanation": ""
+    },
+    {
+      "name": "duplicate correct ids are deduped",
+      "raw": "{\"question\":\"Dupes collapse.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\",\"a\"],\"explanation\":\"\"}",
+      "valid": true,
+      "multiSelect": false,
+      "correctOptionIds": ["a"],
+      "optionCount": 2,
+      "explanation": ""
+    },
+    {
+      "name": "missing explanation becomes empty string",
+      "raw": "{\"question\":\"No explanation field.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}",
+      "valid": true,
+      "multiSelect": false,
+      "correctOptionIds": ["a"],
+      "optionCount": 2,
+      "explanation": ""
+    },
+    {
+      "name": "question text is trimmed",
+      "raw": "{\"question\":\"   Padded question.   \",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"],\"explanation\":\"  padded  \"}",
+      "valid": true,
+      "multiSelect": false,
+      "correctOptionIds": ["a"],
+      "optionCount": 2,
+      "explanation": "padded"
+    },
+
+    {
+      "name": "rejects a single option",
+      "raw": "{\"question\":\"Only one.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"}],\"correctOptionIds\":[\"a\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects seven options",
+      "raw": "{\"question\":\"Too many.\",\"options\":[{\"id\":\"a\",\"text\":\"1\"},{\"id\":\"b\",\"text\":\"2\"},{\"id\":\"c\",\"text\":\"3\"},{\"id\":\"d\",\"text\":\"4\"},{\"id\":\"e\",\"text\":\"5\"},{\"id\":\"f\",\"text\":\"6\"},{\"id\":\"g\",\"text\":\"7\"}],\"correctOptionIds\":[\"a\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects duplicate option ids",
+      "raw": "{\"question\":\"Dupe ids.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"a\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects a correct id that is not an option",
+      "raw": "{\"question\":\"Ghost answer.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"z\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects every option being correct",
+      "raw": "{\"question\":\"Not a question.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\",\"b\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects empty correctOptionIds",
+      "raw": "{\"question\":\"No answer.\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[]}",
+      "valid": false
+    },
+    {
+      "name": "rejects a blank question",
+      "raw": "{\"question\":\"   \",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects a blank option text",
+      "raw": "{\"question\":\"Blank option.\",\"options\":[{\"id\":\"a\",\"text\":\"  \"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"b\"]}",
+      "valid": false
+    },
+    {
+      "name": "rejects a non-numeric-keyed array payload",
+      "raw": "[{\"question\":\"Array\"}]",
+      "valid": false
+    },
+    {
+      "name": "rejects malformed JSON",
+      "raw": "{\"question\": \"unterminated",
+      "valid": false
+    },
+    {
+      "name": "rejects a null payload",
+      "raw": "null",
+      "valid": false
+    }
+  ],
+
+  "gradingCases": [
+    {
+      "name": "exact single match is correct",
+      "correctOptionIds": ["b"],
+      "optionIds": ["a", "b", "c"],
+      "selected": ["b"],
+      "correct": true
+    },
+    {
+      "name": "wrong single pick is incorrect",
+      "correctOptionIds": ["b"],
+      "optionIds": ["a", "b", "c"],
+      "selected": ["a"],
+      "correct": false
+    },
+    {
+      "name": "both of two required is correct regardless of order",
+      "correctOptionIds": ["a", "c"],
+      "optionIds": ["a", "b", "c"],
+      "selected": ["c", "a"],
+      "correct": true
+    },
+    {
+      "name": "a partial multi-select is incorrect",
+      "correctOptionIds": ["a", "c"],
+      "optionIds": ["a", "b", "c"],
+      "selected": ["a"],
+      "correct": false
+    },
+    {
+      "name": "a superset is incorrect",
+      "correctOptionIds": ["a"],
+      "optionIds": ["a", "b", "c"],
+      "selected": ["a", "b"],
+      "correct": false
+    },
+    {
+      "name": "unknown option ids are ignored, not credited",
+      "correctOptionIds": ["a"],
+      "optionIds": ["a", "b"],
+      "selected": ["a", "zzz"],
+      "correct": true
+    },
+    {
+      "name": "an empty selection is incorrect",
+      "correctOptionIds": ["a"],
+      "optionIds": ["a", "b"],
+      "selected": [],
+      "correct": false
+    }
+  ],
+
+  "contentCases": [
+    {
+      "name": "one fence after prose",
+      "content": "Here is the idea.\n\n```quiz\n{\"question\":\"Q1\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}\n```",
+      "quizValidity": [true]
+    },
+    {
+      "name": "two fences interleaved with prose keep separate indexes",
+      "content": "First concept.\n\n```quiz\n{\"question\":\"Q1\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}\n```\n\nSecond concept.\n\n```quiz\n{\"question\":\"Q2\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"b\"]}\n```",
+      "quizValidity": [true, true]
+    },
+    {
+      "name": "a malformed fence still consumes its index",
+      "content": "```quiz\n{\"question\":\"Q1\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}\n```\n\n```quiz\n{ broken\n```\n\n```quiz\n{\"question\":\"Q3\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"b\"]}\n```",
+      "quizValidity": [true, false, true]
+    },
+    {
+      "name": "an unclosed trailing fence is not counted",
+      "content": "Prose.\n\n```quiz\n{\"question\":\"Q1\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}\n```\n\n```quiz\n{\"question\":\"still streaming",
+      "quizValidity": [true]
+    },
+    {
+      "name": "trailing spaces after the fence tag are tolerated",
+      "content": "```quiz   \n{\"question\":\"Q1\",\"options\":[{\"id\":\"a\",\"text\":\"One\"},{\"id\":\"b\",\"text\":\"Two\"}],\"correctOptionIds\":[\"a\"]}\n```",
+      "quizValidity": [true]
+    },
+    {
+      "name": "prose with no fences yields no quizzes",
+      "content": "Just an explanation with a ```json\n{\"not\":\"a quiz\"}\n``` block.",
+      "quizValidity": []
+    }
+  ]
+}

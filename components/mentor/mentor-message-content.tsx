@@ -2,15 +2,24 @@
 
 import { useMemo } from "react"
 import { ListChecks } from "lucide-react"
-import { MentorQuizCard } from "@/components/mentor/mentor-quiz-card"
+import {
+  MentorQuizCard,
+  type MentorQuizCardProps,
+} from "@/components/mentor/mentor-quiz-card"
 import { Markdown } from "@/components/ui/markdown"
 import { parseMentorContent } from "@/lib/mentor/quiz-block"
+import type { MentorQuizAttempt } from "@/types"
 
 interface MentorMessageContentProps {
   content: string
   /** While streaming, an unclosed quiz fence shows a placeholder, not raw JSON. */
   streaming?: boolean
   onFollowUp?: (prompt: string) => void
+  /** Row id of the persisted message; absent while it is still streaming. */
+  messageId?: number
+  /** Saved answers for this message, looked up by the segment's quizIndex. */
+  attempts?: MentorQuizAttempt[]
+  onQuizAttempt?: MentorQuizCardProps["onAttempt"]
 }
 
 /**
@@ -22,6 +31,9 @@ export function MentorMessageContent({
   content,
   streaming = false,
   onFollowUp,
+  messageId,
+  attempts,
+  onQuizAttempt,
 }: MentorMessageContentProps) {
   const segments = useMemo(
     () => parseMentorContent(content, { streaming }),
@@ -40,6 +52,12 @@ export function MentorMessageContent({
                 key={index}
                 quiz={segment.quiz}
                 onFollowUp={onFollowUp}
+                messageId={messageId}
+                quizIndex={segment.quizIndex}
+                attempt={attempts?.find(
+                  (a) => a.quizIndex === segment.quizIndex,
+                )}
+                onAttempt={onQuizAttempt}
               />
             )
           case "pending-quiz":

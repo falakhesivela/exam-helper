@@ -13,14 +13,22 @@ export interface MentorQuiz {
   explanation: string
 }
 
+/**
+ * `quizIndex` is the 0-based position of a closed ```quiz fence within the
+ * message, counting malformed ones so a bad block never shifts its neighbours'
+ * ids. It is the key an attempt is stored under, and the server re-derives it
+ * from the same message with the same rule — see app/ai/quiz_block.py. An
+ * unclosed trailing fence has no index: the server never sees one, because it
+ * only parses replies it has finished persisting.
+ */
 export type MentorSegment =
   /** Prose between quiz blocks, rendered as regular markdown. */
   | { type: "markdown"; text: string }
-  | { type: "quiz"; quiz: MentorQuiz }
+  | { type: "quiz"; quiz: MentorQuiz; quizIndex: number }
   /** An unclosed ```quiz fence at the tail of a still-streaming reply. */
   | { type: "pending-quiz" }
   /** A closed ```quiz fence whose JSON didn't validate. */
-  | { type: "invalid-quiz" }
+  | { type: "invalid-quiz"; quizIndex: number | null }
 
 const MIN_OPTIONS = 2
 const MAX_OPTIONS = 6
@@ -87,10 +95,16 @@ export function parseMentorContent(
     if (text.trim()) segments.push({ type: "markdown", text })
   }
 
+  let quizIndex = 0
   for (const match of content.matchAll(QUIZ_FENCE)) {
     pushMarkdown(content.slice(cursor, match.index))
     const quiz = parseQuizJson(match[1])
-    segments.push(quiz ? { type: "quiz", quiz } : { type: "invalid-quiz" })
+    segments.push(
+      quiz
+        ? { type: "quiz", quiz, quizIndex }
+        : { type: "invalid-quiz", quizIndex },
+    )
+    quizIndex += 1
     cursor = match.index + match[0].length
   }
 
@@ -99,8 +113,13 @@ export function parseMentorContent(
   if (open) {
     pushMarkdown(tail.slice(0, open.index))
     // Mid-stream the fence just hasn't closed yet; in a finished reply an
-    // unclosed fence is a malformed block.
-    segments.push({ type: opts?.streaming ? "pending-quiz" : "invalid-quiz" })
+    // unclosed fence is a malformed block. Either way it never closed, so it
+    // claims no quizIndex — the server counts only closed fences.
+    segments.push(
+      opts?.streaming
+        ? { type: "pending-quiz" }
+        : { type: "invalid-quiz", quizIndex: null },
+    )
   } else {
     pushMarkdown(tail)
   }

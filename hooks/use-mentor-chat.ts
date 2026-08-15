@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { Confidence, MentorQuizAttempt } from "@/types"
 import { api, ApiClientError } from "@/lib/api/client"
+import { useSessionStore } from "@/lib/store/use-session-store"
 
 export type MentorChatStatus =
   | "idle"
@@ -17,6 +19,13 @@ export interface MentorUiMessage {
   role: "user" | "assistant"
   content: string
   createdAt: string
+  /**
+   * The persisted row id, when there is one. Quick-check attempts are keyed by
+   * it, so a card can only save an answer once its message exists server-side —
+   * which is why /mentor/chat returns the id rather than leaving the client to
+   * reload the thread first.
+   */
+  serverId?: number
 }
 
 interface UseMentorChatOptions {
@@ -35,6 +44,7 @@ export function useMentorChat({
   onUsage,
 }: UseMentorChatOptions) {
   const [messages, setMessages] = useState<MentorUiMessage[]>([])
+  const [quizAttempts, setQuizAttempts] = useState<MentorQuizAttempt[]>([])
   const [streamingReply, setStreamingReply] = useState("")
   const [input, setInput] = useState(seed ?? "")
   const [status, setStatus] = useState<MentorChatStatus>(
@@ -63,8 +73,10 @@ export function useMentorChat({
           role: message.role,
           content: message.content,
           createdAt: message.createdAt,
+          serverId: message.id,
         })),
       )
+      setQuizAttempts(result.quizAttempts ?? [])
       setStreamingReply("")
       setError(null)
       setStatus(quotaRemaining === 0 ? "quota-blocked" : "idle")
@@ -170,6 +182,9 @@ export function useMentorChat({
             role: "assistant",
             content: result.reply,
             createdAt: new Date().toISOString(),
+            // Present unless the insert didn't report a row back; a card
+            // without it simply grades locally and skips saving.
+            serverId: result.messageId ?? undefined,
           },
         ])
         setStreamingReply("")
@@ -233,6 +248,66 @@ export function useMentorChat({
 
   const stop = useCallback(() => abortRef.current?.abort(), [])
 
+  /**
+   * Persist a quick-check answer and keep the local copy in step.
+   *
+   * The optimistic entry lands first so the card stays revealed even if the
+   * request is slow, then the server's row replaces it — the server regrades
+   * from the stored message, so its `isCorrect` wins over the card's local
+   * verdict. A failure is swallowed on purpose: the learner has already seen
+   * their result, and losing the saved copy of a free quick check is not worth
+   * an error banner over the conversation.
+   */
+  const recordQuizAttempt = useCallback(
+    async (input: {
+      messageId: number
+      quizIndex: number
+      selectedOptionIds: string[]
+      isCorrect: boolean
+      attempts: number
+      confidence?: Confidence
+    }) => {
+      const optimistic: MentorQuizAttempt = {
+        messageId: input.messageId,
+        quizIndex: input.quizIndex,
+        selectedOptionIds: input.selectedOptionIds,
+        isCorrect: input.isCorrect,
+        attempts: input.attempts,
+        confidence: input.confidence ?? null,
+        answeredAt: new Date().toISOString(),
+      }
+      const replace = (attempt: MentorQuizAttempt) =>
+        setQuizAttempts((current) => [
+          ...current.filter(
+            (a) =>
+              a.messageId !== attempt.messageId ||
+              a.quizIndex !== attempt.quizIndex,
+          ),
+          attempt,
+        ])
+
+      replace(optimistic)
+      try {
+        const result = await api.mentorQuizAttempt({
+          messageId: input.messageId,
+          quizIndex: input.quizIndex,
+          selectedOptionIds: input.selectedOptionIds,
+          attempts: input.attempts,
+          confidence: input.confidence,
+        })
+        replace(result.attempt)
+        // A first-attempt correct answer awards XP, so the level ring and
+        // league standings in the store are now stale.
+        if (result.isCorrect && input.attempts === 1) {
+          void useSessionStore.getState().refreshGamification()
+        }
+      } catch {
+        // Keep the optimistic row — it still reflects what the learner did.
+      }
+    },
+    [],
+  )
+
   useEffect(
     () => () => {
       abortRef.current?.abort()
@@ -243,6 +318,8 @@ export function useMentorChat({
 
   return {
     messages,
+    quizAttempts,
+    recordQuizAttempt,
     streamingReply,
     input,
     setInput,

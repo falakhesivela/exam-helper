@@ -136,7 +136,9 @@ describe("parseMentorContent", () => {
 
   it("marks a closed fence with bad JSON as invalid", () => {
     const segments = parseMentorContent(quizFence("{oops"))
-    assert.deepEqual(segments, [{ type: "invalid-quiz" }])
+    // A closed fence claims its ordinal even when the JSON is junk, so a bad
+    // block never shifts the quizIndex of the ones after it.
+    assert.deepEqual(segments, [{ type: "invalid-quiz", quizIndex: 0 }])
   })
 
   it("treats a trailing open fence as pending while streaming", () => {

@@ -367,6 +367,25 @@ export interface MentorMessage extends ChatMessage {
   createdAt: string
 }
 
+/**
+ * A learner's answer to a ```quiz block inside an assistant reply.
+ *
+ * Keyed by the message it lives in plus `quizIndex` — the 0-based position of
+ * the closed ```quiz fence in that message. Message content never changes once
+ * persisted, so the pair is a stable identity. `isCorrect` is whatever the
+ * server derived from the stored message, not what the client claimed.
+ */
+export interface MentorQuizAttempt {
+  messageId: number
+  quizIndex: number
+  selectedOptionIds: string[]
+  isCorrect: boolean
+  /** 1 = right first time; 2 = answered after the card's single retry. */
+  attempts: number
+  confidence: Confidence | null
+  answeredAt: string
+}
+
 /** Hand-authored exam-taking tip (static catalog content, zero AI cost). */
 export interface ExamTip {
   title: string
