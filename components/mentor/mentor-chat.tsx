@@ -37,6 +37,14 @@ import { computeExamReadiness } from "@/lib/progress/readiness"
 import { useSessionStore } from "@/lib/store/use-session-store"
 import { cn } from "@/lib/utils"
 
+/**
+ * Follow-up chips carry domain names ("Quiz me on Deployment, Provisioning, and
+ * Automation"), and Button is `shrink-0 whitespace-nowrap` by default — on a
+ * phone that makes one rigid box wider than the thread. Let them wrap instead.
+ */
+const FOLLOW_UP_CHIP =
+  "h-auto max-w-full rounded-full py-1.5 text-left whitespace-normal"
+
 interface MentorChatProps {
   /** Omitted for a brand-new thread — the server mints the id on first send. */
   conversationId?: string
@@ -186,6 +194,13 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
+      {/*
+        overflow-x-hidden is load-bearing: `overflow-y: auto` alone makes the x
+        axis compute to `auto` too, so any bubble that overflows (long URL, ARN,
+        wide code block) turns the whole thread into a horizontal scroller — and
+        with no-scrollbar hiding the bar, a mobile swipe just slides the messages
+        sideways with no cue why.
+      */}
       <div
         ref={threadRef}
         onScroll={(event) => {
@@ -194,7 +209,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
             target.scrollHeight - target.scrollTop - target.clientHeight < 80,
           )
         }}
-        className="no-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4"
+        className="no-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-1 pb-4"
         role="log"
         aria-label="Mentor conversation"
         aria-live="polite"
@@ -223,7 +238,11 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
           <div
             key={message.id}
             className={cn(
-              "group flex max-w-[92%] items-start gap-2 sm:max-w-[82%]",
+              // Full width on a phone — a 92% cap plus the avatar column left
+              // Mentor's tables and code blocks squeezed into ~270px. The 82%
+              // cap comes back from sm: up, where the gutter reads as a
+              // conversation instead of wasted room.
+              "group flex max-w-full items-start gap-2 sm:max-w-[82%]",
               message.role === "user" ? "self-end flex-row-reverse" : "self-start",
             )}
           >
@@ -245,7 +264,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
             <div className="min-w-0">
               <div
                 className={cn(
-                  "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                  "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed wrap-anywhere",
                   message.role === "assistant"
                     ? "border bg-card text-foreground/90"
                     : "bg-primary text-primary-foreground",
@@ -290,11 +309,11 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
         ))}
 
         {streamingReply && (
-          <div className="flex max-w-[92%] items-start gap-2 self-start sm:max-w-[82%]">
+          <div className="flex max-w-full items-start gap-2 self-start sm:max-w-[82%]">
             <span className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-primary/10 text-primary">
               <Bot className="size-3.5" />
             </span>
-            <div className="rounded-2xl border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/90">
+            <div className="min-w-0 rounded-2xl border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/90 wrap-anywhere">
               <MentorMessageContent content={streamingReply} streaming />
               <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-primary align-middle" />
             </div>
@@ -314,7 +333,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="rounded-full"
+                  className={FOLLOW_UP_CHIP}
                   disabled={quizzing}
                   onClick={() => startQuiz(action.domainName)}
                 >
@@ -327,7 +346,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   asChild
                   size="sm"
                   variant="outline"
-                  className="rounded-full"
+                  className={FOLLOW_UP_CHIP}
                 >
                   <Link href="/plan">
                     <BookOpen />
@@ -340,7 +359,7 @@ export function MentorChat({ conversationId, seed }: MentorChatProps) {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="rounded-full"
+                  className={FOLLOW_UP_CHIP}
                   onClick={() => {
                     setInput(action.prompt)
                     textareaRef.current?.focus()
