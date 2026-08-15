@@ -5,7 +5,7 @@ import { LEGAL_THEME, MONO, SERIF } from "@/app/(legal)/legal-theme"
 import { SITE_AUTHOR } from "@/lib/config/site"
 import type { ExamProvider } from "@/lib/exams/types"
 
-const { ink, muted, accent, border } = LEGAL_THEME
+const { ink, muted, faint, accent, rule } = LEGAL_THEME
 
 export const PROVIDER_NAMES: Record<ExamProvider, string> = {
   aws: "AWS",
@@ -34,13 +34,13 @@ export function Breadcrumb({
   return (
     <nav
       aria-label="Breadcrumb"
-      style={{ fontFamily: MONO, fontSize: "12px", letterSpacing: "0.06em", textTransform: "uppercase", color: muted, marginBottom: "18px", display: "flex", flexWrap: "wrap", gap: "8px" }}
+      style={{ fontFamily: MONO, fontSize: "10.5px", letterSpacing: "0.14em", textTransform: "uppercase", color: faint, marginBottom: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }}
     >
       {items.map((item, i) => (
         <span key={item.label} style={{ display: "flex", gap: "8px" }}>
           {i > 0 && <span aria-hidden>/</span>}
           {item.href ? (
-            <Link href={item.href} style={{ color: muted }}>
+            <Link href={item.href} style={{ color: faint }}>
               {item.label}
             </Link>
           ) : (
@@ -52,6 +52,10 @@ export function Breadcrumb({
   )
 }
 
+/**
+ * Page title set as an editorial headpiece: the kicker rides above the title on
+ * a heavy rule, matching the landing page's section folios.
+ */
 export function PageHeading({
   title,
   kicker,
@@ -60,15 +64,15 @@ export function PageHeading({
   kicker?: string
 }) {
   return (
-    <header style={{ marginBottom: "28px" }}>
-      <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "clamp(30px,4.5vw,42px)", lineHeight: 1.1, letterSpacing: "-0.02em", color: ink, margin: "0 0 10px" }}>
-        {title}
-      </h1>
+    <header style={{ marginBottom: "30px" }}>
       {kicker ? (
-        <p style={{ fontFamily: MONO, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", color: muted, margin: 0 }}>
+        <p style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: accent, fontWeight: 500, margin: "0 0 14px", paddingTop: "12px", borderTop: `2px solid ${ink}` }}>
           {kicker}
         </p>
       ) : null}
+      <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(34px,5.4vw,52px)", lineHeight: 1.0, letterSpacing: "-0.032em", color: ink, margin: 0, textWrap: "balance" }}>
+        {title}
+      </h1>
     </header>
   )
 }
@@ -92,10 +96,10 @@ export function Byline({ date }: { date?: string }) {
 /** Author card closing out each guide and post, linking to the author entity page. */
 export function AuthorCard() {
   return (
-    <aside style={{ marginTop: "40px", paddingTop: "24px", borderTop: `1px solid ${border}`, display: "flex", gap: "14px" }}>
+    <aside style={{ marginTop: "44px", paddingTop: "22px", borderTop: `1px solid ${rule}`, display: "flex", gap: "14px" }}>
       <div
         aria-hidden
-        style={{ flex: "0 0 auto", width: "44px", height: "44px", borderRadius: "50%", background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: "19px", fontWeight: 600 }}
+        style={{ flex: "0 0 auto", width: "44px", height: "44px", borderRadius: "2px", background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: "20px", fontWeight: 400 }}
       >
         {SITE_AUTHOR.name.charAt(0)}
       </div>
@@ -118,8 +122,11 @@ export function AuthorCard() {
 /** Signup call-to-action shown at the bottom of hubs and posts. */
 export function CtaPanel({ examName }: { examName?: string }) {
   return (
-    <aside style={{ marginTop: "44px", borderTop: `1px solid ${border}`, paddingTop: "28px" }}>
-      <h2 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: "24px", letterSpacing: "-0.015em", color: ink, margin: "0 0 8px" }}>
+    <aside style={{ marginTop: "48px", borderTop: `2px solid ${ink}`, paddingTop: "24px" }}>
+      <p style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: accent, fontWeight: 500, margin: "0 0 12px" }}>
+        Start free
+      </p>
+      <h2 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(26px,3.4vw,32px)", lineHeight: 1.08, letterSpacing: "-0.028em", color: ink, margin: "0 0 10px", textWrap: "balance" }}>
         Practise {examName ? `for the ${examName}` : "with Prepa"} — free
       </h2>
       <p style={{ fontSize: "15.5px", lineHeight: 1.65, color: LEGAL_THEME.body, margin: "0 0 18px", maxWidth: "56ch" }}>
@@ -131,7 +138,7 @@ export function CtaPanel({ examName }: { examName?: string }) {
       </p>
       <Link
         href="/signup"
-        style={{ display: "inline-block", background: accent, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "12px 22px", borderRadius: "10px" }}
+        style={{ display: "inline-block", background: accent, color: "#fff", fontWeight: 600, fontSize: "15px", padding: "14px 24px", borderRadius: "2px", border: `1px solid ${accent}` }}
       >
         Start practising free
       </Link>

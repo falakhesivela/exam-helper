@@ -6,12 +6,16 @@ import { LandingProButton } from "@/components/upgrade/landing-pro-button"
 import { resolveAuthUser } from "@/lib/supabase/resolve-user"
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/config/site"
 import { PLANS, PRO_ANNUAL_PRICE_LABEL, TEAM_PLAN } from "@/lib/config/pricing"
-import { listExamPresets } from "@/lib/exams/registry"
+import { slugForExamCode } from "@/lib/content/exam-slugs"
+import { listExamPresets, listExamPresetsByProvider } from "@/lib/exams/registry"
+import type { ExamProvider } from "@/lib/exams/types"
 
-// Fonts from the imported Prepa Landing design.
+// Editorial/broadsheet type system: a serif for display and reading copy, a
+// mono for every piece of metadata (folios, labels, leaders), and the sans kept
+// back for interface chrome only.
 const serif = Newsreader({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600"],
   style: ["normal", "italic"],
   variable: "--lp-serif",
 })
@@ -31,70 +35,89 @@ const PAPER = "#F3EFE7"
 const INK = "#1A1C18"
 
 /**
- * Built from the exam registry so the marquee and the "N certifications" claim
- * can never drift from what the app actually supports.
+ * Built from the exam registry so the catalogue and the "N certifications"
+ * claim can never drift from what the app actually supports.
  */
 const presets = listExamPresets()
 const PRESET_COUNT = presets.length
-const coverage = [...presets.map((p) => p.exam), "+ any custom exam"]
+const providerGroups = listExamPresetsByProvider()
+
+const PROVIDER_LABELS: Record<ExamProvider, string> = {
+  aws: "Amazon Web Services",
+  azure: "Microsoft Azure",
+  gcp: "Google Cloud",
+  comptia: "CompTIA",
+  cisco: "Cisco",
+  isc2: "ISC2",
+  custom: "Custom",
+}
+
+/** Vendor prefixes are redundant under a vendor heading — drop them. */
+function shortExamName(name: string): string {
+  return name
+    .replace(/^AWS Certified\s+/, "")
+    .replace(/^Microsoft Certified:\s+/, "")
+    .replace(/^Microsoft\s+/, "")
+    .replace(/^Google Cloud\s+/, "")
+    .replace(/^CompTIA\s+/, "")
+    .replace(/^Cisco\s+/, "")
+    .replace(/^ISC2\s+/, "")
+}
+
+const facts = [
+  { n: PRESET_COUNT, l: "certifications", p: "Each built from the vendor's own published exam blueprint — domains and weightings included." },
+  { n: 2, l: "models per key", p: "A writer and an examiner that never meet. Both must land on the same answer." },
+  { n: 0, l: "recycled questions", p: "Nothing is drawn from a fixed bank. Every session is written for you, then checked." },
+  { n: "$0", l: "to start", p: "The free plan runs the whole machine — questions, lessons, a mock exam. No card." },
+]
 
 const features = [
   {
-    icon: "shield",
     k: "Double-checked",
     h: "Never study a wrong answer key",
     p: "A second, independent AI blind-answers every generated question before you see it. If the two disagree, the question is thrown out — so you never study a wrong answer key. Multiple-choice questions are checked this way.",
   },
   {
-    icon: "link",
     k: "Sourced",
     h: "Straight from the vendor's docs",
     p: "Explanations link to the official documentation for your exam — AWS, Microsoft Learn, Google Cloud, Cisco. Links to anywhere else, and links that have gone dead, are stripped before delivery.",
   },
   {
-    icon: "book",
     k: "Learn",
     h: "A syllabus that actually teaches",
     p: "Your exam's full syllabus, weighted like the real test, with lessons built around decision tables, exam traps, and key facts — then a knowledge check that proves you got it.",
   },
   {
-    icon: "sparkles",
     k: "Adaptive",
     h: "Never the same drill twice",
     p: "New exam-style questions generated for you each time, tuned to the topics you keep missing. Never the same recycled drill twice.",
   },
   {
-    icon: "flask",
     k: "Hands-on Labs",
     h: "Do it for real, not just on paper",
     p: "Guided labs you run in your own free-tier cloud account — build the VPC, deploy the pipeline — with checkpoints that prove you did it and cleanup steps so you never get billed.",
   },
   {
-    icon: "chat",
     k: "AI Tutor",
     h: "Ask why — not just what",
     p: "Every answer and every lesson comes with a built-in AI tutor. Ask follow-ups, get mnemonics, request a simpler explanation — until it actually clicks.",
   },
   {
-    icon: "timer",
     k: "Mock Exams",
     h: "Timed mocks with real exam formats",
     p: "Multiple choice, drag-to-order, matching, Yes/No grids — even typed CLI commands for network exams. The exact question styles you'll face, under the real clock.",
   },
   {
-    icon: "gauge",
     k: "Readiness",
     h: "Know when you're ready",
     p: "A readiness score that climbs as you improve, plus mastery tracking per exam domain — so exam day is a confirmation, not a gamble.",
   },
   {
-    icon: "calendar",
     k: "Study Plan",
     h: "A plan for today, every day",
     p: "Set your exam date and Prepa builds a daily plan around your weak areas, rebalances when life happens, and coaches you on pace.",
   },
   {
-    icon: "layers",
     k: "Retention",
     h: "Spaced repetition that runs itself",
     p: "Missed questions and key facts from your lessons automatically become flashcards, scheduled to come back right before you'd forget them.",
@@ -133,7 +156,7 @@ const versus = [
   { old: "Clunky PDFs chained to your desktop", nu: "Installs on your phone and works offline" },
 ]
 
-/** The mechanism behind the headline claim — see the #verified band. */
+/** The mechanism behind the headline claim — see the #method band. */
 const verifySteps = [
   {
     n: "01",
@@ -150,6 +173,22 @@ const verifySteps = [
     h: "Explained, with the source",
     p: "Every explanation links to the vendor's own documentation — and we check the link is alive before you see it. Invented URLs get stripped.",
   },
+]
+
+const freePlan = PLANS.find((p) => p.tier === "free")!
+const proPlan = PLANS.find((p) => p.tier === "pro")!
+const examPassPlan = PLANS.find((p) => p.tier === "exam_pass")!
+
+/**
+ * Hero contents list. Counts are derived from the section data above so the
+ * folio numbers and tallies can't drift as sections are edited.
+ */
+const contents = [
+  { n: "02", t: "The method", c: `${verifySteps.length} gates`, href: "#method" },
+  { n: "03", t: "The catalogue", c: `${PRESET_COUNT} exams`, href: "#catalogue" },
+  { n: "04", t: "What you get", c: `${features.length} features`, href: "#features" },
+  { n: "05", t: "How it works", c: `${steps.length} steps`, href: "#how" },
+  { n: "07", t: "Pricing", c: `From ${freePlan.price}`, href: "#pricing" },
 ]
 
 const faqs = [
@@ -190,10 +229,6 @@ const faqs = [
     a: "Prepa is built mobile-first. Install it to your home screen like a native app and keep practising even when your connection drops.",
   },
 ]
-
-const freePlan = PLANS.find((p) => p.tier === "free")!
-const proPlan = PLANS.find((p) => p.tier === "pro")!
-const examPassPlan = PLANS.find((p) => p.tier === "exam_pass")!
 
 function buildStructuredData() {
   const siteUrl = getSiteUrl()
@@ -273,52 +308,34 @@ async function getSignedInUser() {
   }
 }
 
-function FeatureIcon({ name }: { name: string }) {
-  const paths: Record<string, React.ReactNode> = {
-    sparkles: (
-      <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" />
-    ),
-    chat: (
-      <path d="M21 12a8 8 0 01-8 8H4l2.3-2.9A8 8 0 1121 12zM8.5 10.5h7M8.5 13.5h4.5" />
-    ),
-    timer: (
-      <path d="M12 21a8 8 0 100-16 8 8 0 000 16zm0-13v5l3.2 1.9M9.5 2.5h5" />
-    ),
-    gauge: (
-      <path d="M4.5 19a9 9 0 1115 0M12 15l4-5.5M12 15a1.8 1.8 0 100 .01" />
-    ),
-    calendar: (
-      <path d="M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1zm3-3v4m8-4v4M4 11h16M9 15.5l2 2 4-4" />
-    ),
-    layers: (
-      <path d="M12 3l9 5-9 5-9-5 9-5zm-9 9.5l9 5 9-5M3 17l9 5 9-5" />
-    ),
-    book: (
-      <path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5v-15zM4 18.5A2.5 2.5 0 016.5 16H20M8 7.5h8M8 11h5" />
-    ),
-    flask: (
-      <path d="M9.5 3h5M10 3v5.2L4.8 17.5A2 2 0 006.6 20.5h10.8a2 2 0 001.8-3L14 8.2V3M7.5 14.5h9" />
-    ),
-    shield: (
-      <path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6l7-3zM9 12l2.2 2.2L15.5 9.7" />
-    ),
-    link: (
-      <path d="M10.5 13.5a3.5 3.5 0 005 0l3-3a3.5 3.5 0 00-5-5l-1.2 1.2M13.5 10.5a3.5 3.5 0 00-5 0l-3 3a3.5 3.5 0 005 5l1.2-1.2" />
-    ),
-  }
+/** Section folio: a rule, a number, and a title — the page's editorial spine. */
+function Folio({ n, title, aside }: { n: string; title: string; aside?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className="lp-feature-icon-svg"
-    >
-      {paths[name]}
-    </svg>
+    <div className="lp-folio">
+      <span className="lp-folio-n">{n}</span>
+      <span className="lp-folio-t">{title}</span>
+      {aside ? <span className="lp-folio-a">{aside}</span> : null}
+    </div>
+  )
+}
+
+/** A metadata row with dot leaders, as used on the specimen record. */
+function LedgerRow({
+  label,
+  detail,
+  value,
+}: {
+  label: string
+  detail: string
+  value: string
+}) {
+  return (
+    <div className="lp-ledger-row">
+      <span className="lp-ledger-label">{label}</span>
+      <span className="lp-ledger-detail">{detail}</span>
+      <span className="lp-ledger-lead" aria-hidden />
+      <span className="lp-ledger-value">{value}</span>
+    </div>
   )
 }
 
@@ -327,7 +344,6 @@ export default async function LandingPage() {
   if (user) redirect("/dashboard")
 
   const structuredData = buildStructuredData()
-  const marquee = [...coverage, ...coverage]
 
   return (
     <div
@@ -349,410 +365,445 @@ export default async function LandingPage() {
       />
       <style>{`
         .lp { --accent:${ACCENT}; --paper:${PAPER}; --ink:${INK};
-          --muted:#56584F; --faint:#84867B; --line:#E3DCCE; --card-line:#EAE3D6;
-          --serif:var(--lp-serif),'Newsreader',serif; --mono:var(--lp-mono),'Spline Sans Mono',monospace; }
+          --body:#3A3D36; --muted:#5C5E55; --faint:#8A8C80;
+          --rule:#CFC7B4; --hair:#E1DACA;
+          --serif:var(--lp-serif),'Newsreader',serif;
+          --mono:var(--lp-mono),'Spline Sans Mono',monospace;
+          --sans:var(--lp-sans),system-ui,sans-serif; }
         .lp ::selection { background:var(--accent); color:#fff; }
         .lp a { text-decoration:none; color:inherit; }
-        .lp .wrap { max-width:1180px; margin:0 auto; padding-left:24px; padding-right:24px; }
+        .lp .wrap { max-width:1240px; margin:0 auto; padding-left:28px; padding-right:28px; }
+        @media (max-width:600px){ .lp .wrap { padding-left:20px; padding-right:20px; } }
 
-        .lp .kicker { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
-          text-transform:uppercase; color:var(--accent); font-weight:500;
-          display:inline-flex; align-items:center; gap:8px; }
-        .lp .kicker::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); }
-        .lp .h2 { font-family:var(--serif); font-weight:500; font-size:clamp(30px,3.6vw,42px);
-          line-height:1.08; letter-spacing:-.02em; margin:0; }
-        .lp .card { background:#fff; border:1px solid var(--card-line); border-radius:16px; }
-        .lp .check { color:var(--accent); font-weight:700; }
+        /* --- Editorial primitives ------------------------------------- */
+        .lp .meta { font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+          text-transform:uppercase; font-weight:500; }
+        .lp .display { font-family:var(--serif); font-weight:400; letter-spacing:-.032em;
+          line-height:.94; text-wrap:balance; }
+        .lp .deck { font-family:var(--serif); font-size:clamp(18px,1.5vw,21px); line-height:1.5;
+          color:var(--body); font-weight:300; }
+        .lp .prose { font-size:15px; line-height:1.62; color:var(--muted); }
+        .lp .rule-top { border-top:1px solid var(--rule); }
+        .lp .hair-top { border-top:1px solid var(--hair); }
 
-        .lp .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
-          font-weight:600; border-radius:11px; transition:transform .15s ease, box-shadow .15s ease, background .15s ease; }
-        .lp .btn:hover { transform:translateY(-1px); }
-        .lp .btn:active { transform:translateY(0); }
-        .lp .btn-accent { background:var(--accent); color:#fff;
-          box-shadow:0 8px 20px -8px color-mix(in oklab, var(--accent) 60%, transparent); }
-        .lp .btn-accent:hover { background:#17503A;
-          box-shadow:0 12px 26px -8px color-mix(in oklab, var(--accent) 65%, transparent); }
-        .lp .btn-ghost { background:#fff; color:var(--ink); border:1px solid #DCD5C7; }
-        .lp .btn-ghost:hover { border-color:#C9C1B0; }
+        /* Section folio */
+        .lp-folio { display:flex; align-items:baseline; gap:16px; padding:12px 0 0;
+          border-top:2px solid var(--ink); margin-bottom:34px; }
+        .lp-folio-n { font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+          font-weight:600; color:var(--accent); }
+        .lp-folio-t { font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+          text-transform:uppercase; font-weight:500; color:var(--ink); }
+        .lp-folio-a { margin-left:auto; font-family:var(--mono); font-size:11px;
+          letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+        @media (max-width:600px){ .lp-folio-a { display:none; } }
 
-        /* Nav */
-        .lp-nav { position:sticky; top:0; z-index:50;
-          background:color-mix(in oklab, var(--paper) 86%, transparent);
-          backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
-        .lp-nav-inner { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; }
-        .lp-nav-links { display:flex; align-items:center; gap:26px; font-size:14.5px; font-weight:500; color:#3D403A; }
-        .lp-nav-links a:hover { color:var(--accent); }
-        @media (max-width:860px){ .lp-nav-links .lp-nav-anchor { display:none; } }
+        /* Links & buttons — square, ruled, no lift, no glow */
+        .lp .btn { display:inline-flex; align-items:center; justify-content:center; gap:10px;
+          font-family:var(--sans); font-weight:600; font-size:15px; padding:14px 24px;
+          border-radius:2px; transition:background .15s ease, color .15s ease, border-color .15s ease; }
+        .lp .btn-accent { background:var(--accent); color:#fff; border:1px solid var(--accent); }
+        .lp .btn-accent:hover { background:#164634; border-color:#164634; }
+        .lp .btn-ghost { background:transparent; color:var(--ink); border:1px solid var(--rule); }
+        .lp .btn-ghost:hover { border-color:var(--ink); }
+        .lp .ulink { color:var(--accent); border-bottom:1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+          padding-bottom:1px; }
+        .lp .ulink:hover { border-bottom-color:var(--accent); }
 
-        /* Hero */
-        .lp-hero { display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center;
-          padding-top:76px; padding-bottom:48px; }
-        @keyframes lp-rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-        .lp .rise { animation:lp-rise .7s cubic-bezier(.2,.7,.3,1) both; }
-        .lp .rise-1 { animation-delay:.05s } .lp .rise-2 { animation-delay:.15s }
-        .lp .rise-3 { animation-delay:.25s } .lp .rise-4 { animation-delay:.35s }
-        .lp-hero h1 { font-family:var(--serif); font-weight:500; font-size:clamp(42px,5.2vw,64px);
-          line-height:1.03; letter-spacing:-.02em; margin:22px 0; }
-        .lp-hero h1 em { font-style:italic; color:var(--accent); }
-        .lp-hero .sub { font-size:18px; line-height:1.62; color:var(--muted); max-width:47ch; margin:0 0 30px; }
-        .lp-hero-trust { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; font-size:14px; color:#6B6D64; margin-top:22px; }
-        .lp-hero-trust span { display:flex; align-items:center; gap:7px; }
+        /* --- Masthead -------------------------------------------------- */
+        .lp-rule-accent { height:3px; background:var(--accent); }
+        .lp-mast { position:sticky; top:0; z-index:50; background:var(--paper);
+          border-bottom:1px solid var(--ink); }
+        .lp-mast-inner { display:flex; align-items:center; justify-content:space-between;
+          gap:24px; padding:14px 0; }
+        .lp-wordmark { display:flex; align-items:center; gap:10px; }
+        .lp-wordmark span { font-family:var(--serif); font-size:23px; font-weight:500;
+          letter-spacing:.02em; line-height:1; }
+        .lp-mast-nav { display:flex; align-items:center; gap:26px; }
+        .lp-mast-nav a { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--body); }
+        .lp-mast-nav a:hover { color:var(--accent); }
+        .lp-mast-cta { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; color:#fff !important; background:var(--ink);
+          padding:9px 15px; border-radius:2px; }
+        .lp-mast-cta:hover { background:var(--accent); }
+        @media (max-width:900px){ .lp-mast-nav .lp-mast-anchor { display:none; } }
 
-        /* Product mock */
-        .lp-mock { position:relative; }
-        .lp-mock-card { position:relative; z-index:1; background:#fff; border:1px solid var(--card-line);
-          border-radius:20px; padding:22px;
-          box-shadow:0 40px 70px -34px rgba(28,30,22,.32), 0 2px 8px rgba(0,0,0,.04); }
-        @keyframes lp-float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
-        .lp-chip { position:absolute; z-index:2; background:#fff; border:1px solid var(--card-line);
-          border-radius:14px; padding:12px 15px; box-shadow:0 18px 40px -18px rgba(28,30,22,.35);
-          animation:lp-float 5s ease-in-out infinite; }
-        .lp-chip-readiness { top:-26px; left:-30px; }
-        /* Sits clear of the citation line at the foot of the explanation panel. */
-        .lp-chip-tutor { bottom:-58px; right:-18px; max-width:250px; animation-delay:2.5s; }
-        .lp-chip-lab { bottom:16%; left:-34px; animation-delay:1.2s; }
-        @media (max-width:1240px){ .lp-chip-readiness { left:-8px } .lp-chip-tutor { right:-6px } .lp-chip-lab { left:-10px } }
-        @media (max-width:960px){ .lp-chip-lab { display:none } }
-        .lp-mock-label { font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
-          color:var(--accent); font-weight:600; background:color-mix(in oklab, var(--accent) 10%, #fff);
-          padding:5px 10px; border-radius:7px; }
-        .lp-mock-meta { font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:#7A7C72;
-          display:flex; align-items:center; gap:6px; }
-        .lp-mock-verified { font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
-          color:var(--accent); font-weight:600; border:1px solid color-mix(in oklab, var(--accent) 28%, #fff);
-          padding:4px 8px; border-radius:99px; white-space:nowrap; }
-        @media (max-width:420px){ .lp-mock-verified { display:none; } }
+        /* --- Hero ------------------------------------------------------ */
+        .lp-hero { padding-top:52px; padding-bottom:0; }
+        .lp-dateline { display:flex; align-items:baseline; gap:18px; flex-wrap:wrap;
+          padding-bottom:14px; }
+        .lp-dateline .k { font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+          text-transform:uppercase; color:var(--accent); font-weight:600; }
+        .lp-dateline .r { margin-left:auto; font-family:var(--mono); font-size:11px;
+          letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+        .lp-hero h1 { margin:26px 0 34px; font-size:clamp(40px,7.6vw,98px); max-width:16ch; }
+        .lp-hero h1 em { font-style:italic; font-weight:300; color:var(--accent); }
+        .lp-hero-cols { display:grid; grid-template-columns:1fr 1fr; gap:0 56px;
+          border-top:1px solid var(--rule); padding-top:30px; padding-bottom:56px; }
+        .lp-hero-left { max-width:44ch; }
+        .lp-hero-actions { display:flex; flex-wrap:wrap; gap:12px; margin:28px 0 20px; }
+        .lp-hero-fine { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+          text-transform:uppercase; color:var(--faint); line-height:1.9; }
 
-        /* Verification proof band */
-        .lp-verify { background:#fff; border:1px solid var(--card-line); border-radius:22px; padding:44px 40px; }
-        .lp-verify-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; margin-top:32px; }
-        .lp-verify-step .n { font-family:var(--mono); font-size:12px; letter-spacing:.12em; color:var(--accent); font-weight:600; }
-        .lp-verify-step h3 { font-size:17px; font-weight:600; margin:12px 0 8px; letter-spacing:-.01em; }
-        .lp-verify-step p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); }
-        .lp-verify-step + .lp-verify-step { position:relative; }
-        .lp-verify-foot { margin-top:30px; padding-top:22px; border-top:1px solid #EFE9DD;
-          font-size:14.5px; line-height:1.6; color:var(--muted); }
-        @media (max-width:860px){
-          .lp-verify { padding:34px 26px; }
-          .lp-verify-grid { grid-template-columns:1fr; gap:22px; }
-        }
-        .lp-opt { display:flex; align-items:center; gap:11px; padding:12px 13px;
-          border:1px solid #E8E2D6; border-radius:11px; }
-        .lp-opt-key { width:25px; height:25px; flex:none; border-radius:7px; border:1px solid #DCD5C7;
-          display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:12px; color:#7A7C72; }
-
-        /* Coverage marquee */
-        .lp-marquee { overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
-          padding:22px 0; position:relative;
-          mask-image:linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-        @keyframes lp-scroll { from { transform:translateX(0) } to { transform:translateX(-50%) } }
-        .lp-marquee-track { display:flex; gap:12px; width:max-content; animation:lp-scroll 42s linear infinite; }
-        .lp-marquee:hover .lp-marquee-track { animation-play-state:paused; }
-        .lp-pill { flex:none; font-size:13.5px; font-weight:500; color:#3D403A; background:#fff;
-          border:1px solid #E5DECF; padding:8px 16px; border-radius:99px; white-space:nowrap; }
-
-        /* Features */
-        .lp-features { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-        /* An odd card count leaves a lone card on the last row — centre it. */
-        @media (min-width:961px){
-          .lp-features > .lp-feature:last-child:nth-child(3n+1) { grid-column:2; }
-        }
-        .lp-feature { padding:26px 26px 28px; transition:transform .2s ease, box-shadow .2s ease; }
-        .lp-feature:hover { transform:translateY(-3px); box-shadow:0 24px 44px -28px rgba(28,30,22,.3); }
-        .lp-feature-icon { width:42px; height:42px; border-radius:12px; color:var(--accent);
-          background:color-mix(in oklab, var(--accent) 9%, #fff);
-          border:1px solid color-mix(in oklab, var(--accent) 18%, #fff);
-          display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
-        .lp-feature-icon-svg { width:22px; height:22px; }
-        .lp-feature .tag { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
-          color:var(--accent); font-weight:600; margin-bottom:10px; }
-        .lp-feature h3 { font-size:18.5px; font-weight:600; margin:0 0 9px; letter-spacing:-.01em; }
-        .lp-feature p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); }
-
-        /* How it works */
-        .lp-how { display:grid; grid-template-columns:.8fr 1.2fr; gap:40px; align-items:start; }
-        .lp-step { display:flex; gap:18px; padding:18px 0; }
-        .lp-step + .lp-step { border-top:1px solid #EFE9DD; }
-        .lp-step .n { font-family:var(--serif); font-size:24px; color:var(--accent); font-weight:500; min-width:38px; }
-        .lp-step h3 { font-size:17px; font-weight:600; margin:0 0 5px; }
-        .lp-step p { margin:0; font-size:14.5px; line-height:1.55; color:var(--muted); }
-
-        /* Versus */
-        .lp-vs { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-        .lp-vs-col { border-radius:18px; padding:30px; }
-        .lp-vs-col.old { background:color-mix(in oklab, var(--paper) 55%, #fff); border:1px dashed #D5CDBC; }
-        .lp-vs-col.nu { background:#fff; border:1.5px solid var(--accent);
-          box-shadow:0 30px 60px -38px color-mix(in oklab, var(--accent) 55%, transparent); }
-        .lp-vs-col .head { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
-          font-weight:600; margin-bottom:18px; }
-        .lp-vs-row { display:flex; gap:11px; font-size:14.5px; line-height:1.5; padding:10px 0; }
-        .lp-vs-col.old .lp-vs-row { color:#6B6D64; border-bottom:1px solid #EBE4D6; }
-        .lp-vs-col.nu .lp-vs-row { color:#2C2E28; border-bottom:1px solid #F0EBE0; font-weight:500; }
-        .lp-vs-col .lp-vs-row:last-child { border-bottom:none; }
-
-        /* Pricing */
-        .lp-pricing { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; max-width:1000px; margin:0 auto; }
-        .lp-price { font-family:var(--serif); font-size:46px; font-weight:500; }
-        .lp-plan-row { display:flex; gap:10px; font-size:14.5px; color:#3D403A; }
-
-        /* FAQ */
-        .lp-faq { max-width:760px; margin:0 auto; }
-        .lp-faq details { background:#fff; border:1px solid var(--card-line); border-radius:14px;
-          padding:0 22px; margin-bottom:10px; }
-        .lp-faq summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between;
-          gap:16px; padding:18px 0; font-size:16px; font-weight:600; letter-spacing:-.01em; }
-        .lp-faq summary::-webkit-details-marker { display:none; }
-        .lp-faq summary::after { content:"+"; font-family:var(--mono); font-size:18px; color:var(--accent);
-          flex:none; transition:transform .2s ease; }
-        .lp-faq details[open] summary::after { transform:rotate(45deg); }
-        .lp-faq details p { margin:0; padding:0 0 20px; font-size:14.5px; line-height:1.65; color:var(--muted); }
-
-        /* Final CTA */
-        .lp-cta { background:var(--accent); border-radius:24px; padding:72px 40px; text-align:center;
-          position:relative; overflow:hidden; }
-        .lp-cta::before { content:""; position:absolute; inset:0; pointer-events:none;
-          background:radial-gradient(circle at 80% 15%, rgba(255,255,255,.12), transparent 55%),
-                     radial-gradient(circle at 10% 90%, rgba(255,255,255,.07), transparent 50%); }
-
-        @media (max-width:960px){
-          .lp-features { grid-template-columns:repeat(2,1fr); }
-        }
-        @media (max-width:860px){
-          .lp-hero, .lp-how, .lp-vs, .lp-pricing { grid-template-columns:1fr; }
-          .lp-hero { gap:44px; padding-top:52px; }
-          .lp-chip-readiness { top:-18px; }
+        /* Contents — fills the hero's second half the way a masthead page would */
+        .lp-toc { margin-top:44px; border-top:1px solid var(--rule); padding-top:14px; }
+        .lp-toc-h { font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+          text-transform:uppercase; color:var(--faint); margin-bottom:6px; display:block; }
+        .lp-toc-row { display:flex; align-items:baseline; gap:10px; padding:8px 0;
+          border-bottom:1px solid var(--hair); }
+        .lp-toc-row .n { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+          color:var(--accent); font-weight:600; flex:none; }
+        .lp-toc-row .t { font-family:var(--serif); font-size:16px; }
+        .lp-toc-row .lead { flex:1; border-bottom:1px dotted var(--rule); transform:translateY(-4px); }
+        .lp-toc-row .c { font-family:var(--mono); font-size:10.5px; letter-spacing:.08em;
+          text-transform:uppercase; color:var(--faint); white-space:nowrap; }
+        .lp-toc-row:hover .t { color:var(--accent); }
+        @media (max-width:900px){ .lp-toc { display:none; } }
+        @media (max-width:900px){
+          .lp-hero-cols { grid-template-columns:1fr; gap:40px; }
+          .lp-hero h1 { margin:20px 0 26px; }
         }
         @media (max-width:640px){
-          .lp-features { grid-template-columns:1fr; }
-          .lp-cta { padding:56px 24px; }
+          /* Once the dateline wraps, the right-hand aside reads as a stray
+             indent — put it back on the left margin and stretch the CTAs. */
+          .lp-dateline .r { margin-left:0; }
+          .lp-hero-actions { display:grid; grid-template-columns:1fr; gap:10px; }
         }
-        @media (prefers-reduced-motion:reduce){
-          .lp .rise, .lp-chip, .lp-marquee-track { animation:none; }
+
+        /* Specimen record — flat, ruled, printed. No shadow, no float. */
+        .lp-spec { border:1px solid var(--ink); background:#FAF7F1; }
+        .lp-spec-head { display:flex; align-items:baseline; justify-content:space-between;
+          gap:14px; padding:11px 18px; border-bottom:1px solid var(--ink); background:var(--ink); }
+        .lp-spec-head span { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+          text-transform:uppercase; color:#EDE7DA; }
+        .lp-spec-head .ok { color:#8FD3B4; }
+        .lp-spec-body { padding:18px 18px 16px; }
+        .lp-spec-src { font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+          text-transform:uppercase; color:var(--faint); margin-bottom:10px; }
+        .lp-spec-q { font-family:var(--serif); font-size:19px; line-height:1.35; font-weight:400;
+          margin:0 0 16px; letter-spacing:-.01em; }
+        .lp-spec-opt { display:flex; gap:12px; align-items:baseline; padding:7px 0;
+          border-top:1px solid var(--hair); font-size:14.5px; color:var(--body); }
+        .lp-spec-opt b { font-family:var(--mono); font-size:12px; color:var(--faint); font-weight:500; }
+        .lp-spec-opt.key { color:var(--ink); font-weight:600; }
+        .lp-spec-opt.key b { color:var(--accent); font-weight:600; }
+        .lp-spec-ledger { border-top:1px solid var(--ink); padding:14px 18px 16px; }
+        .lp-ledger-row { display:flex; align-items:baseline; gap:8px; padding:5px 0;
+          font-family:var(--mono); font-size:11px; letter-spacing:.06em; }
+        .lp-ledger-label { text-transform:uppercase; color:var(--ink); font-weight:600;
+          flex:none; width:96px; }
+        .lp-ledger-detail { color:var(--faint); flex:none; white-space:nowrap;
+          overflow:hidden; text-overflow:ellipsis; max-width:46%; }
+        .lp-ledger-lead { flex:1; border-bottom:1px dotted var(--rule); transform:translateY(-3px); }
+        .lp-ledger-value { color:var(--accent); font-weight:600; flex:none; text-transform:uppercase; }
+        .lp-spec-foot { border-top:1px solid var(--hair); padding:12px 18px 14px;
+          font-size:13px; line-height:1.55; color:var(--muted); }
+        @media (max-width:420px){
+          .lp-ledger-label { width:72px; }
+          .lp-ledger-detail { display:none; }
         }
+
+        /* --- Facts strip ----------------------------------------------- */
+        .lp-facts { display:grid; grid-template-columns:repeat(4,1fr);
+          border-top:2px solid var(--ink); border-bottom:1px solid var(--rule); }
+        .lp-fact { padding:26px 26px 28px; }
+        .lp-fact + .lp-fact { border-left:1px solid var(--hair); }
+        .lp-fact .n { font-family:var(--serif); font-size:clamp(38px,4.4vw,56px); font-weight:400;
+          line-height:1; letter-spacing:-.03em; color:var(--accent); display:block; }
+        .lp-fact .l { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--ink); display:block; margin:12px 0 8px; }
+        .lp-fact .p { font-size:13.5px; line-height:1.55; color:var(--muted); margin:0; }
+        @media (max-width:900px){
+          .lp-facts { grid-template-columns:repeat(2,1fr); }
+          .lp-fact:nth-child(odd) { border-left:none; }
+          .lp-fact:nth-child(n+3) { border-top:1px solid var(--hair); }
+          .lp-fact { padding:22px 18px; }
+        }
+        @media (max-width:520px){
+          .lp-facts { grid-template-columns:1fr; }
+          .lp-fact { border-left:none !important; }
+          .lp-fact + .lp-fact { border-top:1px solid var(--hair); }
+        }
+
+        /* --- Two-column section (sticky label + content) ---------------- */
+        .lp-sec { padding:66px 0; }
+        .lp-split { display:grid; grid-template-columns:minmax(210px,1fr) 2.4fr; gap:0 56px; }
+        .lp-split-label { position:sticky; top:96px; align-self:start; }
+        .lp-split-label h2 { font-family:var(--serif); font-weight:400; font-size:clamp(28px,3.1vw,40px);
+          line-height:1.02; letter-spacing:-.028em; margin:0 0 14px; text-wrap:balance; }
+        .lp-split-label p { margin:0; font-size:14.5px; line-height:1.6; color:var(--muted); max-width:32ch; }
+        @media (max-width:900px){
+          .lp-sec { padding:48px 0; }
+          .lp-split { grid-template-columns:1fr; gap:28px; }
+          .lp-split-label { position:static; }
+        }
+
+        /* Numbered editorial rows (method + how it works) */
+        .lp-rows > * { display:grid; grid-template-columns:56px 1fr; gap:0 20px;
+          padding:22px 0; border-top:1px solid var(--hair); }
+        .lp-rows > *:first-child { border-top:1px solid var(--rule); }
+        .lp-rows .n { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          color:var(--accent); font-weight:600; padding-top:5px; }
+        .lp-rows h3 { font-family:var(--serif); font-size:22px; font-weight:400; letter-spacing:-.018em;
+          margin:0 0 7px; line-height:1.2; }
+        .lp-rows p { margin:0; font-size:15px; line-height:1.62; color:var(--muted); max-width:62ch; }
+        @media (max-width:520px){
+          .lp-rows > * { grid-template-columns:1fr; gap:6px; }
+          .lp-rows .n { padding-top:0; }
+        }
+
+        /* --- Catalogue -------------------------------------------------- */
+        /* Flowing columns, not a grid: a grid aligns rows and strands whole
+           vendor groups beside the 12-deep AWS list. */
+        .lp-cat { columns:2; column-gap:56px; }
+        .lp-cat-group { break-inside:avoid; margin:0 0 30px; }
+        .lp-cat-group > .h { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--faint); padding-bottom:8px;
+          border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; }
+        .lp-cat-row { display:flex; align-items:baseline; gap:10px; padding:9px 0;
+          border-bottom:1px solid var(--hair); }
+        .lp-cat-row .t { font-family:var(--serif); font-size:16.5px; font-weight:400; letter-spacing:-.01em; }
+        .lp-cat-row .lead { flex:1; border-bottom:1px dotted var(--rule); transform:translateY(-4px); }
+        .lp-cat-row .c { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+          color:var(--faint); white-space:nowrap; }
+        a.lp-cat-row:hover .t { color:var(--accent); }
+        a.lp-cat-row:hover .c { color:var(--accent); }
+        @media (max-width:760px){ .lp-cat { columns:1; } }
+
+        /* --- Feature index ---------------------------------------------- */
+        .lp-index { display:grid; grid-template-columns:repeat(2,1fr); gap:0 56px; }
+        .lp-item { padding:24px 0 26px; border-top:1px solid var(--hair); }
+        .lp-index > .lp-item:nth-child(-n+2) { border-top:1px solid var(--rule); }
+        .lp-item .k { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--accent); font-weight:600; }
+        .lp-item h3 { font-family:var(--serif); font-size:24px; font-weight:400; letter-spacing:-.02em;
+          line-height:1.15; margin:10px 0 9px; }
+        .lp-item p { margin:0; font-size:14.5px; line-height:1.62; color:var(--muted); }
+        @media (max-width:760px){
+          .lp-index { grid-template-columns:1fr; }
+          .lp-index > .lp-item:nth-child(2) { border-top:1px solid var(--hair); }
+        }
+
+        /* --- Versus table ------------------------------------------------ */
+        .lp-vs { width:100%; border-collapse:collapse; text-align:left; }
+        .lp-vs th { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; font-weight:600; padding:0 20px 12px 0;
+          border-bottom:2px solid var(--ink); width:50%; }
+        .lp-vs th.nu { color:var(--accent); padding-left:20px; }
+        .lp-vs td { padding:16px 20px 16px 0; border-bottom:1px solid var(--hair);
+          font-size:15px; line-height:1.5; vertical-align:top; }
+        .lp-vs td.old { color:var(--faint); text-decoration:line-through;
+          text-decoration-color:var(--rule); text-decoration-thickness:1px; }
+        .lp-vs td.nu { color:var(--ink); font-weight:500; padding-left:20px;
+          border-left:1px solid var(--hair); }
+        @media (max-width:640px){
+          .lp-vs, .lp-vs tbody, .lp-vs tr, .lp-vs td { display:block; width:100%; }
+          .lp-vs thead { display:none; }
+          .lp-vs tr { border-bottom:1px solid var(--rule); padding:14px 0; }
+          .lp-vs td { border:none; padding:3px 0; }
+          .lp-vs td.nu { padding-left:0; border-left:none; }
+        }
+
+        /* --- Pricing ------------------------------------------------------ */
+        .lp-plans { display:grid; grid-template-columns:repeat(3,1fr);
+          border-top:2px solid var(--ink); }
+        .lp-plan { padding:26px 26px 30px; display:flex; flex-direction:column; }
+        .lp-plan + .lp-plan { border-left:1px solid var(--hair); }
+        .lp-plan.feat { background:#FAF7F1; box-shadow:inset 0 3px 0 var(--accent); }
+        .lp-plan-name { font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+          text-transform:uppercase; font-weight:600; display:flex; justify-content:space-between;
+          align-items:baseline; gap:10px; }
+        .lp-plan-name .rec { color:var(--accent); }
+        .lp-plan-price { font-family:var(--serif); font-size:52px; font-weight:400;
+          letter-spacing:-.035em; line-height:1; margin:18px 0 0; }
+        .lp-plan-cycle { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+          text-transform:uppercase; color:var(--faint); margin-top:8px; }
+        .lp-plan-tag { font-family:var(--serif); font-size:16px; line-height:1.45; font-weight:300;
+          color:var(--body); margin:16px 0 20px; }
+        .lp-plan-feats { list-style:none; margin:0 0 26px; padding:0; }
+        .lp-plan-feats li { font-size:13.5px; line-height:1.5; color:var(--muted);
+          padding:9px 0 9px 18px; border-top:1px solid var(--hair); position:relative; }
+        .lp-plan-feats li::before { content:"—"; position:absolute; left:0; color:var(--accent); }
+        .lp-plan-cta { margin-top:auto; }
+        @media (max-width:860px){
+          .lp-plans { grid-template-columns:1fr; }
+          .lp-plan + .lp-plan { border-left:none; border-top:1px solid var(--rule); }
+        }
+        .lp-team { border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+          display:grid; grid-template-columns:1fr 1.6fr; gap:0 56px; padding:28px 0; }
+        .lp-team-feats { list-style:none; margin:0; padding:0;
+          columns:2; column-gap:36px; }
+        .lp-team-feats li { font-size:13.5px; line-height:1.5; color:var(--muted);
+          padding:8px 0 8px 18px; position:relative; break-inside:avoid; }
+        .lp-team-feats li::before { content:"—"; position:absolute; left:0; color:var(--accent); }
+        @media (max-width:860px){
+          .lp-team { grid-template-columns:1fr; gap:22px; }
+          .lp-team-feats { columns:1; }
+        }
+
+        /* --- FAQ ----------------------------------------------------------- */
+        .lp-faq details { border-top:1px solid var(--hair); }
+        .lp-faq details:first-child { border-top:1px solid var(--rule); }
+        .lp-faq summary { cursor:pointer; list-style:none; display:flex; align-items:baseline;
+          justify-content:space-between; gap:20px; padding:18px 0;
+          font-family:var(--serif); font-size:20px; font-weight:400; letter-spacing:-.018em; }
+        .lp-faq summary::-webkit-details-marker { display:none; }
+        .lp-faq summary::after { content:"+"; font-family:var(--mono); font-size:15px;
+          color:var(--accent); flex:none; }
+        .lp-faq details[open] summary::after { content:"–"; }
+        .lp-faq details p { margin:0; padding:0 0 22px; font-size:14.5px; line-height:1.68;
+          color:var(--muted); max-width:70ch; }
+
+        /* --- Closing band ---------------------------------------------------- */
+        .lp-close { background:var(--ink); color:var(--paper); }
+        .lp-close-inner { padding:84px 0 88px; display:grid; grid-template-columns:1.3fr 1fr;
+          gap:0 56px; align-items:end; }
+        .lp-close h2 { font-family:var(--serif); font-weight:400; font-size:clamp(34px,5.4vw,68px);
+          line-height:.98; letter-spacing:-.032em; margin:0; text-wrap:balance; }
+        .lp-close h2 em { font-style:italic; color:#8FD3B4; }
+        .lp-close p { font-size:15px; line-height:1.65; color:#A8A99F; margin:0 0 22px; max-width:40ch; }
+        .lp-close .btn-paper { background:var(--paper); color:var(--ink); border:1px solid var(--paper); }
+        .lp-close .btn-paper:hover { background:#fff; border-color:#fff; }
+        @media (max-width:860px){
+          .lp-close-inner { grid-template-columns:1fr; gap:32px; padding:56px 0 60px; }
+        }
+
+        /* --- Colophon --------------------------------------------------------- */
+        .lp-colo { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:36px;
+          padding:44px 0 26px; }
+        .lp-colo h4 { font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+          text-transform:uppercase; color:var(--faint); font-weight:500; margin:0 0 14px; }
+        .lp-colo a { display:block; font-size:14px; color:var(--body); padding:5px 0; }
+        .lp-colo a:hover { color:var(--accent); }
+        .lp-colo-note { font-size:13.5px; line-height:1.6; color:var(--muted); max-width:38ch; margin:14px 0 0; }
+        .lp-colo-base { border-top:1px solid var(--hair); padding:16px 0 34px;
+          font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+          color:var(--faint); display:flex; flex-wrap:wrap; gap:10px 22px; }
+        @media (max-width:760px){ .lp-colo { grid-template-columns:1fr 1fr; } }
+        @media (max-width:480px){ .lp-colo { grid-template-columns:1fr; gap:26px; } }
       `}</style>
 
-      {/* NAV */}
-      <header className="lp-nav">
-        <nav className="wrap lp-nav-inner">
-          <Link href="/" aria-label="Prepa home">
-            <Logo />
+      {/* MASTHEAD */}
+      <div className="lp-rule-accent" />
+      <header className="lp-mast">
+        <nav className="wrap lp-mast-inner">
+          <Link href="/" className="lp-wordmark" aria-label="Prepa home">
+            <Logo showWordmark={false} />
+            <span>Prepa</span>
           </Link>
-          <div className="lp-nav-links">
-            <a className="lp-nav-anchor" href="#features">Features</a>
-            <a className="lp-nav-anchor" href="#how">How it works</a>
-            <a className="lp-nav-anchor" href="#pricing">Pricing</a>
-            <a className="lp-nav-anchor" href="#faq">FAQ</a>
+          <div className="lp-mast-nav">
+            <a className="lp-mast-anchor" href="#method">Method</a>
+            <a className="lp-mast-anchor" href="#catalogue">Catalogue</a>
+            <a className="lp-mast-anchor" href="#features">Features</a>
+            <a className="lp-mast-anchor" href="#pricing">Pricing</a>
             <Link href="/login">Sign in</Link>
-            <Link href="/signup" className="btn btn-accent" style={{ fontSize: "15px", padding: "10px 18px" }}>
-              Start free
-            </Link>
+            <Link href="/signup" className="lp-mast-cta">Start free</Link>
           </div>
         </nav>
       </header>
 
       {/* HERO */}
       <section className="wrap lp-hero">
-        <div>
-          <div className="kicker rise rise-1">Every answer key, double-checked</div>
-          <h1 className="rise rise-2">
-            Practice questions you can actually <em>trust</em>
-          </h1>
-          <p className="sub rise rise-3">
-            Before any question reaches you, a second independent model blind-answers it.
-            If it disagrees with the answer key, the question is thrown out — and every
-            explanation cites the vendor&apos;s own documentation. Study for {PRESET_COUNT}{" "}
-            certifications, or bring your own notes.
-          </p>
-          <div className="rise rise-4" style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
-            <Link href="/signup" className="btn btn-accent" style={{ fontSize: "16px", padding: "15px 26px" }}>
-              Start practising free
-            </Link>
-            <a href="#verified" className="btn btn-ghost" style={{ fontSize: "16px", padding: "15px 26px" }}>
-              How verification works
-            </a>
-          </div>
-          <div className="lp-hero-trust rise rise-4">
-            <span><span className="check">✓</span>Free to try — no card required</span>
-            <span style={{ color: "#CFC8BA" }}>·</span>
-            <span><span className="check">✓</span>{PRESET_COUNT} certifications + custom exams</span>
-            <span style={{ color: "#CFC8BA" }}>·</span>
-            <span><span className="check">✓</span>Cancel anytime</span>
-          </div>
+        <div className="lp-dateline">
+          <span className="k">№ 01 — Verification</span>
+          <span className="r">{PRESET_COUNT} certifications · Free to start</span>
         </div>
+        <h1 className="display">
+          Every answer key is checked by a <em>second examiner</em>.
+        </h1>
 
-        {/* PRODUCT MOCK */}
-        <div className="lp-mock rise rise-3">
-          {/* Floating readiness chip */}
-          <div className="lp-chip lp-chip-readiness">
-            <div style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: "#84867B", fontWeight: 600, marginBottom: "6px" }}>
-              Exam readiness
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontFamily: "var(--serif)", fontSize: "26px", fontWeight: 500, color: ACCENT }}>82%</span>
-              <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: ACCENT, fontWeight: 600 }}>▲ 6 this week</span>
-            </div>
-            <div style={{ width: "128px", height: "5px", borderRadius: "99px", background: "#EEE8DC", marginTop: "8px", overflow: "hidden" }}>
-              <div style={{ width: "82%", height: "100%", background: ACCENT, borderRadius: "99px" }} />
-            </div>
-          </div>
-
-          {/* Floating AI-tutor chip */}
-          <div className="lp-chip lp-chip-tutor">
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "7px" }}>
-              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: ACCENT }} />
-              <span style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600 }}>AI Tutor</span>
-            </div>
-            <p style={{ margin: 0, fontSize: "12.5px", lineHeight: 1.5, color: "#42453E" }}>
-              &ldquo;Why not RDS?&rdquo; — RDS is relational. The question asks for a <strong>NoSQL</strong> store with millisecond latency, which is DynamoDB&apos;s specialty.
+        <div className="lp-hero-cols">
+          <div className="lp-hero-left">
+            <p className="deck">
+              Before a question reaches you, a separate model sits it cold — no
+              answer key, no hints. If the two disagree, the question is binned.
+              Every explanation cites the vendor&apos;s own documentation, and
+              we check the link is alive before you see it.
             </p>
-          </div>
-
-          {/* Floating hands-on-lab chip */}
-          <div className="lp-chip lp-chip-lab">
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
-              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: ACCENT }} />
-              <span style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600 }}>Hands-on lab</span>
+            <div className="lp-hero-actions">
+              <Link href="/signup" className="btn btn-accent">
+                Start practising free
+              </Link>
+              <a href="#method" className="btn btn-ghost">
+                Read the method
+              </a>
             </div>
-            <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#2C2E28", marginBottom: "3px" }}>
-              Two-tier VPC — complete <span style={{ color: ACCENT }}>✓</span>
-            </div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".02em", color: "#84867B" }}>
-              Cleanup verified · $0.00 billed
-            </div>
-          </div>
-
-          <div className="lp-mock-card">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span className="lp-mock-label">AWS · Databases</span>
-                <span className="lp-mock-verified">✓ Blind-checked</span>
-              </span>
-              <span className="lp-mock-meta">
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: ACCENT }} />12-DAY STREAK
-              </span>
-            </div>
-            <div style={{ height: "6px", borderRadius: "99px", background: "#EEE8DC", marginBottom: "18px", overflow: "hidden" }}>
-              <div style={{ width: "68%", height: "100%", background: ACCENT, borderRadius: "99px" }} />
-            </div>
-            <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "#9A9C90", letterSpacing: ".04em", marginBottom: "8px" }}>
-              QUESTION 14 OF 20
-            </div>
-            <p style={{ fontSize: "16.5px", fontWeight: 600, lineHeight: 1.42, margin: "0 0 16px" }}>
-              Which AWS service provides a fully managed NoSQL database with single-digit millisecond latency at any scale?
+            <p className="lp-hero-fine">
+              No card required — {PRESET_COUNT} certifications, or bring your own
+              notes. Cancel anytime.
             </p>
-            <div style={{ display: "grid", gap: "9px", marginBottom: "14px" }}>
-              <div className="lp-opt">
-                <span className="lp-opt-key">A</span>
-                <span style={{ fontSize: "14.5px", color: "#3D403A" }}>Amazon RDS</span>
-              </div>
-              <div className="lp-opt" style={{ border: `1.5px solid ${ACCENT}`, background: `color-mix(in oklab, ${ACCENT} 8%, #fff)` }}>
-                <span className="lp-opt-key" style={{ background: ACCENT, border: "none", color: "#fff", fontWeight: 600 }}>B</span>
-                <span style={{ fontSize: "14.5px", fontWeight: 600 }}>Amazon DynamoDB</span>
-                <span style={{ marginLeft: "auto", color: ACCENT, fontWeight: 700, fontSize: "15px" }}>✓</span>
-              </div>
-              <div className="lp-opt">
-                <span className="lp-opt-key">C</span>
-                <span style={{ fontSize: "14.5px", color: "#3D403A" }}>Amazon Redshift</span>
-              </div>
-            </div>
-            <div style={{ background: `color-mix(in oklab, ${ACCENT} 7%, #fff)`, borderLeft: `3px solid ${ACCENT}`, borderRadius: "9px", padding: "12px 14px" }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".08em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, marginBottom: "5px" }}>Why</div>
-              <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.5, color: "#42453E" }}>
-                DynamoDB is AWS&apos;s fully managed NoSQL store, built for consistent single-digit-ms latency at scale. RDS and Aurora are relational; Redshift is for analytics.
+
+            <nav className="lp-toc" aria-label="Page contents">
+              <span className="lp-toc-h">In this issue</span>
+              {contents.map((c) => (
+                <a key={c.href} href={c.href} className="lp-toc-row">
+                  <span className="n">{c.n}</span>
+                  <span className="t">{c.t}</span>
+                  <span className="lead" aria-hidden />
+                  <span className="c">{c.c}</span>
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          {/* SPECIMEN — a worked record of the check, not a floating dashboard. */}
+          <figure className="lp-spec" style={{ margin: 0 }}>
+            <figcaption className="lp-spec-head">
+              <span>Specimen record</span>
+              <span className="ok">Cleared for delivery ✓</span>
+            </figcaption>
+            <div className="lp-spec-body">
+              <div className="lp-spec-src">AWS SAA-C03 · Domain 3 · Databases</div>
+              <p className="lp-spec-q">
+                Which AWS service provides a fully managed NoSQL database with
+                single-digit millisecond latency at any scale?
               </p>
-              <div style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".02em", color: ACCENT, fontWeight: 500, marginTop: "9px" }}>
-                ↗ docs.aws.amazon.com
-              </div>
+              <div className="lp-spec-opt"><b>A</b><span>Amazon RDS</span></div>
+              <div className="lp-spec-opt key"><b>B</b><span>Amazon DynamoDB</span></div>
+              <div className="lp-spec-opt"><b>C</b><span>Amazon Redshift</span></div>
             </div>
-          </div>
+            <div className="lp-spec-ledger">
+              <LedgerRow label="Writer" detail="answer key" value="B" />
+              <LedgerRow label="Examiner" detail="blind, no key" value="B" />
+              <LedgerRow label="Reconciled" detail="keys compared" value="Match" />
+              <LedgerRow label="Source" detail="docs.aws.amazon.com" value="Live" />
+            </div>
+            <p className="lp-spec-foot">
+              Had the examiner answered anything but B, this question would have
+              been thrown out — you would never have seen it.
+            </p>
+          </figure>
         </div>
       </section>
 
-      {/* VERIFICATION — the mechanism behind the headline claim */}
-      <section id="verified" className="wrap" style={{ padding: "34px 24px 46px", scrollMarginTop: "80px" }}>
-        <div className="lp-verify">
-          <div style={{ maxWidth: "760px" }}>
-            <div className="kicker" style={{ marginBottom: "14px" }}>How verification works</div>
-            <h2 className="h2" style={{ fontSize: "clamp(28px,3.2vw,38px)", textWrap: "balance" }}>
-              We check our own work before you see it
-            </h2>
-          </div>
-          <div className="lp-verify-grid">
-            {verifySteps.map((s) => (
-              <div key={s.n} className="lp-verify-step">
-                <span className="n">{s.n}</span>
-                <h3>{s.h}</h3>
-                <p>{s.p}</p>
-              </div>
-            ))}
-          </div>
-          <p className="lp-verify-foot">
-            Still think a question is wrong? Flag it — it gets independently re-checked and
-            pulled from your review queue if the check disagrees with the answer key.
-          </p>
-        </div>
-      </section>
-
-      {/* EXAM COVERAGE MARQUEE */}
-      <section aria-label="Exams covered">
-        <div className="wrap" style={{ paddingBottom: "14px" }}>
-          <span style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".12em", textTransform: "uppercase", color: "#84867B", fontWeight: 500 }}>
-            Bring any exam
-          </span>
-        </div>
-        <div className="lp-marquee">
-          <div className="lp-marquee-track">
-            {marquee.map((c, i) => (
-              <span key={`${c}-${i}`} className="lp-pill" aria-hidden={i >= coverage.length}>
-                {c}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="wrap" style={{ paddingTop: "14px" }}>
-          <Link href="/exams" style={{ fontSize: "14px", fontWeight: 500, color: ACCENT, textDecoration: "underline", textUnderlineOffset: "3px" }}>
-            Browse all exam study guides
-          </Link>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section id="features" className="wrap" style={{ padding: "72px 24px 30px", scrollMarginTop: "80px" }}>
-        <div style={{ maxWidth: "640px", marginBottom: "42px" }}>
-          <div className="kicker" style={{ marginBottom: "14px" }}>What you get</div>
-          <h2 className="h2">Everything you need between now and exam day</h2>
-        </div>
-        <div className="lp-features">
-          {features.map((f) => (
-            <div key={f.k} className="card lp-feature">
-              <div className="lp-feature-icon"><FeatureIcon name={f.icon} /></div>
-              <div className="tag">{f.k}</div>
-              <h3>{f.h}</h3>
-              <p>{f.p}</p>
+      {/* FACTS */}
+      <section className="wrap" aria-label="At a glance">
+        <div className="lp-facts">
+          {facts.map((f) => (
+            <div key={f.l} className="lp-fact">
+              <span className="n">{f.n}</span>
+              <span className="l">{f.l}</span>
+              <p className="p">{f.p}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section id="how" className="wrap" style={{ padding: "54px 24px", scrollMarginTop: "80px" }}>
-        <div className="card" style={{ borderRadius: "22px", padding: "48px 44px" }}>
-          <div className="lp-how">
-            <div>
-              <div className="kicker" style={{ marginBottom: "14px" }}>How it works</div>
-              <h2 className="h2" style={{ fontSize: "clamp(28px,3.2vw,38px)", marginBottom: "14px" }}>
-                From zero to exam-ready
-              </h2>
-              <p style={{ fontSize: "15px", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 24px", maxWidth: "36ch" }}>
-                No question banks to buy, no content to hunt down. Prepa builds everything around you.
-              </p>
-              <Link href="/signup" className="btn btn-accent" style={{ fontSize: "15px", padding: "13px 22px" }}>
-                Start practising free
-              </Link>
-            </div>
-            <div>
-              {steps.map((s) => (
-                <div key={s.n} className="lp-step">
+      {/* METHOD */}
+      <section id="method" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
+        <Folio n="№ 02" title="The method" aside="How verification works" />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>We check our own work before you see it.</h2>
+            <p>
+              Three gates stand between a generated question and your screen.
+              Any one of them can bin it.
+            </p>
+          </div>
+          <div>
+            <div className="lp-rows">
+              {verifySteps.map((s) => (
+                <div key={s.n}>
                   <span className="n">{s.n}</span>
                   <div>
                     <h3>{s.h}</h3>
@@ -761,176 +812,267 @@ export default async function LandingPage() {
                 </div>
               ))}
             </div>
+            <p className="prose" style={{ borderTop: "1px solid var(--hair)", paddingTop: "20px", marginTop: "0", maxWidth: "62ch" }}>
+              Still think a question is wrong? Flag it — it gets independently
+              re-checked and pulled from your review queue if the check
+              disagrees with the answer key.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* CATALOGUE */}
+      <section id="catalogue" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 03" title="The catalogue" aside={`${PRESET_COUNT} exams in print`} />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>Every exam, built from its own blueprint.</h2>
+            <p>
+              Domains and weightings come from the vendor&apos;s published
+              outline. Not on the list? Describe your exam, or upload your
+              notes, and Prepa builds the syllabus anyway.
+            </p>
+            <p style={{ marginTop: "16px" }}>
+              <Link href="/exams" className="ulink">Browse all study guides →</Link>
+            </p>
+          </div>
+          <div className="lp-cat">
+            {providerGroups.map((group) => (
+              <div key={group.provider} className="lp-cat-group">
+                <div className="h">
+                  <span>{PROVIDER_LABELS[group.provider]}</span>
+                  <span>{group.presets.length}</span>
+                </div>
+                {group.presets.map((preset) => {
+                  const slug = slugForExamCode(preset.examCode)
+                  const inner = (
+                    <>
+                      <span className="t">{shortExamName(preset.exam)}</span>
+                      <span className="lead" aria-hidden />
+                      <span className="c">{preset.examCode}</span>
+                    </>
+                  )
+                  return slug ? (
+                    <Link key={preset.examCode} href={`/exams/${slug}`} className="lp-cat-row">
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div key={preset.examCode} className="lp-cat-row">{inner}</div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 04" title="What you get" aside="Between now and exam day" />
+        <div className="lp-index">
+          {features.map((f) => (
+            <div key={f.k} className="lp-item">
+              <div className="k">{f.k}</div>
+              <h3>{f.h}</h3>
+              <p>{f.p}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how" className="wrap lp-sec" style={{ scrollMarginTop: "80px" }}>
+        <Folio n="№ 05" title="How it works" aside="From zero to exam-ready" />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>No bank to buy. No content to hunt down.</h2>
+            <p>
+              Prepa builds the syllabus, the lessons, the labs and the questions
+              around you — then paces them to your exam date.
+            </p>
+            <p style={{ marginTop: "22px" }}>
+              <Link href="/signup" className="btn btn-accent">Start practising free</Link>
+            </p>
+          </div>
+          <div className="lp-rows">
+            {steps.map((s) => (
+              <div key={s.n}>
+                <span className="n">{s.n}</span>
+                <div>
+                  <h3>{s.h}</h3>
+                  <p>{s.p}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* VERSUS */}
-      <section className="wrap" style={{ padding: "40px 24px 30px" }}>
-        <div style={{ textAlign: "center", maxWidth: "620px", margin: "0 auto 40px" }}>
-          <div className="kicker" style={{ marginBottom: "14px" }}>Why switch</div>
-          <h2 className="h2">Question banks ask you to trust them. Prepa proves it.</h2>
-        </div>
-        <div className="lp-vs">
-          <div className="lp-vs-col old">
-            <div className="head" style={{ color: "#84867B" }}>Static question banks</div>
-            {versus.map((v) => (
-              <div key={v.old} className="lp-vs-row">
-                <span style={{ color: "#B0A890", flex: "none" }}>✕</span>
-                {v.old}
-              </div>
-            ))}
+      <section className="wrap lp-sec" style={{ paddingTop: 0 }}>
+        <Folio n="№ 06" title="Against a question bank" aside="Trust vs. proof" />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>Question banks ask you to trust them.</h2>
+            <p>Prepa proves it instead — on every question, every session.</p>
           </div>
-          <div className="lp-vs-col nu">
-            <div className="head" style={{ color: ACCENT }}>Prepa</div>
-            {versus.map((v) => (
-              <div key={v.nu} className="lp-vs-row">
-                <span className="check" style={{ flex: "none" }}>✓</span>
-                {v.nu}
-              </div>
-            ))}
-          </div>
+          <table className="lp-vs">
+            <thead>
+              <tr>
+                <th>Static question banks</th>
+                <th className="nu">Prepa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {versus.map((v) => (
+                <tr key={v.old}>
+                  <td className="old">{v.old}</td>
+                  <td className="nu">{v.nu}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="wrap" style={{ padding: "50px 24px 30px", scrollMarginTop: "80px" }}>
-        <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 40px" }}>
-          <div className="kicker" style={{ marginBottom: "14px" }}>Pricing</div>
-          <h2 className="h2" style={{ marginBottom: "12px" }}>Start free. Go all-in when you&apos;re serious.</h2>
-          <p style={{ fontSize: "16px", color: "var(--muted)", margin: 0 }}>Less than a coffee a month. Cancel anytime.</p>
-        </div>
-        <div className="lp-pricing">
-          {/* Free */}
-          <div className="card" style={{ borderRadius: "18px", padding: "32px" }}>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>{freePlan.name}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
-              <span className="lp-price">{freePlan.price}</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{freePlan.cycle}</span>
+      <section id="pricing" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 07" title="Pricing" aside="Less than a coffee a month" />
+        <div className="lp-plans">
+          <div className="lp-plan">
+            <div className="lp-plan-name"><span>{freePlan.name}</span></div>
+            <div className="lp-plan-price">{freePlan.price}</div>
+            <div className="lp-plan-cycle">{freePlan.cycle}</div>
+            <p className="lp-plan-tag">{freePlan.tagline}</p>
+            <ul className="lp-plan-feats">
+              {freePlan.features.map((f) => <li key={f}>{f}</li>)}
+            </ul>
+            <div className="lp-plan-cta">
+              <Link href="/signup" className="btn btn-ghost" style={{ display: "flex", width: "100%" }}>
+                Start free
+              </Link>
             </div>
-            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
-              {freePlan.tagline}
-            </p>
-            <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
-              {freePlan.features.map((f) => (
-                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
-              ))}
-            </div>
-            <Link href="/signup" className="btn" style={{ display: "flex", width: "100%", background: "#F4F0E8", border: "1px solid #E1DACB", fontSize: "15px", padding: "13px" }}>
-              Start free
-            </Link>
           </div>
-          {/* Pro */}
-          <div style={{ background: "#fff", border: `1.5px solid ${ACCENT}`, borderRadius: "18px", padding: "32px", position: "relative", boxShadow: `0 30px 60px -34px color-mix(in oklab, ${ACCENT} 50%, transparent)` }}>
-            <span style={{ position: "absolute", top: "-12px", left: "32px", fontFamily: "var(--mono)", fontSize: "10.5px", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 600, color: "#fff", background: ACCENT, padding: "5px 12px", borderRadius: "99px" }}>
-              Most popular
-            </span>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: ACCENT, marginBottom: "12px" }}>{proPlan.name}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "2px" }}>
-              <span className="lp-price">{proPlan.price}</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{proPlan.cycle}</span>
+
+          <div className="lp-plan feat">
+            <div className="lp-plan-name">
+              <span>{proPlan.name}</span>
+              <span className="rec">Recommended</span>
             </div>
-            <div style={{ fontSize: "13px", color: "#7A7C72", marginBottom: "6px" }}>
-              or {PRO_ANNUAL_PRICE_LABEL}/year — save 45%
+            <div className="lp-plan-price">{proPlan.price}</div>
+            <div className="lp-plan-cycle">
+              per {proPlan.cycle} · or {PRO_ANNUAL_PRICE_LABEL}/year
             </div>
-            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
-              {proPlan.tagline}
-            </p>
-            <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
-              {proPlan.features.map((f) => (
-                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
-              ))}
+            <p className="lp-plan-tag">{proPlan.tagline}</p>
+            <ul className="lp-plan-feats">
+              {proPlan.features.map((f) => <li key={f}>{f}</li>)}
+            </ul>
+            <div className="lp-plan-cta">
+              <LandingProButton tier="pro" label="Get Pro" />
             </div>
-            <LandingProButton tier="pro" label="Get Pro" />
           </div>
-          {/* Exam Pass */}
-          <div className="card" style={{ borderRadius: "18px", padding: "32px" }}>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "12px" }}>{examPassPlan.name}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
-              <span className="lp-price">{examPassPlan.price}</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{examPassPlan.cycle}</span>
+
+          <div className="lp-plan">
+            <div className="lp-plan-name"><span>{examPassPlan.name}</span></div>
+            <div className="lp-plan-price">{examPassPlan.price}</div>
+            <div className="lp-plan-cycle">{examPassPlan.cycle}</div>
+            <p className="lp-plan-tag">{examPassPlan.tagline}</p>
+            <ul className="lp-plan-feats">
+              {examPassPlan.features.map((f) => <li key={f}>{f}</li>)}
+            </ul>
+            <div className="lp-plan-cta">
+              <LandingProButton tier="exam_pass" label="Get Exam Pass" filled={false} />
             </div>
-            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 22px" }}>
-              {examPassPlan.tagline}
-            </p>
-            <div style={{ display: "grid", gap: "11px", marginBottom: "26px" }}>
-              {examPassPlan.features.map((f) => (
-                <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
-              ))}
-            </div>
-            <LandingProButton tier="exam_pass" label="Get Exam Pass" filled={false} />
           </div>
         </div>
-        {/* Team */}
-        <div className="card" style={{ maxWidth: "1000px", margin: "20px auto 0", borderRadius: "18px", padding: "28px 32px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px" }}>
-          <div style={{ flex: "1 1 240px", minWidth: "220px" }}>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: "#3D403A", marginBottom: "10px" }}>
-              Prepa for Teams
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginBottom: "6px" }}>
-              <span className="lp-price">{TEAM_PLAN.price}</span>
-              <span style={{ fontSize: "15px", color: "#7A7C72" }}>/{TEAM_PLAN.cycle}</span>
-            </div>
-            <p style={{ fontSize: "14.5px", color: "var(--muted)", margin: "0 0 18px" }}>
-              {TEAM_PLAN.tagline}
-            </p>
-            <Link href="/team" className="btn" style={{ display: "inline-flex", background: "#F4F0E8", border: "1px solid #E1DACB", fontSize: "15px", padding: "13px 22px" }}>
-              Start a team
-            </Link>
+
+        <div className="lp-team">
+          <div>
+            <div className="lp-plan-name"><span>{TEAM_PLAN.name}</span></div>
+            <div className="lp-plan-price">{TEAM_PLAN.price}</div>
+            <div className="lp-plan-cycle">per {TEAM_PLAN.cycle}</div>
+            <p className="lp-plan-tag">{TEAM_PLAN.tagline}</p>
+            <Link href="/team" className="btn btn-ghost">Start a team</Link>
           </div>
-          <div style={{ flex: "2 1 320px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "11px" }}>
-            {TEAM_PLAN.features.map((f) => (
-              <div key={f} className="lp-plan-row"><span className="check">✓</span>{f}</div>
+          <ul className="lp-team-feats">
+            {TEAM_PLAN.features.map((f) => <li key={f}>{f}</li>)}
+          </ul>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="wrap lp-sec" style={{ scrollMarginTop: "80px", paddingTop: 0 }}>
+        <Folio n="№ 08" title="Questions, answered" />
+        <div className="lp-split">
+          <div className="lp-split-label">
+            <h2>The things people ask before they sign up.</h2>
+            <p>
+              Still stuck? Everything here is free to try before you decide.
+            </p>
+          </div>
+          <div className="lp-faq">
+            {faqs.map((f) => (
+              <details key={f.q}>
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="wrap" style={{ padding: "50px 24px 40px", scrollMarginTop: "80px" }}>
-        <div style={{ textAlign: "center", maxWidth: "560px", margin: "0 auto 36px" }}>
-          <div className="kicker" style={{ marginBottom: "14px" }}>FAQ</div>
-          <h2 className="h2">Questions, answered</h2>
-        </div>
-        <div className="lp-faq">
-          {faqs.map((f) => (
-            <details key={f.q}>
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      {/* FINAL CTA */}
-      <section style={{ padding: "20px 24px 64px" }}>
-        <div className="lp-cta" style={{ maxWidth: "1180px", margin: "0 auto" }}>
-          <h2 style={{ position: "relative", fontFamily: "var(--serif)", fontWeight: 500, fontSize: "clamp(30px,3.8vw,44px)", lineHeight: 1.06, letterSpacing: "-.02em", color: "#fff", margin: "0 0 16px" }}>
-            Your exam won&apos;t study for itself
+      {/* CLOSING BAND */}
+      <section className="lp-close">
+        <div className="wrap lp-close-inner">
+          <h2>
+            Your exam won&apos;t <em>study itself</em>.
           </h2>
-          <p style={{ position: "relative", fontSize: "17px", lineHeight: 1.6, color: "rgba(255,255,255,.86)", maxWidth: "46ch", margin: "0 auto 28px" }}>
-            Start with 30 free questions — each one double-checked, each one explained with a link to the source. Set up in under a minute.
-          </p>
-          <Link href="/signup" className="btn" style={{ position: "relative", background: "#fff", color: ACCENT, fontWeight: 700, fontSize: "16px", padding: "16px 30px", borderRadius: "12px", boxShadow: "0 14px 30px -12px rgba(0,0,0,.35)" }}>
-            Start practising free
-          </Link>
+          <div>
+            <p>
+              Start with 30 free questions — each one blind-checked by a second
+              model, each one explained with a link to the source. Set up in
+              under a minute.
+            </p>
+            <Link href="/signup" className="btn btn-paper">
+              Start practising free
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid var(--line)" }}>
-        <div className="wrap" style={{ padding: "30px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Logo showWordmark={false} />
-            <span style={{ fontSize: "14px", color: "#6B6D64" }}>© {new Date().getFullYear()} Prepa</span>
+      {/* COLOPHON */}
+      <footer className="rule-top">
+        <div className="wrap">
+          <div className="lp-colo">
+            <div>
+              <Link href="/" className="lp-wordmark" aria-label="Prepa home">
+                <Logo showWordmark={false} />
+                <span>Prepa</span>
+              </Link>
+              <p className="lp-colo-note">
+                Certification practice that checks its own work — every
+                multiple-choice key blind-verified, every explanation sourced.
+              </p>
+            </div>
+            <div>
+              <h4>Study</h4>
+              <Link href="/exams">Exam guides</Link>
+              <Link href="/blog">Blog</Link>
+              <Link href="/team">For teams</Link>
+              <Link href="/signup">Start free</Link>
+            </div>
+            <div>
+              <h4>Company</h4>
+              <Link href="/about">About</Link>
+              <Link href="/terms">Terms</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/refund">Refund policy</Link>
+            </div>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "22px", fontSize: "14px" }}>
-            <Link href="/exams" style={{ color: "#6B6D64" }}>Exam Guides</Link>
-            <Link href="/blog" style={{ color: "#6B6D64" }}>Blog</Link>
-            <Link href="/terms" style={{ color: "#6B6D64" }}>Terms</Link>
-            <Link href="/privacy" style={{ color: "#6B6D64" }}>Privacy</Link>
-            <Link href="/refund" style={{ color: "#6B6D64" }}>Refund</Link>
-            <Link href="/login" style={{ color: "#6B6D64" }}>Sign in</Link>
+          <div className="lp-colo-base">
+            <span>© {new Date().getFullYear()} Prepa</span>
+            <span>Set in Newsreader &amp; Spline Sans Mono</span>
+            <Link href="/login" style={{ color: "inherit" }}>Sign in</Link>
           </div>
         </div>
       </footer>
