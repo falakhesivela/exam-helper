@@ -15,7 +15,8 @@ export interface GenerationProgressHandlers {
     focusTopics?: string[];
   }) => void;
   onQuestionPreview?: (index: number, preview: { topic?: string }) => void;
-  onQuestion?: (index: number) => void;
+  /** Number of questions finished so far — not an index. */
+  onQuestion?: (completedCount: number) => void;
   onReady?: (session: PracticeSession) => void;
   onDone?: (session: PracticeSession) => void;
   onError?: (error: Error) => void;
@@ -136,24 +137,26 @@ function wireSseHandlers(
         const { index, topic } = data as { index: number; topic?: string };
         handlers?.onQuestionPreview?.(index, { topic });
       } else if (event === "question") {
-        const { sessionId, index } = data as {
+        const { sessionId, index, completed } = data as {
           sessionId?: string;
           index: number;
+          completed?: number;
         };
+        // `index` is the question's final position in the session. Positions
+        // are reserved up front and filled out of order, so only `completed`
+        // counts progress; `index + 1` is the pre-`completed` fallback.
+        const done = completed ?? index + 1;
         set((state) => ({
           active: state.active
             ? {
                 ...state.active,
-                completedCount: Math.max(
-                  state.active.completedCount,
-                  index + 1,
-                ),
+                completedCount: Math.max(state.active.completedCount, done),
               }
             : state.active,
         }));
         const sid = sessionId ?? get().active?.sessionId;
         if (sid) refreshSession(sid);
-        handlers?.onQuestion?.(index);
+        handlers?.onQuestion?.(done);
       } else if (event === "ready") {
         const { sessionId, session } = data as {
           sessionId: string;

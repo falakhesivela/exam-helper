@@ -515,8 +515,8 @@ export function IntakeForm({
               });
             }
           },
-          onQuestion: (index) => {
-            setCompletedQuestions(index + 1);
+          onQuestion: (completedCount) => {
+            setCompletedQuestions(completedCount);
           },
           onReady: (session) => {
             try {
